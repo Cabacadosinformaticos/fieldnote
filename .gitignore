@@ -1,0 +1,51 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+.expo/
+*.log
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Mobile builds
+*.apk
+*.aab
+*.ipa
+
+# Local data volumes
+data/
+volumes/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Agent tooling
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/
+.mcp.json
+
+# Diagram sources stay outside the repository (DR-18); only SVG and PNG exports are published
+Fieldnote/04_Documentacao_Tecnica/diagrams/*.mmd
+Fieldnote/04_Documentacao_Tecnica/diagrams/*.puml
+Fieldnote/04_Documentacao_Tecnica/diagrams/*.py
