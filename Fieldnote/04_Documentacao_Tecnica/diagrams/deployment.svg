@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="1060" viewBox="0 0 1720 1060">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3B4A6B"/></marker></defs>
+<rect width="1720" height="1060" fill="#FFFFFF"/>
+<text x="860.0" y="30.0" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Figure 4. Deployment on one Docker host split into three logical nodes</text>
+<rect x="20" y="150" width="200" height="250" rx="6" fill="#FAFAFA" stroke="#6B7488" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="120" y="167.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Team devices</text>
+<text x="120" y="183.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#26324A">on the Tailscale network</text>
+<rect x="40.0" y="222.0" width="160" height="56" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="120" y="241.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Participant app</text>
+<text x="120" y="258.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">(phone)</text>
+<rect x="40.0" y="307.0" width="160" height="56" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="120" y="326.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Dashboard</text>
+<text x="120" y="343.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">(browser)</text>
+<rect x="260" y="60" width="1445" height="980" rx="6" fill="#FBFCFE" stroke="#3B4A6B" stroke-width="2"/>
+<text x="982" y="82.0" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Docker host: VM on the team server, or a laptop as fallback</text>
+<text x="345" y="306.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">HTTPS over Tailscale</text>
+<text x="345" y="322.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">to gateway 1,</text>
+<text x="345" y="338.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">or to gateway 2</text>
+<text x="345" y="354.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">if gateway 1 fails</text>
+<rect x="455.0" y="105" width="390" height="810" rx="10" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.8"/>
+<text x="650" y="130.0" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Logical node 1</text>
+<rect x="875.0" y="105" width="390" height="810" rx="10" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.8"/>
+<text x="1070" y="130.0" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Logical node 2</text>
+<rect x="1295.0" y="105" width="390" height="810" rx="10" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.8"/>
+<text x="1490" y="130.0" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#26324A">Logical node 3</text>
+<rect x="525.0" y="167.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="190.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">tailscale-1 + traefik-1</text>
+<rect x="525.0" y="297.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="320.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">api-1</text>
+<rect x="525.0" y="377.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="400.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">scheduler-1 (leader)</text>
+<rect x="525.0" y="462.0" width="250" height="56" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="481.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">patroni-1</text>
+<text x="650" y="498.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">PostgreSQL primary</text>
+<rect x="525.0" y="577.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="600.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">etcd-1</text>
+<rect x="525.0" y="667.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="690.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">rabbitmq-1</text>
+<rect x="525.0" y="757.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">garage-1</text>
+<rect x="945.0" y="167.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="190.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">tailscale-2 + traefik-2</text>
+<rect x="945.0" y="297.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="320.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">api-2</text>
+<rect x="945.0" y="372.0" width="250" height="56" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="391.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">scheduler-2 (standby)</text>
+<text x="1070" y="408.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">media-worker-2</text>
+<rect x="945.0" y="462.0" width="250" height="56" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="481.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">patroni-2</text>
+<text x="1070" y="498.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">synchronous replica</text>
+<rect x="945.0" y="577.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="600.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">etcd-2</text>
+<rect x="945.0" y="667.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="690.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">rabbitmq-2</text>
+<rect x="945.0" y="757.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">garage-2</text>
+<rect x="1365.0" y="297.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="320.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">api-3</text>
+<rect x="1365.0" y="377.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="400.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">media-worker-3</text>
+<rect x="1365.0" y="462.0" width="250" height="56" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="481.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">patroni-3</text>
+<text x="1490" y="498.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">asynchronous replica</text>
+<rect x="1365.0" y="577.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="600.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">etcd-3</text>
+<rect x="1365.0" y="667.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="690.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">rabbitmq-3</text>
+<rect x="1365.0" y="757.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">garage-3</text>
+<rect x="1365.0" y="837.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">prometheus + grafana</text>
+<path d="M 220 230 L 300 230 L 300 196 L 523 196" fill="none" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M 220 215 L 285 215 L 285 158 L 920 158 L 920 182 L 943 182" fill="none" stroke="#3B4A6B" stroke-width="1.6" stroke-dasharray="7,5" marker-end="url(#arrow)"/>
+<line x1="650" y1="262" x2="1490" y2="262" stroke="#3B4A6B" stroke-width="1.6"/>
+<line x1="650" y1="213" x2="650" y2="262" stroke="#3B4A6B" stroke-width="1.6"/>
+<line x1="1070" y1="213" x2="1070" y2="262" stroke="#3B4A6B" stroke-width="1.6"/>
+<line x1="650" y1="262" x2="650" y2="296" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="1070" y1="262" x2="1070" y2="296" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="1490" y1="262" x2="1490" y2="296" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="1320.5" y="237" width="299" height="18" fill="#FBFCFE"/>
+<text x="1470" y="246.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">load balancing across api-1, api-2, api-3</text>
+<line x1="775" y1="490" x2="945" y2="490" stroke="#3B4A6B" stroke-width="2.6" marker-end="url(#arrow)"/>
+<rect x="826.0" y="465" width="68" height="18" fill="#FBFCFE"/>
+<text x="860.0" y="474.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">sync WAL</text>
+<path d="M 650 519 C 650 560, 1490 560, 1490 521" fill="none" stroke="#3B4A6B" stroke-width="1.6" stroke-dasharray="7,5" marker-end="url(#arrow)"/>
+<rect x="1032.5" y="541" width="75" height="18" fill="#FBFCFE"/>
+<text x="1070" y="550.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">async WAL</text>
+<line x1="775" y1="600" x2="945" y2="600" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<rect x="840.0" y="575" width="40" height="18" fill="#FBFCFE"/>
+<text x="860.0" y="584.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">Raft</text>
+<line x1="1195" y1="600" x2="1365" y2="600" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<rect x="1260.0" y="575" width="40" height="18" fill="#FBFCFE"/>
+<text x="1280.0" y="584.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">Raft</text>
+<line x1="775" y1="690" x2="945" y2="690" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<rect x="808.5" y="665" width="103" height="18" fill="#FBFCFE"/>
+<text x="860.0" y="674.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">quorum queues</text>
+<line x1="1195" y1="690" x2="1365" y2="690" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<rect x="1228.5" y="665" width="103" height="18" fill="#FBFCFE"/>
+<text x="1280.0" y="674.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">quorum queues</text>
+<line x1="775" y1="780" x2="945" y2="780" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<rect x="780.5" y="755" width="159" height="18" fill="#FBFCFE"/>
+<text x="860.0" y="764.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">3 copies of each file</text>
+<line x1="1195" y1="780" x2="1365" y2="780" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<rect x="1200.5" y="755" width="159" height="18" fill="#FBFCFE"/>
+<text x="1280.0" y="764.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">3 copies of each file</text>
+<rect x="280" y="935" width="1405" height="85" rx="6" fill="#FFFFFF" stroke="#6B7488" stroke-width="1.5"/>
+<rect x="300" y="952" width="22" height="14" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="330" y="959.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">stateful service, one cluster member per node</text>
+<rect x="300" y="984" width="22" height="14" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="330" y="991.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">stateless service</text>
+<text x="760" y="959.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Networks: "edge" joins the gateways and the APIs; "cluster" joins every container of the three nodes.</text>
+<text x="760" y="991.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Failure unit: one logical node. Stopping its containers simulates a machine loss; cutting them from "cluster", a partition.</text>
+</svg>
