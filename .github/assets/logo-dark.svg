@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="120" viewBox="0 0 520 120" role="img" aria-label="Fieldnote">
+  <title>Fieldnote</title>
+  <!-- notebook -->
+  <rect x="14" y="14" width="76" height="92" rx="10" fill="#2F5BEA"/>
+  <rect x="14" y="14" width="16" height="92" rx="6" fill="#1E3FB0"/>
+  <line x1="42" y1="40" x2="78" y2="40" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+  <line x1="42" y1="56" x2="70" y2="56" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+  <!-- location pin -->
+  <path d="M66 66c-9.4 0-17 7.2-17 16.2C49 94 66 108 66 108s17-14 17-25.8C83 73.2 75.4 66 66 66z" fill="#FFB020" stroke="#FFFFFF" stroke-width="3"/>
+  <circle cx="66" cy="82" r="5.5" fill="#FFFFFF"/>
+  <!-- wordmark -->
+  <text x="112" y="72" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="54" font-weight="700" fill="#F2F4F8" letter-spacing="-1">Fieldnote</text>
+  <text x="114" y="100" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#A9B1C2">mobile ethnography and diary studies</text>
+</svg>
