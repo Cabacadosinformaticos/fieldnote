@@ -26,8 +26,8 @@ The results and reflection sections will be written as the work progresses.
 
 | Full name | Student number | Degree | Curricular year | Institutional contact |
 |---|---|---|---|---|
-| Tiago Manuel Antunes Cabaça | 20241185 | Computer Engineering | 3rd | To be added |
-| César de Oliveira Rodrigues | 20240449 | Computer Engineering | 3rd | To be added |
+| Tiago Manuel Antunes Cabaça | 20241185 | Computer Engineering | 3rd | 20241185@iade.pt |
+| César de Oliveira Rodrigues | 20240449 | Computer Engineering | 3rd | 20240449@iade.pt |
 
 ## Summary
 

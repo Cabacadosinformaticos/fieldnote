@@ -39,8 +39,8 @@ IADE, Universidade Europeia
 
 | Full name | Student number | Degree | Year | Institutional contact |
 |---|---|---|---|---|
-| Tiago Manuel Antunes Cabaça | 20241185 | Computer Engineering | 3rd | To be added |
-| César de Oliveira Rodrigues | 20240449 | Computer Engineering | 3rd | To be added |
+| Tiago Manuel Antunes Cabaça | 20241185 | Computer Engineering | 3rd | 20241185@iade.pt |
+| César de Oliveira Rodrigues | 20240449 | Computer Engineering | 3rd | 20240449@iade.pt |
 
 ## Keywords
 
