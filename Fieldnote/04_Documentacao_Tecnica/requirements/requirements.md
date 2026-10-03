@@ -239,3 +239,42 @@ give say "proposed here" and have to be confirmed.
 | NFR-65 | Every service shall take its configuration from environment variables and secrets, with no host address written in code. | Should | ARCH: Deployment; SEC: Secrets and the public repository | Inspection |
 | NFR-66 | Database changes shall be versioned migrations applied by a command. | Should | DM: status note (tables change during implementation) | Inspection |
 | NFR-67 | The repository shall include automated unit and integration tests, the failure scripts and the load generator, each runnable with a documented command. | Should | SEC: How the measures will be verified; FM: Demonstration scenarios | Inspection |
+
+### Declared limitations
+
+These are outside the guarantees and are not requirements.
+
+| Limitation | Source |
+|---|---|
+| The Docker host, its daemon, disk, power and Internet link are a single point of failure. The Garage zones share that host. | FM: Single points of failure |
+| Packet loss, latency, Byzantine failures and partitions other than one node against two are not tested. | FM: Guarantees; ARCH: Networks |
+| Entries still in the app queue are lost if the app is uninstalled before they are sent. The queue is not encrypted. | FM: What can be lost or repeated; SEC: Residual risks |
+| Faces and voices in media are not blurred. The data is pseudonymous, not anonymous. | SEC: Residual risks; R08 |
+| Push notifications are best effort. | ARCH: Notifications with a fallback |
+| Incident response and the 72-hour notification duty are outside the project. | SEC: Residual risks |
+
+## Development requirements and constraints
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| DR-01 | Mobile app: React Native with Expo, TypeScript, SQLite for the offline queue. | Must | ARCH: Components; MEM: Technologies | Inspection |
+| DR-02 | Dashboard: React with Vite, TypeScript. | Must | ARCH: Components; MEM: Technologies | Inspection |
+| DR-03 | Backend: Python 3.12 with FastAPI, using psycopg 3 as the database driver so that multi-host connection strings with `target_session_attrs` are supported. | Must | ARCH: Components, Database connections | Inspection, test |
+| DR-04 | Data services: PostgreSQL 17 with Patroni and etcd, RabbitMQ with quorum queues, Garage as S3-compatible storage. | Must | ARCH: Components | Inspection |
+| DR-05 | Other services: Traefik and Tailscale for access, ffmpeg in the media worker, Expo Push for notifications, Prometheus and Grafana for monitoring. | Must | ARCH: Components | Inspection |
+| DR-06 | The technology stack is a proposal and shall be validated by the lecturers of Projeto de Desenvolvimento de Software and Sistemas Distribuídos. The decision to use three logical nodes on one host also depends on the Distributed Systems lecturer. | Must | MEM: Technologies; R08: Open questions | Inspection |
+| DR-07 | The scheduler shall implement node consistency, AC-3, backtracking search with MRV and LCV, forward checking and a trail itself, without a solver library. Branch and bound is optional and decided during implementation. | Must | SCH: Algorithm; MEM: Summary | Inspection |
+| DR-08 | The scheduler evaluation shall use generated studies of 10, 50 and 100 participants with a recorded seed, a fixed node budget instead of the wall-clock limit, the baseline of identical hours for all participants and the ablation in five variants (plain backtracking, plus forward checking, plus MRV, plus LCV, plus AC-3). | Must | SCH: Evaluation, Ablation study | Test |
+| DR-09 | The stack shall be started with Docker Compose on the server and on a laptop. | Must | ARCH: Deployment; MEM: Tools | Demonstration |
+| DR-10 | The source code shall be in a public GitHub repository that contains no secrets, with GitHub secret scanning and push protection enabled. | Must | SEC: Secrets and the public repository; BRF | Inspection |
+| DR-11 | The documentation shall follow the archive structure required by the course: `00_Identificacao`, `01_Memoria_Descritiva`, `02_Imagens`, `03_Videos`, `04_Documentacao_Tecnica`, `05_Artefactos`, `06_Dados_Investigacao` and `07_Autorizacoes`. Folder and file names are in Portuguese and the content is in English. | Must | BRF; Fieldnote project note | Inspection |
+| DR-12 | The work shall be planned in a GitHub Project with issues that have an owner, a start date, a target date, a priority, an effort estimate and an area (infrastructure, backend, mobile app, dashboard, scheduler, security, documentation), and with one milestone for each of the four deliveries (pitch, first, second, final). | Must | MEM: Methodology | Inspection |
+| DR-13 | Every code change shall go through a pull request reviewed by the other team member. | Should | MEM: Methodology | Inspection |
+| DR-14 | The mobile app shall be tested on Android with Expo Go and Android devices of the team. | Must | MEM: Tools, Limitations | Demonstration |
+| DR-15 | The failure scenarios shall be run by scripts in `infra/chaos/` while a load generator sends entries. Each script records the time to detection, the time to recovery, failed requests and lost entries. | Must | FM: Demonstration scenarios | Demonstration |
+| DR-16 | The seven security tests of the security design shall be automated: no cross-study access for researchers, no cross-participant access, revoked token on every replica, expired signed URL, no coordinates in exported media, rate limits under load, and an export with no options. | Must | SEC: How the measures will be verified | Test |
+| DR-17 | The demonstration and the tests shall use generated data. No personal data of real participants is processed during the course. | Must | SEC: Why security shapes the design; R00 | Inspection |
+| DR-18 | Every diagram shall keep its editable source (Mermaid, PlantUML or Python) in the team's documentation workspace, outside the repository, and the repository shall hold only the SVG and PNG exports. PNG exports shall be at least 3000 px on the long side. | Should | Fieldnote project note; Atlas rules | Inspection |
+| DR-19 | Documentation shall be written in Atlas first and published to the repository as a snapshot. Technical documentation shall state its status (proposed, implemented, verified). | Should | Atlas rules | Inspection |
+| DR-20 | The final delivery shall include a one-page data protection summary for ethics committees that states where data is stored, who can see it, how long it is kept and how it is erased. | Should | SEC: Consent and ethics review; R06 | Inspection |
+| DR-21 | The descriptive report shall be updated with the results of the failure tests and the scheduler evaluation as they exist. | Must | MEM; BRF | Inspection |
