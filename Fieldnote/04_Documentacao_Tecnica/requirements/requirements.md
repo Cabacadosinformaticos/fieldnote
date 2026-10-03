@@ -135,3 +135,107 @@ give say "proposed here" and have to be confirmed.
 | FR-66 | The system shall let a researcher include location, media files or identity in an export only by choosing each option explicitly. | Should | SEC: Pseudonymisation and the identity table | Test |
 | FR-67 | The system shall write every export to the audit log with the content the researcher chose. | Must | SEC: Threat model (repudiation) | Test |
 | FR-68 | The system shall record in `audit_log`, with the type of actor (user, participant or system), logins, exports, issued media URLs, reads of `participant_identity`, changes to studies, erasures and system jobs. | Must | SEC: Audit log; DM: `audit_log` | Test |
+
+## Non-functional requirements
+
+### Availability and fault tolerance
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| NFR-01 | The system shall keep receiving entries, serving the researcher dashboard and delivering scheduled activities after the loss of any one of the three logical nodes (f = 1). | Must | FM: Guarantees; R05 | Test, demonstration |
+| NFR-02 | When two logical nodes are down, the system shall stop accepting writes and shall never accept inconsistent writes. The app shall keep recording into its local queue and send the entries when a quorum is back. | Must | FM: Guarantees; R05, R08 (consistency over availability) | Test |
+| NFR-03 | The system shall not lose any entry that the API has confirmed when one logical node fails (recovery point objective of zero). | Must | FM: Guarantees; R05 | Test, demonstration |
+| NFR-04 | The system shall detect and route around a failed API replica in under 5 s, using a `/health` check every 2 s with a 1 s timeout. `/health` shall fail when the replica cannot write to the database or reach the broker. | Must | FM: Recovery time targets; ARCH: How each layer tolerates failure | Test |
+| NFR-05 | Docker shall restart a crashed container of any service. | Must | FM: Guarantees; ARCH: How each layer tolerates failure | Test |
+| NFR-06 | The system shall serve clients through two gateways, and a client that fails a request on one gateway shall switch to the other in under 5 s. | Must | FM: Recovery time targets, scenario 10; ARCH: Deployment | Test |
+| NFR-07 | The system shall transfer the scheduler to the standby in under 20 s after the leader fails. | Must | FM: Recovery time targets, scenario 11; SCH: Running the scheduler with two replicas | Test |
+| NFR-08 | The system shall promote the synchronous database replica within 45 s after the primary fails, with no confirmed entry lost. The value is a target to be tuned and measured. | Must | FM: Recovery time targets | Test, demonstration |
+| NFR-09 | When the synchronous database replica fails, the system shall pause writes for a few seconds and then continue with the other replica as synchronous. | Must | FM: Recovery time targets | Test |
+| NFR-10 | A failed broker node or object storage node shall cause no interruption, because the remaining two members keep the quorum, and an upload in progress shall complete. | Must | FM: Recovery time targets | Test |
+| NFR-11 | When one node is cut off from the `cluster` network, the isolated node shall stop serving requests, the other two nodes shall keep accepting writes and the node shall resynchronise when it reconnects. | Must | FM: Demonstration scenarios; ARCH: Networks | Test |
+| NFR-12 | After a media job fails 5 times, the broker shall move it to a dead-letter queue and the media object shall be marked `failed`. The original file is kept. | Must | FM: What can be lost or repeated | Test |
+| NFR-13 | The system shall make a daily `pg_dump` and a copy of the object storage bucket, encrypt them on the host with a public key whose private key is kept off the host, send them to another machine and keep them for 7 days. | Must | FM: Single points of failure; SEC: Erasure, retention and backups | Test, inspection |
+| NFR-14 | A restore of the latest backup on a clean stack shall bring back the database and the files of the backup day, with matching counts of entries and files. | Must | FM: Demonstration scenarios | Test, demonstration |
+| NFR-15 | The system shall expose metrics to Prometheus and show them in Grafana, with alerts, during the failure demonstration. The loss of monitoring shall not affect the service. | Should | FM: Single points of failure; ARCH: Components | Demonstration |
+
+### Consistency
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| NFR-16 | The database shall run with one primary, one synchronous replica and one asynchronous replica, with Patroni `synchronous_mode: true` and `synchronous_mode_strict: true`, so that a failover only promotes a replica recorded as synchronous. | Must | ARCH: Synchronous replication; R05 | Inspection, test |
+| NFR-17 | The API shall set no timeout that can cancel the wait for the synchronous replica and shall report any outcome other than a successful commit to the app as a failure. | Must | ARCH: Synchronous replication; R05 | Inspection, test |
+| NFR-18 | Object storage shall confirm a write after 2 of 3 copies, with each logical node as its own zone, so that the 3 copies of a file are on 3 logical nodes. | Must | ARCH: Components | Inspection, test |
+| NFR-19 | RabbitMQ shall use quorum queues, the relay shall use publisher confirms and consumers shall ignore event ids they have already processed. | Must | ARCH: Transactional outbox, How each layer tolerates failure | Test |
+| NFR-20 | The API shall connect to the database with a host list and `target_session_attrs=read-write`, a 3 s connect timeout and a connection pool that checks connections before use, and shall retry a failed transaction up to 3 times. | Must | ARCH: Database connections | Test |
+| NFR-21 | A database primary cut off from etcd shall demote itself to read-only when its leader key expires. | Should | ARCH: Database connections; FM: Guarantees | Test |
+| NFR-22 | Only one scheduler replica shall plan and send at a time. The leader shall renew its lease row every 5 s, a lease not renewed for 15 s may be taken by the standby, and the leader shall stop sending when a database call fails. | Must | SCH: Running the scheduler with two replicas | Test |
+| NFR-23 | `prompt` shall have a unique key on participant, activity, plan date and occurrence, so that a failover does not plan or send the same prompt twice. | Must | DM: Design notes | Test |
+| NFR-24 | The system shall deliver messages at least once and store results exactly once. The relay shall claim events with `SELECT ... FOR UPDATE SKIP LOCKED` and delete published events after 7 days. | Should | ARCH: Transactional outbox, Client-generated identifiers | Test |
+
+### Performance and load
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| NFR-25 | The scheduler shall return a plan within 10 s per study for studies of up to 100 participants, and the run shall record whether it finished or was cut. | Must | SCH: Algorithm, Evaluation | Test |
+| NFR-26 | No plan returned by the scheduler shall violate a hard constraint. The evaluation shall report prompts left unplanned, nodes expanded, backtracks, load spread and soft score for each study size. | Must | SCH: Evaluation, Ablation study | Test |
+| NFR-27 | The system shall accept the burst of entries with photos, audio or video of several MB that follows an activity sent to all participants of a study, without losing a confirmed entry. | Must | ARCH: Why the system is distributed; R04 | Test |
+| NFR-28 | The system shall run several studies at the same time, with up to 100 participants in one study. The target of 3 studies at once is proposed here and has to be confirmed. | Must | BRF; R00 (several studies at once) | Test |
+| NFR-29 | Media files shall travel between the phone and object storage without passing through the API. | Must | ARCH: File first, metadata second; SEC: Media files | Inspection |
+| NFR-30 | The API shall confirm an entry without waiting for media processing, which runs asynchronously in the media worker. | Should | ARCH: Components, Transactional outbox | Test |
+| NFR-31 | The dashboard shall show a confirmed entry within 5 s under normal operation. The value is proposed here and has to be validated by a load test. | Should | BRF (real time); ARCH: Real time | Test |
+| NFR-32 | The API shall send a comment line on each server-sent event connection every 20 s, with `Cache-Control: no-store` and no compression. A dashboard that loses its connection shall reconnect after a random delay of 1 to 5 s and reload the entries received since the last one it showed, removing duplicates by entry id. | Must | ARCH: Real time | Test |
+
+### Security and privacy
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| NFR-33 | The system shall store passwords as Argon2id hashes with at least 19 MiB of memory, 2 iterations and parallelism 1. | Must | SEC: Researcher and administrator authentication | Inspection, test |
+| NFR-34 | The system shall issue access tokens valid for 15 minutes and refresh tokens that change on every use, are stored as hashes and are grouped by family. Presenting a superseded refresh token shall revoke the whole family. | Must | SEC: Researcher and administrator authentication | Test |
+| NFR-35 | The dashboard shall keep the refresh token in an `HttpOnly`, `Secure`, `SameSite=Strict` cookie and the access token only in memory. | Must | SEC: Researcher and administrator authentication | Inspection, test |
+| NFR-36 | The system shall apply a progressive delay and then a temporary lockout after repeated failed logins, return the same error for an unknown email and a wrong password, and run a dummy Argon2id verification for an unknown email. | Must | SEC: Researcher and administrator authentication | Test |
+| NFR-37 | The system shall require TOTP for administrator accounts. | Must | SEC: Researcher and administrator authentication | Test |
+| NFR-38 | The system shall check the user's role and membership of the study on every request, and a participant shall read only their own entries. | Must | SEC: Authorisation, Threat model | Test |
+| NFR-39 | The system shall compare invite codes, device tokens and refresh tokens in constant time. | Should | SEC: Participant credentials | Inspection |
+| NFR-40 | Signed URLs for media shall be valid for 10 minutes and for one object, and shall sign the maximum size and the content type so that object storage enforces them. | Must | SEC: Media files; ARCH: File first, metadata second | Test |
+| NFR-41 | Traefik shall log the `/media` route without the query string, and media files shall be served with their content type, checked by the media worker, and `X-Content-Type-Options: nosniff`, so that the dashboard shows and plays them inline. Downloads and exports shall use `Content-Disposition: attachment`. | Must | SEC: Media files | Inspection, test |
+| NFR-42 | The system shall keep names and emails only in `participant_identity`. Researchers shall see aliases by default, and one person in two studies shall be two unrelated participant rows. | Must | DM: Participant identity; SEC: Principles; R06 | Inspection, test |
+| NFR-43 | The services shall write to `audit_log` with a database role that has `INSERT` and no `UPDATE` or `DELETE`. The log shall survive the erasure of a participant with pseudonymous identifiers only. | Must | SEC: Audit log | Test, inspection |
+| NFR-44 | An erasure shall reach the three database nodes and the three copies of every file. Data in backups shall leave them within 7 days, and the consent text shall say so. | Must | SEC: Erasure, retention and backups | Test, inspection |
+| NFR-45 | No port shall be open to the Internet. Clients shall reach the gateways through Tailscale with HTTPS on top, and the `cluster` network shall not be published on the host. The database, etcd and RabbitMQ shall not be on the `edge` network. | Must | SEC: Network access and transport; ARCH: Networks | Inspection, test |
+| NFR-46 | Traefik shall apply rate limits per IP address, and the API shall throttle logins per account. | Must | SEC: Network access and transport | Test |
+| NFR-47 | Signing keys and the passwords for the database, RabbitMQ and Garage shall be Docker Compose secrets and never committed. The repository shall hold `.env.example` without values, and GitHub secret scanning with push protection shall be enabled. | Must | SEC: Secrets and the public repository | Inspection |
+| NFR-48 | Each service shall have its own credentials with only the permissions it needs: the media worker shall not read identities, accounts or text entries, the scheduler shall not access files or identities, and the API shall not change or delete the audit log. | Must | SEC: Service privileges and container hardening | Test, inspection |
+| NFR-49 | Containers shall run as non-root users, drop all Linux capabilities, never run privileged, use read-only file systems where possible and use images pinned by digest. | Should | SEC: Service privileges and container hardening | Inspection |
+| NFR-50 | The repository shall report vulnerable dependencies with Dependabot, `pip-audit` and `npm audit`. | Should | SEC: Service privileges and container hardening | Inspection |
+| NFR-51 | All database queries shall be parameterised, participant text shall be shown as text and never as HTML, and the dashboard shall send a restrictive Content-Security-Policy header. | Must | SEC: Web application and notifications | Test, inspection |
+| NFR-52 | Push and local notification texts shall carry no participant data and say only that a new activity is available. | Must | SEC: Web application and notifications | Inspection, test |
+| NFR-53 | The system shall apply encryption at rest. The mechanism is under analysis with the Security course: encrypted volumes on the host, and application-level encryption of the identity table. | Could | SEC: Encryption at rest | Inspection |
+
+### Usability and language
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| NFR-54 | The dashboard shall be in Portuguese, the language of the researchers it is designed for (UNIDCOM framing) and of the mockups. | Must | UNIDCOM framing (R00); mockups | Inspection |
+| NFR-55 | The dashboard should also be available in English, for researchers who do not read Portuguese. | Should | R00; open question on languages (R08) | Inspection |
+| NFR-56 | The dashboard shall not show infrastructure terms to researchers. Failures of the distributed system are visible through monitoring. | Should | UNIDCOM framing (R00) | Inspection |
+| NFR-57 | The system shall let participants use the app without an email address or password. | Must | DM: Participant identity; SEC: Principles | Inspection |
+| NFR-58 | The dashboard shall show times of day in the study's time zone. | Should | SCH: Formulation; DM: Design notes | Test |
+
+### Portability and deployment
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| NFR-59 | The whole stack shall run with Docker Compose on one Docker host, a virtual machine, and on a laptop with Docker Desktop. | Must | ARCH: Deployment | Demonstration |
+| NFR-60 | The Compose project shall group the services into three logical nodes by Compose profile, each with its own containers, volumes and one member of every cluster, so that each node can later move to its own machine. | Must | ARCH: Deployment | Inspection, test |
+| NFR-61 | Cluster members shall find each other by Compose service name, never by IP address. | Must | ARCH: Deployment | Inspection |
+| NFR-62 | The stack shall start with one command on another machine from a fresh bootstrap with generated demonstration data, without copying the volumes of the server. | Should | ARCH: Deployment; FM: Single points of failure | Demonstration |
+| NFR-63 | The participant app shall run on Android phones. Other platforms are outside the test scope. | Must | MEM: Limitations; ARCH: Components | Test, demonstration |
+| NFR-64 | The dashboard shall run in a current desktop browser and be served by the API replicas. | Must | ARCH: Components | Demonstration |
+
+### Maintainability
+
+| ID | Requirement | Priority | Source | Verification |
+|---|---|---|---|---|
+| NFR-65 | Every service shall take its configuration from environment variables and secrets, with no host address written in code. | Should | ARCH: Deployment; SEC: Secrets and the public repository | Inspection |
+| NFR-66 | Database changes shall be versioned migrations applied by a command. | Should | DM: status note (tables change during implementation) | Inspection |
+| NFR-67 | The repository shall include automated unit and integration tests, the failure scripts and the load generator, each runnable with a documented command. | Should | SEC: How the measures will be verified; FM: Demonstration scenarios | Inspection |
