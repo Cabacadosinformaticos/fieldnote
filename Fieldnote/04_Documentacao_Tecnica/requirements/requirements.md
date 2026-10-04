@@ -278,3 +278,178 @@ These are outside the guarantees and are not requirements.
 | DR-19 | Documentation shall be written in Atlas first and published to the repository as a snapshot. Technical documentation shall state its status (proposed, implemented, verified). | Should | Atlas rules | Inspection |
 | DR-20 | The final delivery shall include a one-page data protection summary for ethics committees that states where data is stored, who can see it, how long it is kept and how it is erased. | Should | SEC: Consent and ethics review; R06 | Inspection |
 | DR-21 | The descriptive report shall be updated with the results of the failure tests and the scheduler evaluation as they exist. | Must | MEM; BRF | Inspection |
+
+## Traceability matrix
+
+Columns: requirement, use cases of the use case diagram, design document and section, planned
+verification, area of the GitHub Project "Fieldnote - Master Plan" and status. "None" in the use case
+column marks a cross-cutting requirement with no single use case.
+
+| ID | Use cases | Design section | Planned verification | Issue area | Status |
+|---|---|---|---|---|---|
+| FR-01 | UC1 | SEC: Participant credentials; DM: Participant identity | IT: join with valid, used, expired and wrong codes; ST-6 for the attempt limit | mobile app, backend | Proposed |
+| FR-02 | UC1 | SEC: Participant credentials | IT: token stored as hash only; INS of secure storage use | mobile app, security | Proposed |
+| FR-03 | UC1, UC2 | SEC: Consent and ethics review; DM: `consent` | IT: no prompt is delivered before a `consent` row exists | mobile app, backend | Proposed |
+| FR-04 | UC1, UC2 | ARCH: Language; DM: `participant` | UT: every string key exists in both languages; INS of both consent texts | mobile app | Proposed |
+| FR-05 | UC3 | SCH: Formulation, Replanning during the day; DM: `availability` | IT: availability changes the domains of the next plan | mobile app, backend | Proposed |
+| FR-06 | UC4 | ARCH: Components, Notifications with a fallback | DEMO: push received on an Android phone; SE for delivery delay | mobile app, scheduler | Proposed |
+| FR-07 | UC4 | ARCH: Notifications with a fallback | IT: with push disabled, a pending prompt appears on app open | mobile app, backend | Proposed |
+| FR-08 | UC4 | ARCH: Notifications with a fallback | DEMO on Android: airplane mode with a planned prompt; one notification per prompt | mobile app | Proposed |
+| FR-09 | UC5 | DM: `activity`, `entry` | IT and E2E: one entry of each type | mobile app | Proposed |
+| FR-10 | UC5 | ARCH: File first, metadata second | UT: recording stops at 120 s | mobile app | Proposed |
+| FR-11 | UC5, UC6 | DM: Design notes | IT: a queued entry keeps its `recorded_at` after a late resend | mobile app, backend | Proposed |
+| FR-12 | UC5b | SEC: Principles; DM: `activity` | IT: no coordinates stored for an activity without the location flag | mobile app, backend | Proposed |
+| FR-13 | UC5 | DM: Design notes (`entry.activity_id`) | IT: free entry accepted up to the cap and refused beyond it | backend, mobile app | Proposed |
+| FR-14 | UC5, UC6 | ARCH: Client-generated identifiers | UT: hash is stable for equal content | mobile app | Proposed |
+| FR-15 | UC6 | ARCH: How each layer tolerates failure (Client) | FS-8 | mobile app | Proposed |
+| FR-16 | UC6 | ARCH: Client-generated identifiers | FS-1, FS-8 | mobile app, backend | Proposed |
+| FR-17 | UC5, UC6 | ARCH: File first, metadata second | IT: upload with an expired URL, then with a new one; FS-5 | mobile app, backend | Proposed |
+| FR-18 | UC6 | FM: What can be lost or repeated | DEMO: three entries in airplane mode (FS-8) | mobile app | Proposed |
+| FR-19 | UC4 | DM: Design notes; SCH: Evaluation | IT: both timestamps stored; SE delivery delay | mobile app, backend | Proposed |
+| FR-20 | UC7 | SEC: Authorisation | ST-2 | mobile app, backend | Proposed |
+| FR-21 | UC4, UC5 | SEC: Consent and ethics review | INS: activity screen shows the instruction text | mobile app | Proposed |
+| FR-22 | UC8 | SCH: Formulation; DM: `study` | IT: study created and values stored; E2E dashboard flow | dashboard, backend | Proposed |
+| FR-23 | UC8 | DM: `study_member` | IT; ST-1 for the access check | dashboard, backend | Proposed |
+| FR-24 | UC9 | DM: `activity` | IT and E2E: activity with each combination of options | dashboard, backend | Proposed |
+| FR-25 | UC9, UC9b | SCH: Formulation; DM: Design notes | IT: values reach the scheduler as domains and constraints | dashboard, scheduler | Proposed |
+| FR-26 | UC8 | SCH: When a prompt is left unplanned | UT: suggestion for generated studies of 10, 50 and 100 participants | dashboard | Proposed |
+| FR-27 | UC9 | DM: Design notes (`activity.expected_minutes`) | UT: sum for a generated plan | dashboard | Proposed |
+| FR-28 | UC10 | DM: `participant`, `participant_identity` | IT: participant created; code shown once and stored as hash | dashboard, backend | Proposed |
+| FR-29 | UC10 | DM: Participant identity; SEC: Participant credentials | IT: old token refused on every API replica after revocation (ST-3) | dashboard, backend | Proposed |
+| FR-30 | UC8, UC11 | SEC: Authorisation | ST-1; load test with several generated studies | backend | Proposed |
+| FR-31 | UC11 | ARCH: Real time | IT: entry confirmed, event received by a dashboard; FS-1 and FS-3 for reconnection | dashboard, backend | Proposed |
+| FR-32 | UC11 | DM: `prompt` | IT on generated data | dashboard | Proposed |
+| FR-33 | UC11, UC12 | DM: Design notes | IT and E2E: filters on generated entries | dashboard | Proposed |
+| FR-34 | UC11 | ARCH: Components | DEMO with a video converted to H.264 MP4 | dashboard | Proposed |
+| FR-35 | UC9b, UC11 | SCH: When a prompt is left unplanned | IT: one instance for each reason | dashboard, scheduler | Proposed |
+| FR-36 | UC11 | FM: What can be lost or repeated | IT: failed job retried and finished | dashboard, backend | Proposed |
+| FR-37 | UC12 | DM: `tag`, `entry_tag` | IT and E2E | dashboard, backend | Proposed |
+| FR-38 | UC10, UC16 | SEC: Pseudonymisation and the identity table | IT: reader other than owner or administrator refused; audit row written | backend, security | Proposed |
+| FR-39 | UC8, UC14 | SEC: Researcher and administrator authentication | IT: login, refresh, logout | dashboard, backend, security | Proposed |
+| FR-40 | UC14 | SEC: Researcher and administrator authentication | IT: link works once and expires | backend, security | Proposed |
+| FR-41 | UC14 | DM: `user_account` | IT and E2E | dashboard, backend | Proposed |
+| FR-42 | UC15 | SEC: Authorisation | IT: administrator sees every study | dashboard, backend | Proposed |
+| FR-43 | UC16 | SEC: Audit log | IT on generated events | dashboard, backend, security | Proposed |
+| FR-44 | UC17 | SEC: Erasure, retention and backups | IT: rows and files absent on all replicas after erasure | backend, security | Proposed |
+| FR-45 | UC9b | SCH: Formulation | IT: nightly run produces one plan per study | scheduler | Proposed |
+| FR-46 | UC9b | SCH: Formulation | UT, SE: zero hard violations | scheduler | Proposed |
+| FR-47 | UC9b | SCH: Formulation | UT, SE: zero hard violations | scheduler | Proposed |
+| FR-48 | UC9b | SCH: Formulation | UT, SE | scheduler | Proposed |
+| FR-49 | UC9b | SCH: Formulation | UT, SE: load spread against the baseline | scheduler | Proposed |
+| FR-50 | UC9, UC9b | SCH: Soft preference score | UT: score on small hand-made plans; SE | scheduler | Proposed |
+| FR-51 | UC9b | SCH: Partial plans | UT: one case for each reason | scheduler | Proposed |
+| FR-52 | UC9b | SCH: Algorithm | SE with a deliberately hard instance | scheduler | Proposed |
+| FR-53 | UC3, UC9b | SCH: Replanning during the day | IT: availability change after two prompts were sent | scheduler | Proposed |
+| FR-54 | UC4 | SCH: Running the scheduler with two replicas | FS-11; FS-2 with the leader's node | scheduler, backend | Proposed |
+| FR-55 | UC6 | ARCH: Client-generated identifiers | IT: duplicate and collision; FS-1, FS-8 | backend | Proposed |
+| FR-56 | UC5, UC6 | ARCH: Synchronous replication | FS-3 | backend | Proposed |
+| FR-57 | UC6 | ARCH: Client-generated identifiers | IT: entry sent 3 days after recording is stored | backend | Proposed |
+| FR-58 | UC5 | SEC: Threat model | INS of the API routes; IT: PUT and PATCH refused | backend, security | Proposed |
+| FR-59 | UC5 | ARCH: Transactional outbox | FS-6; IT: broker stopped, events published after it returns | backend | Proposed |
+| FR-60 | UC5 | ARCH: Components; SEC: Media files | IT: valid files, disguised HTML and SVG | backend | Proposed |
+| FR-61 | UC5 | SEC: Media files | ST-5 | backend, security | Proposed |
+| FR-62 | UC6 | ARCH: File first, metadata second | IT with a shortened period | backend | Proposed |
+| FR-63 | UC11 | SEC: Media files | ST-1, ST-4 | backend, security | Proposed |
+| FR-64 | UC13 | SEC: Pseudonymisation and the identity table; R01 | IT: CSV columns on generated data | dashboard, backend | Proposed |
+| FR-65 | UC13 | SEC: Pseudonymisation and the identity table | ST-7 | backend, security | Proposed |
+| FR-66 | UC13 | SEC: Pseudonymisation and the identity table | IT: each option adds only its own content | dashboard, backend | Proposed |
+| FR-67 | UC13, UC16 | SEC: Audit log | IT: audit row for each export | backend, security | Proposed |
+| FR-68 | UC16 | SEC: Audit log | IT: one event of each kind | backend, security | Proposed |
+| NFR-01 | UC5, UC6, UC11 | FM: Guarantees | FS-2, FS-7 | infrastructure | Proposed |
+| NFR-02 | UC5, UC6 | FM: Guarantees | Extension of FS-2 with two nodes stopped | infrastructure, mobile app | Proposed |
+| NFR-03 | UC5, UC6 | FM: Guarantees; ARCH: Synchronous replication | FS-1, FS-3 with a load generator counting lost entries | infrastructure, backend | Proposed |
+| NFR-04 | UC5 | FM: Recovery time targets | FS-1 | infrastructure, backend | Proposed |
+| NFR-05 | UC5 | FM: Guarantees | FS-1, FS-2 | infrastructure | Proposed |
+| NFR-06 | UC5, UC11 | FM: Recovery time targets | FS-10; FS-2 with the node of the first gateway | infrastructure, mobile app, dashboard | Proposed |
+| NFR-07 | UC4, UC9b | FM: Recovery time targets | FS-11; FS-2 with the leader's node | infrastructure, scheduler | Proposed |
+| NFR-08 | UC5 | FM: Recovery time targets; ARCH: Synchronous replication | FS-3 | infrastructure | Proposed |
+| NFR-09 | UC5 | FM: Recovery time targets | FS-4 | infrastructure | Proposed |
+| NFR-10 | UC5, UC6 | FM: Recovery time targets | FS-5, FS-6 | infrastructure | Proposed |
+| NFR-11 | UC5 | FM: Demonstration scenarios | FS-7 | infrastructure | Proposed |
+| NFR-12 | UC5 | FM: What can be lost or repeated | IT: job that always fails | backend | Proposed |
+| NFR-13 | UC17 | FM: Single points of failure | FS-9; INS of the key location | infrastructure, security | Proposed |
+| NFR-14 | UC17 | FM: Demonstration scenarios | FS-9 | infrastructure | Proposed |
+| NFR-15 | None | ARCH: Components | DEMO: alerts fire in FS-1 to FS-11 | infrastructure | Proposed |
+| NFR-16 | UC5 | ARCH: Synchronous replication | INS of the Patroni configuration; FS-3, FS-4 | infrastructure | Proposed |
+| NFR-17 | UC5, UC6 | ARCH: Synchronous replication | INS; IT with a delayed replica | backend | Proposed |
+| NFR-18 | UC5 | ARCH: Components | INS of the Garage layout; FS-5 | infrastructure | Proposed |
+| NFR-19 | UC5 | ARCH: Transactional outbox | FS-6; IT: duplicate event | backend, infrastructure | Proposed |
+| NFR-20 | UC5 | ARCH: Database connections | FS-3 | backend | Proposed |
+| NFR-21 | UC5 | ARCH: Database connections | FS-7 with the primary's node isolated | infrastructure | Proposed |
+| NFR-22 | UC4, UC9b | SCH: Running the scheduler with two replicas | FS-2, FS-7, FS-11 | scheduler | Proposed |
+| NFR-23 | UC4, UC9b | DM: Design notes | IT: second insert refused | backend, scheduler | Proposed |
+| NFR-24 | UC5 | ARCH: Transactional outbox | FS-1, FS-6 | backend | Proposed |
+| NFR-25 | UC9b | SCH: Evaluation | SE on generated studies of 10, 50 and 100 participants with a seed | scheduler | Proposed |
+| NFR-26 | UC9b | SCH: Evaluation | SE and AB with a fixed node budget | scheduler | Proposed |
+| NFR-27 | UC5, UC6 | ARCH: Why the system is distributed | Load test with generated entries, with FS-1 and FS-3 running | infrastructure, backend | Proposed |
+| NFR-28 | UC8, UC11 | ARCH: Why the system is distributed | Load test with 3 generated studies | backend, infrastructure | Proposed |
+| NFR-29 | UC5, UC6 | ARCH: File first, metadata second | INS of the upload path and a traffic check | backend, infrastructure | Proposed |
+| NFR-30 | UC5 | ARCH: Transactional outbox | IT: entry confirmed while the media worker is stopped | backend | Proposed |
+| NFR-31 | UC11 | ARCH: Real time | Load test measuring confirmation to display | dashboard, backend | Proposed |
+| NFR-32 | UC11 | ARCH: Real time | FS-1, FS-2: the dashboard keeps a complete list | dashboard, backend | Proposed |
+| NFR-33 | UC14 | SEC: Researcher and administrator authentication | UT: hash parameters | security, backend | Proposed |
+| NFR-34 | UC8, UC14 | SEC: Researcher and administrator authentication | ST-3; IT: reuse detection | security, backend | Proposed |
+| NFR-35 | UC8 | SEC: Researcher and administrator authentication | INS of the cookie flags | dashboard, security | Proposed |
+| NFR-36 | UC14 | SEC: Researcher and administrator authentication | IT: lockout; response times for known and unknown emails | security, backend | Proposed |
+| NFR-37 | UC14, UC15, UC16, UC17 | SEC: Researcher and administrator authentication | IT: administrator login without a code is refused | security, backend | Proposed |
+| NFR-38 | UC7, UC11, UC13 | SEC: Authorisation | ST-1, ST-2 | security, backend | Proposed |
+| NFR-39 | UC1 | SEC: Participant credentials | INS: use of `hmac.compare_digest` | security, backend | Proposed |
+| NFR-40 | UC5, UC6, UC11 | SEC: Media files | ST-4; IT: oversized and wrong-type upload refused | security, backend | Proposed |
+| NFR-41 | UC11 | SEC: Media files | INS of the Traefik configuration; IT on headers | security, infrastructure | Proposed |
+| NFR-42 | UC10, UC13 | DM: Participant identity | IT: no identity field in entry queries; INS of the schema | security, backend | Proposed |
+| NFR-43 | UC16, UC17 | SEC: Audit log | IT: UPDATE and DELETE refused for the service role | security, backend | Proposed |
+| NFR-44 | UC17, UC2 | SEC: Erasure, retention and backups | IT: erasure with all nodes up; INS of the consent text | security, backend | Proposed |
+| NFR-45 | None | SEC: Network access and transport | INS of the Compose files; port scan from outside the tailnet | security, infrastructure | Proposed |
+| NFR-46 | UC1, UC14 | SEC: Network access and transport | ST-6 | security, infrastructure | Proposed |
+| NFR-47 | None | SEC: Secrets and the public repository | INS of the repository and the Compose files | security, infrastructure | Proposed |
+| NFR-48 | None | SEC: Service privileges and container hardening | IT: forbidden queries refused for each role | security, backend | Proposed |
+| NFR-49 | None | SEC: Service privileges and container hardening | INS of the Compose files | security, infrastructure | Proposed |
+| NFR-50 | None | SEC: Service privileges and container hardening | INS of the reports | security | Proposed |
+| NFR-51 | UC11 | SEC: Web application and notifications | IT: injection and script strings in entries | security, dashboard | Proposed |
+| NFR-52 | UC4 | SEC: Web application and notifications | INS and IT of the notification payload | security, scheduler | Proposed |
+| NFR-53 | None | SEC: Encryption at rest | Decision recorded, then INS | security, infrastructure | Proposed |
+| NFR-54 | UC8 to UC17 | UNIDCOM framing (R00); mockups | INS | dashboard | Proposed |
+| NFR-55 | UC8 to UC17 | R00; open question on languages (R08) | INS | dashboard | Proposed |
+| NFR-56 | UC11 | ARCH: Components | INS of the dashboard texts | dashboard | Proposed |
+| NFR-57 | UC1 | DM: Participant identity | INS and DEMO of the join flow | mobile app | Proposed |
+| NFR-58 | UC9, UC11 | DM: Design notes | IT: study in a time zone different from the browser | dashboard | Proposed |
+| NFR-59 | None | ARCH: Deployment | DEMO on both hosts | infrastructure | Proposed |
+| NFR-60 | None | ARCH: Deployment | INS; FS-2 | infrastructure | Proposed |
+| NFR-61 | None | ARCH: Deployment | INS; FS-2 (containers recreated) | infrastructure | Proposed |
+| NFR-62 | None | ARCH: Deployment | DEMO on the laptop | infrastructure | Proposed |
+| NFR-63 | UC1 to UC7 | ARCH: Components | DEMO and tests on the team's Android devices | mobile app | Proposed |
+| NFR-64 | UC8 to UC17 | ARCH: Components | DEMO in Chrome | dashboard | Proposed |
+| NFR-65 | None | ARCH: Deployment | INS | infrastructure, backend | Proposed |
+| NFR-66 | None | DM: status note | INS: schema built from migrations on an empty database | backend | Proposed |
+| NFR-67 | None | SEC: How the measures will be verified; FM: Demonstration scenarios | INS: the README lists the commands | documentation, infrastructure | Proposed |
+| DR-01 | None | ARCH: Components | INS of the repository | mobile app | Proposed |
+| DR-02 | None | ARCH: Components | INS | dashboard | Proposed |
+| DR-03 | None | ARCH: Database connections | IT: connection after FS-3 | backend | Proposed |
+| DR-04 | None | ARCH: Components | INS of the Compose files | infrastructure | Proposed |
+| DR-05 | None | ARCH: Components | INS | infrastructure | Proposed |
+| DR-06 | None | ARCH: status note | Written confirmation recorded in Cortex | documentation | Proposed |
+| DR-07 | None | SCH: Algorithm | INS of the dependencies | scheduler | Proposed |
+| DR-08 | None | SCH: Evaluation | SE, AB | scheduler | Proposed |
+| DR-09 | None | ARCH: Deployment | DEMO | infrastructure | Proposed |
+| DR-10 | None | SEC: Secrets and the public repository | INS | security, documentation | Proposed |
+| DR-11 | None | Fieldnote project note | INS before each delivery | documentation | Proposed |
+| DR-12 | None | MEM: Methodology | INS of the board | documentation | Proposed |
+| DR-13 | None | MEM: Methodology | INS of the repository | documentation | Proposed |
+| DR-14 | None | MEM: Limitations | DEMO | mobile app | Proposed |
+| DR-15 | None | FM: Demonstration scenarios | FS-1 to FS-11 | infrastructure | Proposed |
+| DR-16 | None | SEC: How the measures will be verified | ST-1 to ST-7 | security | Proposed |
+| DR-17 | None | SEC: Why security shapes the design | INS of the demonstration data | documentation, security | Proposed |
+| DR-18 | None | Fieldnote project note | INS | documentation | Proposed |
+| DR-19 | None | Atlas rules | INS | documentation | Proposed |
+| DR-20 | None | SEC: Consent and ethics review | INS | documentation | Proposed |
+| DR-21 | None | MEM | INS | documentation | Proposed |
+
+## Related documents
+
+- [Personas and scenarios](personas-and-scenarios.md)
+- [Use cases](use-cases.md)
+- [Architecture](../architecture.md)
+- [Fault model](../fault-model.md)
+- [Data model](../data-model.md)
+- [Scheduler](../scheduler.md)
+- [Security](../security.md)
