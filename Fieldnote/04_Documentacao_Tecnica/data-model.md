@@ -53,7 +53,8 @@ is the alternative if self-service access or one person in several studies becom
 | `consent` | Which version of the informed consent each participant accepted, and when |
 | `availability` | The hours when each participant accepts prompts, used by the scheduler |
 | `prompt` | One planned request of one activity to one participant, produced by the scheduler |
-| `entry` | What the participant recorded. The primary key is the UUID created on the phone |
+| `entry` | What the participant recorded, with the entry type chosen among the activity's accepted types, the text, the scale value or the chosen option. The primary key is the UUID created on the phone. Confirming an entry that answers a prompt sets the prompt's status to `answered` |
+| `plan_run` | One run of the scheduler for a study and a day: whether it finished or was cut by the time limit, nodes expanded, prompts planned and unplanned, solve time |
 | `media_object` | A file in object storage attached to an entry, with its checksum and status: `pending` from the moment an upload URL is issued, then `uploaded`, `processed` or `failed` |
 | `tag`, `entry_tag` | Labels researchers attach to entries to organise them |
 | `audit_log` | Relevant actions by users, participants and the system: logins, exports, changes to studies, erasures, cleanup jobs. Append only, kept for the duration of the course |
