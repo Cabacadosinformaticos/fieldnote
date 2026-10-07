@@ -90,6 +90,7 @@ give say "proposed here" and have to be confirmed.
 | FR-36 | The dashboard shall offer a retry for a media object whose processing failed. | Should | FM: What can be lost or repeated | Test |
 | FR-37 | The system shall let a researcher create tags, attach them to entries and detach them (`tag`, `entry_tag`). | Must | BRF (organise data); DM: `tag` | Test |
 | FR-38 | The system shall let the study owner and administrators read the identity of a participant (`participant_identity`) and shall write every read to the audit log. | Should | DM: `participant_identity`; SEC: Pseudonymisation | Test |
+| FR-69 | The system shall give a study a description, a start date, an end date and a status of `draft`, `running` or `closed`. The researcher starts a draft study and closes a running one. The scheduler plans prompts only for running studies, and a researcher can export the data of a study at any time, during or after the study (FR-64). | Must | BRF (create studies); DM: `study`; SCH: Formulation | Test |
 
 ### Administration
 
@@ -116,6 +117,7 @@ give say "proposed here" and have to be confirmed.
 | FR-52 | The scheduler shall stop searching after 10 s per study, keep the best plan found and record that the run was cut. | Must | SCH: Algorithm, What the end of the search proves | Test |
 | FR-53 | The scheduler shall replan only the remaining prompts of a participant who changes availability during the day, keeping sent prompts fixed and still respecting the slot counters of other participants. | Should | SCH: Replanning during the day | Test |
 | FR-54 | The scheduler shall send each planned prompt as a push notification at its planned time and mark the prompt as sent in the same statement that checks the scheduler still holds the lease. | Must | SCH: Running the scheduler with two replicas; FM: What can be lost or repeated | Test |
+| FR-70 | The system shall mark a prompt as `expired` when it is not answered by the end of its activity window. An entry that arrives later from the offline queue is still accepted (FR-57) and keeps its link to the prompt. | Must | DM: `prompt`, Design notes; R01 | Test |
 
 ### Data and export
 
@@ -325,6 +327,7 @@ column marks a cross-cutting requirement with no single use case.
 | FR-36 | UC11 | FM: What can be lost or repeated | IT: failed job retried and finished | dashboard, backend | Proposed |
 | FR-37 | UC12 | DM: `tag`, `entry_tag` | IT and E2E | dashboard, backend | Proposed |
 | FR-38 | UC10, UC16 | SEC: Pseudonymisation and the identity table | IT: reader other than owner or administrator refused; audit row written | backend, security | Proposed |
+| FR-69 | UC8, UC9, UC13 | DM: `study` | IT: a draft study gets no plan; start and close change the status; export works while running and after closing | dashboard, backend, scheduler | Proposed |
 | FR-39 | UC8, UC14 | SEC: Researcher and administrator authentication | IT: login, refresh, logout | dashboard, backend, security | Proposed |
 | FR-40 | UC14 | SEC: Researcher and administrator authentication | IT: link works once and expires | backend, security | Proposed |
 | FR-41 | UC14 | DM: `user_account` | IT and E2E | dashboard, backend | Proposed |
@@ -341,6 +344,7 @@ column marks a cross-cutting requirement with no single use case.
 | FR-52 | UC9b | SCH: Algorithm | SE with a deliberately hard instance | scheduler | Proposed |
 | FR-53 | UC3, UC9b | SCH: Replanning during the day | IT: availability change after two prompts were sent | scheduler | Proposed |
 | FR-54 | UC4 | SCH: Running the scheduler with two replicas | FS-11; FS-2 with the leader's node | scheduler, backend | Proposed |
+| FR-70 | UC4, UC6 | DM: `prompt`, Design notes | IT: prompt unanswered at the end of its window becomes `expired`; an entry sent later is stored and linked to it | backend, scheduler | Proposed |
 | FR-55 | UC6 | ARCH: Client-generated identifiers | IT: duplicate and collision; FS-1, FS-8 | backend | Proposed |
 | FR-56 | UC5, UC6 | ARCH: Synchronous replication | FS-3 | backend | Proposed |
 | FR-57 | UC6 | ARCH: Client-generated identifiers | IT: entry sent 3 days after recording is stored | backend | Proposed |
