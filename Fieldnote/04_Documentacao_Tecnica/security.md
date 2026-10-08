@@ -37,8 +37,6 @@ privilege: each service has its own credentials, and a researcher sees only thei
 
 ## Assets and threat actors
 
-## Assets and threat actors
-
 The main asset is the entries: text, photos, audio, video and locations. They show the private life of
 participants and may reveal health or beliefs. They live in PostgreSQL (text and metadata) and Garage
 (files), three copies of each. The participant identities, in `participant_identity`, link aliases to
@@ -190,9 +188,9 @@ A download does not pass through the API, so the audit log records the issue of 
 for which object and when, so a download stays attributable to a person.
 
 The media worker checks the real type of each file from its first bytes, not from its extension, and
-rejects anything that is not an image, audio or video. Files are served with their content type and
-`Content-Disposition: attachment`, so a disguised HTML or SVG file cannot run inside the dashboard
-(stored cross-site scripting).
+rejects anything that is not an image, audio or video. The dashboard shows images and plays audio and video inline. Files are served with the content type that the
+media worker checked and `X-Content-Type-Options: nosniff`, so a disguised HTML or SVG file cannot run inside the
+dashboard (stored cross-site scripting). Downloads and exports use `Content-Disposition: attachment`.
 
 Photos from phones carry GPS coordinates in EXIF, and videos carry them in metadata atoms such as
 those of MP4. ffmpeg copies metadata by default. When the activity does not ask for location, the
