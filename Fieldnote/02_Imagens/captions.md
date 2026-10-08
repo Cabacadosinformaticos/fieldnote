@@ -12,3 +12,5 @@ Every image in this folder, with its caption. The same diagrams are in
 | [img_05_data-model.png](img_05_data-model.png) | Figure 5. Data model in PostgreSQL. Dashed lines are logical references without a foreign key. |
 | [img_06_entry-submission.png](img_06_entry-submission.png) | Figure 6. Sequence for recording and sending an entry with media, including the offline queue and the outbox. |
 | [img_07_database-failover.png](img_07_database-failover.png) | Figure 7. Sequence for the automatic failover of the PostgreSQL primary. |
+| [img_08_domain-classes.png](img_08_domain-classes.png) | Figure 8. UML class diagram of the Fieldnote domain. |
+| [img_09_study-lifecycle.png](img_09_study-lifecycle.png) | Figure 9. UML activity diagram of the lifecycle of a study. |
