@@ -110,6 +110,10 @@ The stack is a proposal pending validation by the course lecturers.
 | [Architecture](Fieldnote/04_Documentacao_Tecnica/architecture.md) | Components, deployment, consistency decisions |
 | [Fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md) | Guarantees, detection, recovery, demonstration scenarios |
 | [Data model](Fieldnote/04_Documentacao_Tecnica/data-model.md) | Entities, participant identity, design notes |
+| [Domain model](Fieldnote/04_Documentacao_Tecnica/domain-model.md) | UML class diagram of the domain and activity diagram of a study |
+| [Requirements](Fieldnote/04_Documentacao_Tecnica/requirements/requirements.md) | Functional, non-functional and development requirements, traceability matrix |
+| [Use cases](Fieldnote/04_Documentacao_Tecnica/requirements/use-cases.md) | Textual descriptions of every use case |
+| [Personas and scenarios](Fieldnote/04_Documentacao_Tecnica/requirements/personas-and-scenarios.md) | Fictional personas and user scenarios |
 | [Scheduler](Fieldnote/04_Documentacao_Tecnica/scheduler.md) | Constraint satisfaction formulation and evaluation |
 | [Security](Fieldnote/04_Documentacao_Tecnica/security.md) | Assets and planned measures |
 | [Figures](Fieldnote/02_Imagens/captions.md) | Every figure with its caption |
