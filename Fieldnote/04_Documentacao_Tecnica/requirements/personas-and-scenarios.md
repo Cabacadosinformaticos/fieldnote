@@ -1,6 +1,6 @@
 # Personas and scenarios
 
-Status: proposed, 1 October 2026. The personas and scenarios are fictional. They are built from the
+Status: proposed, 2 October 2026. The personas and scenarios are fictional. They are built from the
 research files (`06_Dados_Investigacao/00` to `06_Dados_Investigacao/08`) and the design documents, they describe no real
 person, and they are not data from users. The platform is not implemented, so the scenarios describe
 how the designed system shall behave. Requirement IDs refer to [requirements](requirements.md) and
@@ -28,7 +28,7 @@ use case IDs to [use cases](use-cases.md).
 | Goals | Answer quickly when the activity arrives, without creating an account. Know that what he recorded was sent |
 | Concerns | Photos of the square may include other people and his own home. He wants to know what happens to his data and how to have it removed |
 | Technical level | Uses his phone daily. Does not want to manage passwords for a study |
-| What he needs from Fieldnote | Joining with a code (FR-01), consent and interface in Portuguese (FR-03, FR-04), offline recording and resend (FR-15, FR-16), a count of entries waiting (FR-18), notifications without personal data (NFR-52) |
+| What he needs from Fieldnote | Joining with a code, a QR code or an invitation (FR-01, FR-72), consent and interface in Portuguese (FR-03, FR-04), offline recording and resend (FR-15, FR-16), a count of entries waiting (FR-18), leaving a study and erasing his data in the app (FR-79, FR-80), notifications without personal data (NFR-52) |
 
 ### Carla, platform administrator
 
@@ -39,7 +39,7 @@ use case IDs to [use cases](use-cases.md).
 | Goals | Give the right people access and remove it when they leave. Show an ethics committee who read or exported what. Recover when a machine fails |
 | Concerns | A single compromised administrator account would expose every study. Erasure has to reach every copy |
 | Technical level | Comfortable with Docker and command lines |
-| What she needs from Fieldnote | Account management (FR-41), audit log (FR-43, FR-68), erasure (FR-44, NFR-44), TOTP (NFR-37), backups and restore (NFR-13, NFR-14), monitoring (NFR-15) |
+| What she needs from Fieldnote | Account management (FR-41), audit log (FR-43, FR-68), erasure (FR-44, NFR-44) and a read-only list of the erasures that participants schedule in the app (FR-85), TOTP (NFR-37), backups and restore (NFR-13, NFR-14), monitoring (NFR-15) |
 
 ### Duarte, co-researcher
 
@@ -64,22 +64,22 @@ Actors: Inês. Use cases: UC8, UC9, UC9b, UC10. Requirements: FR-22 to FR-28, FR
 4. She defines an activity "A moment in the square". It accepts photo or text, has an expected effort of 3 minutes, requests location, allows free entries up to 2 a day, and carries an instruction that asks participants not to photograph people who have not agreed or house numbers.
 5. She sets the window from 08:00 to 22:00, 2 prompts a day and a minimum gap of 120 minutes. The dashboard shows the expected effort per participant and per day.
 6. She saves. The scheduler plans the next day that night, with 15-minute slots, and stops after 10 s per study at the latest.
-7. She adds each participant with an alias and gets one invite code for each. She sends the codes outside the platform.
+7. She adds each participant with an alias and gets one invite code for each. She sends the codes outside the platform. The dashboard also shows each code as a QR code (FR-71).
 
 Result: The study is ready. The next morning the dashboard shows the planned prompts and any left `unplanned`, with their reasons.
 
 ### Scenario 2: Tomás joins with an invite code and accepts consent in Portuguese
 
-Actors: Tomás. Use cases: UC1, UC2, UC3. Requirements: FR-01 to FR-05, NFR-57.
+Actors: Tomás. Use cases: UC1, UC2, UC3. Requirements: FR-01 to FR-05, FR-72, NFR-57.
 
 1. Tomás installs the app on his Android phone and chooses Portuguese.
-2. He types the 10-character code. The API accepts it, issues a device token and invalidates the code. The app keeps the token in the phone's secure storage.
+2. He types the 12-character code. The API accepts it without using it up, and the app shows the invitation card: study, team, dates, requests per day, effort and what is recorded. He chooses to take part. The API then issues a device token and invalidates the code, and the app keeps the token in the phone's secure storage.
 3. The app shows the consent text in Portuguese. It explains what is collected, that backups keep erased data for up to 7 days, and what not to record.
 4. He accepts. The API stores the accepted version and the time.
 5. He declares that he accepts prompts between 09:00 and 20:00.
 6. He is asked for no email address and no password.
 
-Result: He is a participant under an alias, and the next nightly plan uses his hours. If he had declined the consent, no prompt would reach him.
+Result: He is a participant under an alias, and the next nightly plan uses his hours. If he had declined the consent, no prompt would reach him. If he had declined the card or chosen to decide later, the code would stay valid until it expires. He could also have scanned the code as a QR code (UC1b).
 
 ### Scenario 3: Tomás records a photo with no signal and sends it later
 
@@ -110,7 +110,7 @@ Result: The analysis file is pseudonymous by default, and the choice to include 
 
 ### Scenario 5: A participant asks to have the data erased
 
-Actors: Tomás, Inês, Carla. Use cases: UC17, UC16. Requirements: FR-44, FR-68, NFR-43, NFR-44.
+Actors: Tomás, Inês, Carla. Use cases: UC17, UC16, UC20. Requirements: FR-44, FR-68, FR-80, NFR-43, NFR-44, NFR-70.
 
 1. After the study Tomás writes to Inês and asks to have his data removed.
 2. Inês and her research team decide to grant the request. The platform provides the mechanism, and the decision follows their ethics approval.
@@ -121,6 +121,16 @@ Actors: Tomás, Inês, Carla. Use cases: UC17, UC16. Requirements: FR-44, FR-68,
 7. Carla checks the audit log and sees the erasure, with the administrator as the actor.
 
 Result: His data is gone from the live system. The audit log keeps the pseudonymous id, and the backups lose his data within 7 days.
+
+Variant: Tomás erases the data himself in the app (UC20).
+
+1. In the study screen Tomás chooses to erase his data in this study. The app tells him what happens now and in 7 days, that from today the data no longer goes into the backups, so no copy remains after 7 days, and that exports the team already made cannot be recalled.
+2. He types the confirmation word and confirms. From that moment he gets no more requests, his entries are hidden from Inês and Duarte and left out of exports, and the entries still waiting in his phone are deleted from the phone.
+3. Inês sees his alias with the state "erasure scheduled" and the date. Carla sees the same request in her read-only list and cannot cancel it. The request is in the audit log with the actor type participant.
+4. Two days later he changes his mind and cancels the erasure in the app. His participation returns as it was and requests resume from the next nightly plan.
+5. If he had not cancelled, the system would have erased his identity, entries and files after 7 days with the same mechanism as Carla's, and written the erasure to the audit log with the actor type system.
+
+Result of the variant: no decision of the research team was needed, and the erasure was complete on the due date, in the live system and in the backups, because his data was left out of the backups during the wait. Carla's manual path is unchanged: immediate in the live system, with the backups clearing within 7 days.
 
 ### Scenario 6: A node fails during the study and nothing confirmed is lost
 
