@@ -67,8 +67,10 @@
 <text x="1490" y="690.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">rabbitmq-3</text>
 <rect x="1365.0" y="757.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="1490" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">garage-3</text>
-<rect x="1365.0" y="837.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
-<text x="1490" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">prometheus + grafana</text>
+<rect x="1306.0" y="837.0" width="180" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1396" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">prometheus + grafana</text>
+<rect x="1494.0" y="837.0" width="180" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1584" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">mailpit (mail server)</text>
 <path d="M 220 230 L 300 230 L 300 196 L 523 196" fill="none" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)"/>
 <path d="M 220 215 L 285 215 L 285 158 L 920 158 L 920 182 L 943 182" fill="none" stroke="#3B4A6B" stroke-width="1.6" stroke-dasharray="7,5" marker-end="url(#arrow)"/>
 <line x1="650" y1="262" x2="1490" y2="262" stroke="#3B4A6B" stroke-width="1.6"/>
@@ -103,11 +105,12 @@
 <line x1="1195" y1="780" x2="1365" y2="780" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
 <rect x="1200.5" y="755" width="159" height="18" fill="#FBFCFE"/>
 <text x="1280.0" y="764.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#6B7488">3 copies of each file</text>
-<rect x="280" y="935" width="1405" height="85" rx="6" fill="#FFFFFF" stroke="#6B7488" stroke-width="1.5"/>
+<rect x="280" y="935" width="1405" height="100" rx="6" fill="#FFFFFF" stroke="#6B7488" stroke-width="1.5"/>
 <rect x="300" y="952" width="22" height="14" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="330" y="959.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">stateful service, one cluster member per node</text>
 <rect x="300" y="984" width="22" height="14" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="330" y="991.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">stateless service</text>
-<text x="760" y="959.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Networks: "edge" joins the gateways and the APIs; "cluster" joins every container of the three nodes.</text>
-<text x="760" y="991.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Failure unit: one logical node. Stopping its containers simulates a machine loss; cutting them from "cluster", a partition.</text>
+<text x="760" y="953.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Networks: "edge" joins the two gateways (Tailscale and Traefik), the API replicas and the Garage S3 endpoints (traffic from the clients).</text>
+<text x="760" y="972.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">"cluster" joins every API, scheduler, worker and cluster member of the three nodes, and the mail server for the API (traffic between nodes).</text>
+<text x="760" y="997.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Failure unit: one logical node. Stopping its containers simulates a machine loss; cutting them from "cluster", a partition.</text>
 </svg>
