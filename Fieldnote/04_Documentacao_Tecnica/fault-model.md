@@ -1,6 +1,6 @@
 # Fault model
 
-Status: proposed, 29 September 2026. The recovery times are targets to be measured during the
+Status: proposed, 29 September 2026; stale statements reconciled on 3 October 2026. The recovery times are targets to be measured during the
 failure tests, not measured values.
 
 The guarantees below cover the failure of one logical node or of any container inside it. The
@@ -42,12 +42,13 @@ Docker host itself is outside them: see [single points of failure](#single-point
 | Media processing fails repeatedly | The broker moves the job to a dead-letter queue after 5 attempts | The media object is marked `failed` and the dashboard offers a retry. The original file is kept |
 | Commit wait cancelled before the synchronous replica acknowledges (documented by Patroni) | The entry may be written on the primary only, and lost if the primary then fails | The API never confirms such a write and sets no timeout that cancels the wait; the app resends with the same UUID, which is answered as a duplicate if the row survived or inserted again if it did not |
 | App uninstalled with entries still queued | Those entries are lost | Declared limitation. The app shows how many entries are waiting to be sent |
+| Restore from backup while a participant's erasure from the app is pending | The restored system has no row and no file for that participant, because the backups leave them out from the request | Accepted: the participant asked for the erasure and the data was meant to leave every copy. If the participant then tries to cancel, nothing can be restored and the person can only join again as a new participant. The erasure job treats the missing row as already erased |
 
 ## Single points of failure
 
 | Element | Status | Mitigation |
 |---|---|---|
-| The Docker host (server VM or laptop), its Docker daemon, disk, power and Internet link | Out of scope, declared limitation | The stack starts with one command on another machine. A daily `pg_dump` and a copy of the object storage bucket are encrypted on the host, go to another machine and are kept for 7 days. A restore of the latest backup is tested (scenario 9) |
+| The Docker host (server VM or laptop), its Docker daemon, disk, power and Internet link | Out of scope, declared limitation | The stack starts with one command on another machine. A daily `pg_dump` and a copy of the object storage bucket are encrypted on the host, go to another machine and are kept for 7 days. They leave out the rows and files of participants whose erasure from the app is pending (see the restore row below). A restore of the latest backup is planned as a test (scenario 9, design stage) |
 | Garage zones on one host | Declared limitation | Each logical node is its own zone in the Garage layout, so the 3 copies of a file land on 3 logical nodes and the loss of one node is tolerated. The 3 zones share one physical host, so Garage cannot protect against losing the host. The daily copy of the bucket on another machine is the only protection for that case |
 | Tailscale coordination service | Out of scope | Existing connections keep working while it is down; new devices cannot join. Administration can also be done on the host itself |
 | Monitoring (Prometheus, Grafana) | Not replicated, not needed to serve users | Its loss hides metrics during a demonstration but does not affect the service |
@@ -70,6 +71,6 @@ later by `docker start` simulates a node that goes away and comes back.
 | 6 | Kill a broker node while events are flowing | No event lost | RabbitMQ cluster membership | Quorum queues continue on 2 nodes |
 | 7 | Disconnect one node from the `cluster` network | The isolated node stops serving requests. The other two keep accepting writes. On reconnection the node resynchronises | `/health` fails on the isolated API, leases and heartbeats time out | Rejoin and resynchronisation |
 | 8 | Phone in airplane mode during 3 entries | The 3 entries arrive when the network is back, without duplicates | The app sees no connection | Queue flush with idempotent resends |
-| 9 | Restore the latest encrypted backup on a clean stack | The database and the files of the backup day are back, and the counts of entries and files match | Not a failure detection; a planned restore drill | Decrypt with the off-host key, restore `pg_dump` and the bucket copy |
+| 9 | Restore the latest encrypted backup on a clean stack | The database and the files of the backup day are back, and the counts of entries and files match, except for any participant whose erasure from the app was pending at the backup time, who is absent from both | Not a failure detection; a planned restore drill | Decrypt with the off-host key, restore `pg_dump` and the bucket copy |
 | 10 | Stop gateway 1 while the app and the dashboard are in use | Clients switch to gateway 2 in under 5 s; no entry lost | The client's request times out | The client retries on the second gateway address |
 | 11 | Kill the active scheduler replica during the day | The standby takes the lease in under 20 s and sends the remaining prompts; at most the notification in progress is repeated | The lease is not renewed for 15 s | The standby continues from the plan stored in the database |
