@@ -1,12 +1,12 @@
 # Domain model
 
-Status: proposed, 1 October 2026. Nothing described here is implemented. The classes are a
+Status: proposed, 2 October 2026; stale statements reconciled on 3 October 2026. Nothing described here is implemented. The classes are a
 conceptual view of the domain; the tables are in the [data model](data-model.md) and will change
 during implementation.
 
 ![UML class diagram of the Fieldnote domain](diagrams/domain-classes.svg)
 
-*Figure 8. UML class diagram of the Fieldnote domain, grouped in four packages. Filled diamonds are compositions, the open diamond is an aggregation, and the enumerations are listed in their own package.*
+*Figure 8. UML class diagram of the Fieldnote domain, grouped in six packages. Filled diamonds are compositions, the open diamond is an aggregation, and the enumerations are listed in their own package.*
 
 ## Main classes
 
@@ -24,20 +24,39 @@ prompts only for running studies.
 
 **Administration.** `UserAccount` is an administrator or a researcher (`Role`). A researcher reaches
 a study through `StudyMember`, which carries the member role (`owner` or `collaborator`).
-Participants are not user accounts. `AuditLogEntry` records who did what; its actor is a user, a
+Participants are not user accounts; an optional participant `Account` is described under participation. `AuditLogEntry` records who did what; its actor is a user, a
 participant or the system (`ActorType`).
 
 **Participation.** A `Participant` belongs to exactly one study and is known by an alias and a
 locale. Three classes depend on the participant and are composed in it: `Consent` (the version
 accepted and when), `Availability` (the hours when prompts are accepted) and the optional
 `ParticipantIdentity` (name and email, zero or one). `Participant.erase()` removes the identity and
-the entries of that participant. A `Prompt` is one request of one activity to one participant on a
+the entries of that participant. A participant has a `ParticipantStatus` (`active`, `pending_approval`, `declined`, `withdrawn` or
+`erasureScheduled`). `approve()` and `decline()` decide a participant who entered by a study code with
+approval, `withdraw()`, `requestErasure()` and `cancelErasure()` change the state otherwise, and the system
+runs `erase()` when the erasure is due, 7 days after the request. While a participant is
+`erasureScheduled`, the daily backups leave out that participant's data. `returnToStudy()` brings a participant who withdrew back to the same pseudonym and data. A person in several studies on one
+phone is several `Participant` objects, one for each study. An optional `Account` has one to three sign-in methods (`SignInMethod`: recovery code, email or Google), no name and no entries. It links the participations of one person, and optionally the pool membership, for the platform only: `createWithRecoveryCode()`, `signIn()`, `addMethod()`, `restoreParticipations()` and `delete()`, which can also erase the data of every linked participation. The platform can tell that the same phone or account already has a participation in a study. A `Prompt` is one request of one activity to one participant on a
 given day. It carries a `PromptStatus` and, when it was not planned, one `UnplannedReason`. A prompt not
 answered by the end of its activity window becomes `expired`; a late entry from the offline queue is
 still accepted and keeps its link to the prompt. The
 `Scheduler` is a service, not stored data: it produces a `Plan`, the set of planned and unplanned
 prompts of one study for one day, together with whether the search finished or was cut by the time
 limit.
+
+**Recruitment.** An `InviteCode` is a way into a `Study`, of kind `personal` or `study`. A personal code
+opens one pre-created participant and is used once. A study code is reusable: it has a name, a number
+of uses against an optional entry limit (none by default, and a declined entry does not count), an optional limit per hour, an end date, an on or off state, a flag that requires
+approval of each entry and a flag that requires an account. `regenerate()` replaces the code and keeps the settings, `switchOff()` and
+`switchOn()` change the state, and `poster()` gives the printable poster. A study can have several codes
+(`Study.createStudyCode()`), and a code admits many participants, each a new `Participant`. A `PoolMember` is a member of the volunteer pool. It belongs to no study and has no
+alias. It has a concelho and optional profile fields (freguesia, age band, gender, occupation, usual
+means of travel, languages), and it can pause invitations. It has no name, email address or phone
+number. A `PoolInvitation` is one invitation of a pool member to a `Study`, with a status (`sent`,
+`accepted`, `declined` or `expired`) and an expiry 7 days after it was sent. Accepting it creates a
+new `Participant`; the invitation does not refer to that participant and the profile is not copied.
+`Study.recruitFromPool()` takes criteria and a number of at least 5, and the researcher sees only the
+count.
 
 **Data collection.** `Entry` is what the participant recorded, tied to its participant and
 activity, and to a prompt when it answers one. `MediaObject` is a file in object storage with a
@@ -69,7 +88,10 @@ entry identifier is created on the phone, so a resend after a failure refers to 
 |---|---|---|
 | `Study`, `Activity` | `study`, `activity` | `Activity.entryTypes` is the column `entry_types`. `options` is `jsonb` and holds the options of a choice activity and the range and labels of a scale activity |
 | `UserAccount`, `StudyMember` | `user_account`, `study_member` | Refresh tokens (`refresh_token`) are authentication detail and are not in the domain |
-| `Participant`, `ParticipantIdentity`, `Consent`, `Availability` | `participant`, `participant_identity`, `consent`, `availability` | Invite code hash, device token hash and push token are columns of `participant` and are left out of the class |
+| `Participant`, `ParticipantIdentity`, `Consent`, `Availability` | `participant`, `participant_identity`, `consent`, `availability` | Device token hash, device hash (the check against joining twice) and push token are columns of `participant` and are left out of the class. `ParticipantStatus` is the column `status`, `admitted_by_code_id`, `decided_by` and `decided_at` record the study code route, and `erasure_requested_at`, `erasure_due_at` and `status_before_erasure` hold the scheduled erasure |
+| `Account` | `participant_account`, `account_participation`, `account_device_token`, `account_email_code` | Sign-in methods are columns of `participant_account`. The link to participants is the table `account_participation`, and to the pool the column `pool_member.account_id`. Tokens and email codes are authentication detail and are not in the domain |
+| `InviteCode` | `invite_code` | One table for both kinds. `code_hash` is filled for a personal code and `code_value` for a study code. `uses` and `max_uses` hold the counter and the entry limit |
+| `PoolMember`, `PoolInvitation` | `pool_member`, `pool_invitation` | The credential hash and push token are columns of `pool_member`. `pool_invitation.pool_member_id` is set to null when the member leaves |
 | `Prompt` | `prompt` | `status` and `unplanned_reason` are text columns, shown as enumerations |
 | `Entry` and its subclasses | `entry` | One table. `entry_type` holds the type, `body` the text, `value` the scale value and `choice` the option chosen |
 | `MediaObject`, `Tag` | `media_object`, `tag`, `entry_tag` | `entry_tag` is the join table of the many-to-many association |
@@ -96,7 +118,7 @@ option chosen in a `ChoiceEntry`, and `plan_run` records whether a run was cut.
 *Figure 9. UML activity diagram of the lifecycle of a study, in three swimlanes: researcher, participant and platform with its scheduler.*
 
 The researcher creates a study, which starts as `draft`, and defines its activities with their
-schedule rules. The researcher then invites participants, each with an alias and a single-use
+schedule rules. The researcher then invites participants, each with an alias and a personal single-use
 invite code, and starts the study. A participant joins by typing the code, accepts the consent
 text (the version is stored) and declares the hours when prompts are acceptable.
 
@@ -124,6 +146,14 @@ erasure, the research team decides whether to grant it, because the GDPR excepti
 apply (see [security](security.md)). If granted, the platform erases the identity, the entries and
 the files, and writes the erasure to the audit log. The request can in practice arrive at any time;
 the diagram places it at the end to keep the main flow readable.
+
+Since 2 October 2026 the participant can also start the erasure in the app. The data is hidden at
+once and left out of the backups, the participant can cancel for 7 days, and the platform erases it
+automatically when the time runs out, with no decision of the research team. By then no backup holds the data. A study can also be joined by QR code, with a reusable study code from a poster or from a
+volunteer pool invitation, and every route passes the invitation card before the consent. A person who
+enters by a study code with approval waits in `pending_approval` until a researcher decides. Figures 8
+and 9 show the pool classes, the participant status, the invitation card and the erasure from the
+app.
 
 ## Related documents
 
