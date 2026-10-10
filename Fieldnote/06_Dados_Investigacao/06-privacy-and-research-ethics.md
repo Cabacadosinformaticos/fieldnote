@@ -31,7 +31,7 @@ would be in that category without asking about it directly.
 | Article 5(1)(c), data minimisation | Personal data must be "adequate, relevant and limited to what is necessary in relation to the purposes for which they are processed" | Location is off unless an activity asks for it; GPS metadata is removed from photos otherwise; participants have no email or password in the platform |
 | Article 4(5), pseudonymisation | Processing so that data "can no longer be attributed to a specific data subject without the use of additional information", kept separately and protected | Researchers will see aliases; name and email will live in a separate table (`participant_identity`), with restricted and audited access |
 | Article 9, special categories | Processing is prohibited unless an exception applies; scientific research is one, under the safeguards of Article 89(1) | The platform cannot know whether a study touches these categories; the researcher's protocol must. The platform provides the safeguards (pseudonymisation, access control, audit) |
-| Article 17, right to erasure | People can ask for their data to be deleted, with exceptions, including for research when erasure would make the research impossible or seriously impair it | The design includes erasure of identity, entries and every copy of the files. Whether a given request must be granted is the research team's decision, not the platform's |
+| Article 17, right to erasure | People can ask for their data to be deleted, with exceptions, including for research when erasure would make the research impossible or seriously impair it | The design includes erasure of identity, entries and every copy of the files. A request that reaches the team is granted or not by the research team; an erasure started by the participant in the app is carried out automatically after 7 days |
 | Article 89(1), research safeguards | Research processing needs technical and organisational measures, in particular data minimisation, and pseudonymisation where it allows the purpose to be met | The design follows this order: aliases by default, identity only where needed |
 
 The European Data Protection Board's guidelines on pseudonymisation (01/2025) stress that
@@ -49,7 +49,7 @@ for research. The platform records the participant's informed consent as researc
 it does not decide the legal basis, which belongs to the study's data management plan.
 
 **Erasure is not absolute for research.** We designed erasure as a feature every participant can
-trigger through the researcher. Article 17 includes an exception for research. Fieldnote is
+trigger, in the app (UC20) or through the researcher. Article 17 includes an exception for research. Fieldnote is
 designed to be able to erase completely, and leaves the policy to the research team and its ethics
 approval. The audit log records every erasure, with who requested it and when.
 
@@ -116,22 +116,22 @@ Reading the sources above showed four weaknesses in our design:
    audited; the default content of an export was not discussed.
 3. **The identity table is the real target.** If it leaks, every alias becomes a person. It was
    described as "separate"; it needs to be the most protected table, not just a separate one.
-4. **Erasure and backups.** Daily backups are kept for 7 days. An erased participant's data
-   remains in up to 7 daily backups until they expire. We accept this because backups have to
+4. **Erasure and backups.** Daily backups are kept for 7 days. Data erased by the team
+   remains in up to 7 daily backups until they expire; data erased from the app is left out of the backups from the request (NFR-44). We accept this because backups have to
    exist, and it must be stated to participants before they join.
 
 ## How Fieldnote proceeds
 
 | Finding | Decision | Status |
 |---|---|---|
-| Data minimisation (Article 5(1)(c)) | Location off by default per activity; EXIF removed when location is not asked; no participant email or password | Adopted |
+| Data minimisation (Article 5(1)(c)) | Location off by default per activity; EXIF removed when location is not asked; no participant password, and no email unless the person chooses the email sign-in (stored encrypted, NFR-76) | Adopted |
 | Pseudonymised data is still personal data (EDPB 01/2025) | `participant_identity` readable only by the study owner and administrators; every read is written to the audit log | Adopted, in the security design |
 | Location identifies people (de Montjoye et al., 2013) | Exports leave location out by default; the researcher includes it explicitly, and the choice is audited | Adopted |
 | Images cannot be pseudonymised by the platform (Clark et al., 2010) | Exports leave media files out by default; including them is an explicit, audited choice | Adopted |
 | Bystanders (Wang and Redwood-Jones, 2001) | Activities show the researcher's instruction on whom not to photograph; the consent text explains it; automatic face blurring in exports is future work | Instruction adopted; blurring is future work |
 | GDPR consent is not research consent | The platform records informed consent with its version; the legal basis is documented by the study, not by the platform | Adopted, documented |
-| Erasure has a research exception (Article 17) | Erasure is an administrator action, logged; the policy is the research team's | Adopted |
-| Backups keep erased data up to 7 days | Stated in the security document; planned for the consent text | Adopted |
+| Erasure has a research exception (Article 17) | Erasure is an administrator action or, from the app, a participant action (NFR-70), always logged; for requests that reach the team the policy is the research team's | Adopted |
+| Backups keep data erased by the team for up to 7 days; data erased from the app is left out of the backups from the request, so none remains on the erasure date | Stated in the security document; planned for the consent text | Adopted |
 | Ethics review of visual methods is manageable (Wiles et al., 2012) | A one-page data protection summary for ethics committees (where data is, who sees it, retention, erasure) is part of the documentation | Planned for the final delivery |
 
 ### What the course project does not do
