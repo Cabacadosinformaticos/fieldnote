@@ -1,8 +1,9 @@
 # Architecture
 
 Status: proposed, 29 September 2026. Nothing described here is implemented yet. The
-architecture and the technology stack still need validation by the Project and Distributed
-Systems professors.
+architecture and the technology stack were approved by the Distributed Systems lecturer on
+5 October 2026 and by the Projeto de Desenvolvimento de Software lecturer in a review of the
+whole repository.
 
 ## Why the system is distributed
 
@@ -78,6 +79,7 @@ tested; packet loss and latency are not simulated.
 | Message broker | RabbitMQ with quorum queues | 3, one per node | Jobs for the media worker, events for dashboards |
 | Object storage | Garage (S3 compatible) | 3, one per node | Photos, audio and video, 3 copies of every file. Each logical node is its own zone in the Garage layout, so the 3 copies land on 3 logical nodes. The 3 zones share one physical host, so Garage does not protect against losing the host, a declared single point of failure |
 | Monitoring | Prometheus and Grafana | 1 each, on node 3 | Metrics and alerts during the failure demonstration. Not replicated |
+| Mail server | Mailpit in the course project, any SMTP server in production | 1, on node 3, not replicated | Sends the 6-digit codes of the optional participant account by SMTP. Mailpit is a local mail catcher: it keeps the mail for the demonstration and delivers none, so no real mail is sent and no paid service is used. It is reached only by the API on the `cluster` network and its web page only from the lab network. Account emails are the only mail the platform sends. A mail failure stops email sign-in and nothing else |
 | Push notifications | Expo Push (FCM underneath) | External service | Delivers activity notifications to phones |
 
 ## Language
