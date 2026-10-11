@@ -1,6 +1,6 @@
 # Descriptive report: Fieldnote
 
-Version 1, 30 September 2026. The project is at the design stage: nothing is implemented yet.
+Version 1, 11 October 2026 (first delivery). The project is at the design stage: nothing is implemented yet.
 The results and reflection sections will be written as the work progresses.
 
 ## Identification
@@ -33,17 +33,19 @@ The results and reflection sections will be written as the work progresses.
 
 Fieldnote is a distributed platform for mobile ethnography and diary studies. In these studies,
 participants use their phones to record experiences where and when they happen, over days or
-weeks, following activities set by a researcher. A study might ask participants to photograph a
-product they use every day, record thirty seconds of audio after a commute, or answer a short
-question after lunch.
+weeks, following activities set by a researcher. A study might ask for a photo of a product used
+every day or a short audio note after a commute.
 
 The platform has two sides. Researchers use a web dashboard to create studies, define activities
 and the rules for when to ask for them, invite participants, follow adherence and incoming entries
-in real time, organise entries with tags, and export the data. Participants use a mobile app to
-join a study, accept the informed consent, receive activities and record entries as text, photo,
-video, audio, a scale or a multiple choice answer, with date, time and, when the study asks for it,
-location. Administrators manage researcher accounts, oversee studies and handle data erasure
-requests.
+in real time, organise entries with tags, and export the data. Researchers recruit with personal invite
+codes, with reusable study codes printed on a poster, or, optionally, from a volunteer pool where
+they only see how many people match their criteria. Participants use a mobile app to join one or
+more studies by QR code or typed code, accept the informed consent, receive activities and record
+entries as text, photo, video, audio, a scale or a multiple choice answer, with date, time and, when
+the study asks for it, location. They need no account, but may create one to recover their studies
+on a new phone, and they can leave a study or erase their data from the app. Administrators manage
+researcher accounts, oversee studies and handle data erasure requests.
 
 An entry recorded in the moment cannot be collected again later, so losing one means losing the
 data point. This is why the system is distributed and fault tolerant. The backend runs as three
@@ -57,8 +59,8 @@ network and resends them later without creating duplicates.
 The artificial intelligence component is the scheduler. Deciding when to ask each participant for
 each activity is modelled as a constraint satisfaction problem: participant availability, activity
 time windows, minimum gaps between prompts, daily limits and a cap on simultaneous prompts that
-spreads the upload load. The team implements backtracking search with the MRV and LCV heuristics,
-forward checking and AC-3, and compares the result with the fixed-time schedules many diary tools
+spreads the upload load. The team will implement backtracking search with the MRV and LCV heuristics,
+forward checking and AC-3, and compare the result with the fixed-time schedules many diary tools
 use.
 
 Security measures cover authentication and roles, pseudonymised participants, signed and
@@ -126,10 +128,11 @@ repository:
 
 | Tool | Use |
 |---|---|
-| Git and GitHub | Version control, issues, pull requests |
+| Git and GitHub | Version control and issues; pull requests once there is code |
 | GitHub Projects | Backlog, task owners and dates, milestones, board |
 | Docker and Docker Compose | Running the whole stack on the server or on a laptop |
 | Visual Studio Code | Development |
+| Figma | Mockups of the app and the portal (64 screens) |
 | Mermaid, PlantUML and Graphviz | Diagrams: concept map, use cases, architecture, deployment, data model, sequences |
 | Expo Go and Android devices | Testing the mobile app |
 | Prometheus and Grafana | Monitoring during the failure tests |
@@ -149,8 +152,12 @@ repository:
 | Access and routing | Tailscale, Traefik |
 | Push notifications | Expo Push |
 
-The stack is a proposal and still needs validation by the lecturers of Projeto de Desenvolvimento
-de Software and Sistemas Distribuídos.
+The design was reviewed by the lecturers: the Artificial Intelligence lecturer approved the
+scheduler on 1 October 2026, the Distributed Systems lecturer approved the architecture and the
+stack on 5 October 2026, the Software Engineering lecturer approved the project on 7 October
+2026, and the Projeto de Desenvolvimento de Software lecturer approved the whole repository, from
+the UML models to the stack. The security design still waits for validation by the Information
+Security lecturers.
 
 ### Team structure
 
@@ -161,15 +168,50 @@ de Software and Sistemas Distribuídos.
 
 ## Results
 
-None yet. The design is documented in `04_Documentacao_Tecnica` (architecture, fault model, data
-model, scheduler and security); results will be described here once the platform is built and
-tested.
+Nothing is implemented yet. This section describes the design delivered in the first delivery;
+the built platform and the test results will be described here as the work progresses.
+
+### Description of the solution
+
+The design is documented in `04_Documentacao_Tecnica`: architecture, fault model, data model,
+domain model, scheduler, security, requirements and use cases. The 64 mockups of the app and the
+portal are in `05_Artefactos/mockups`.
+
+### Main features
+
+The features are specified as 106 functional, 81 non-functional and 21 development requirements
+and 31 use cases, summarised in [the README](../../README.md#planned-features). None is implemented yet.
+
+### Relevant contributions
+
+- One design that joins the five course units in a single system, with a traceability matrix from
+  each requirement to use cases, design and verification.
+- Supporting research that changed the design: entries keep both the recording time and the
+  arrival time, because declared and real adherence to paper diaries differed (Stone et al., 2002, cited in `06_Dados_Investigacao`).
+- A written fault model with 11 failure scenarios and planned demonstrations.
+- A constraint satisfaction scheduler to be implemented by the team and evaluated on generated
+  studies of 10, 50 and 100 participants.
+- Privacy in the design: identity kept apart from entries, pseudonymous participants, the volunteer
+  pool shown only in counts, and erasure that also reaches the backups.
 
 ## Reflection
 
 ### Lessons learned
 
-To be written as the project progresses.
+These lessons come from the design stage; those from implementation and testing will follow.
+
+- Drawing the screens early exposes gaps in the requirements. Reviewing the mockups on 2 and 3
+  October led to three ways to join a study, the volunteer pool, poster codes, the optional account
+  and in-app erasure. The scope grew, so MoSCoW priorities now decide what enters the prototype.
+- Reading sources critically avoids promising what cannot be proved. Two meta-analyses disagree on
+  the effect of the number of prompts per day on adherence, so the daily limit is the researcher's
+  choice, with no claim of better adherence.
+- Asking for validation early reduces risk. The risk that three logical nodes on one host would not
+  be accepted was closed by the Distributed Systems approval on 5 October 2026. The security design
+  is the point still open.
+- With two people, the critical chain (infrastructure, backend, security and scheduler) rests on
+  one of them. The plan answers with a closed scope, priorities and the other member owning the
+  portal and the app screens.
 
 ### Limitations
 
