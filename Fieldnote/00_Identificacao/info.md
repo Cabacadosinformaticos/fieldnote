@@ -50,8 +50,16 @@ satisfaction, offline-first mobile app, user research.
 ## Technologies
 
 React Native, Expo, React, TypeScript, Python, FastAPI, PostgreSQL, Patroni, etcd, RabbitMQ,
-Garage, Traefik, Tailscale, Docker Compose, Prometheus, Grafana. Proposed, pending
-validation by the lecturers.
+Garage, Traefik, Tailscale, Docker Compose, Prometheus, Grafana.
+
+## Lecturer approvals
+
+The design was reviewed by the lecturers: the Artificial Intelligence lecturer approved the
+constraint satisfaction scheduler on 1 October 2026, the Distributed Systems lecturer approved the architecture and the
+stack on 5 October 2026, the Software Engineering lecturer approved the project on 7 October
+2026, and the Projeto de Desenvolvimento de Software lecturer approved the whole repository, from
+the UML models to the stack. The security design still waits for validation by the Information
+Security lecturers.
 
 ## Short summary
 

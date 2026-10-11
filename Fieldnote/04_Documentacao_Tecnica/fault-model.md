@@ -16,7 +16,7 @@ Docker host itself is outside them: see [single points of failure](#single-point
 | Functions available after one failure | Receiving entries, the researcher dashboard, delivery of scheduled activities (push, or on app open if push fails) |
 | How failures are detected | Traefik health checks on `/health`, Patroni leader keys with a TTL in etcd, the scheduler lease, RabbitMQ and Garage cluster membership, Prometheus alerts |
 | How components recover | Docker restarts crashed containers, Patroni promotes the synchronous replica, the standby scheduler takes the lease, a returning node rejoins its clusters and resynchronises |
-| Data that can be lost | No entry is lost once the API has confirmed it (recovery point objective of zero). The API confirms only after the synchronous commit has returned successfully, and the database waits for the synchronous replica rather than confirm on one node. The one documented exception, a cancelled commit wait, is the edge case row in [what can be lost or repeated](#what-can-be-lost-or-repeated); the API never confirms in that case |
+| Data that can be lost | When one logical node fails, no entry is lost once the API has confirmed it (recovery point objective of zero). The API confirms only after the synchronous commit has returned successfully, and the database waits for the synchronous replica rather than confirm on one node. The one documented exception, a cancelled commit wait, is the edge case row in [what can be lost or repeated](#what-can-be-lost-or-repeated); the API never confirms in that case. The loss of the host is the declared exception: data returns from the last daily backup, and entries made after it are lost |
 | Consistency between replicas | Strict synchronous replication to one database replica, quorum writes in object storage and in the broker queues |
 
 ## Recovery time targets
@@ -25,10 +25,10 @@ Docker host itself is outside them: see [single points of failure](#single-point
 |---|---|---|
 | API replica | Under 5 s | Traefik health check every 2 s |
 | Gateway | Under 5 s | The client switches to the other gateway after a failed request |
-| Scheduler | Under 20 s | Lease of 15 s plus one renewal period |
-| Database primary | Up to 45 s | Patroni defaults: `ttl` 30 s, `loop_wait` 10 s. To be tuned and measured |
+| Scheduler | Under 20 s | Lease of 15 s plus one renewal period, with the database available |
+| Database primary | Up to 45 s | Patroni defaults: `ttl` 30 s, `loop_wait` 10 s. To be tuned and measured. `/health` needs a database write, so the API and the dashboard do not answer during this pause |
 | Synchronous replica | A few seconds of paused writes | Patroni assigns the synchronous role to the other replica |
-| Broker node, storage node | No interruption expected | The remaining 2 members hold the quorum |
+| Broker node, storage node | No interruption expected | The remaining 2 members hold the quorum. An upload connected to the failed storage node is retried with a new signed URL |
 
 ## What can be lost or repeated
 
@@ -65,11 +65,11 @@ later by `docker start` simulates a node that goes away and comes back.
 |---|---|---|---|---|
 | 1 | Kill an API container while entries are being sent | No entry lost. Interrupted requests are retried by the app without duplicates | Traefik health check | Traefik routes to the other 2 replicas, Docker restarts the container |
 | 2 | Stop every container of one logical node, start them again later | The service keeps running with 2 of 3 members in every cluster | Health checks and cluster membership | Each service rejoins its cluster and catches up |
-| 3 | Kill the database primary | The synchronous replica is promoted. No confirmed entry lost | Leader key expires in etcd | Patroni promotion, the API reconnects with its host list |
+| 3 | Kill the database primary | The synchronous replica is promoted. No confirmed entry lost. The API and the dashboard do not answer during the pause, because `/health` needs a database write | Leader key expires in etcd | Patroni promotion, the API reconnects with its host list |
 | 4 | Kill the synchronous database replica | Writes pause for a few seconds, then continue with the other replica as synchronous | Patroni sees the replica leave | Patroni reassigns the synchronous role |
-| 5 | Kill an object storage node during a video upload | Upload completes, the file is readable | Garage cluster membership | Writes use the 2 remaining nodes, the node catches up on return |
+| 5 | Kill an object storage node during a video upload | Upload completes on the remaining nodes and the file is readable. An upload connected to the failed node fails and the app retries it with a new signed URL | Garage cluster membership | Writes use the 2 remaining nodes, the node catches up on return |
 | 6 | Kill a broker node while events are flowing | No event lost | RabbitMQ cluster membership | Quorum queues continue on 2 nodes |
-| 7 | Disconnect one node from the `cluster` network | The isolated node stops serving requests. The other two keep accepting writes. On reconnection the node resynchronises | `/health` fails on the isolated API, leases and heartbeats time out | Rejoin and resynchronisation |
+| 7 | Disconnect one node from the `cluster` network | The isolated node stops serving requests. Its gateway stays on the `edge` network and routes to the healthy API replicas. The other two keep accepting writes. On reconnection the node resynchronises | `/health` fails on the isolated API, leases and heartbeats time out | Rejoin and resynchronisation |
 | 8 | Phone in airplane mode during 3 entries | The 3 entries arrive when the network is back, without duplicates | The app sees no connection | Queue flush with idempotent resends |
 | 9 | Restore the latest encrypted backup on a clean stack | The database and the files of the backup day are back, and the counts of entries and files match, except for any participant whose erasure from the app was pending at the backup time, who is absent from both | Not a failure detection; a planned restore drill | Decrypt with the off-host key, restore `pg_dump` and the bucket copy |
 | 10 | Stop gateway 1 while the app and the dashboard are in use | Clients switch to gateway 2 in under 5 s; no entry lost | The client's request times out | The client retries on the second gateway address |

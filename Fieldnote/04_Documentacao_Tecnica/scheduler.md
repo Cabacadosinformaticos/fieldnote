@@ -1,7 +1,8 @@
 # Scheduler: activity planning as a constraint satisfaction problem
 
-Status: proposed, 29 September 2026. This is the artificial intelligence component of the project,
-from the constraint satisfaction topic of the Artificial Intelligence course.
+Status: proposed, 29 September 2026; approved as the artificial intelligence component of the project by
+the Artificial Intelligence lecturer, Samuel Gomes, on 1 October 2026. It comes from the constraint
+satisfaction topic of that course.
 
 ## The problem
 
