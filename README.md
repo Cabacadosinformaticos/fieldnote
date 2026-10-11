@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.svg">
-    <img src=".github/assets/logo-light.svg" alt="Fieldnote" width="420">
+    <img src=".github/assets/logo-light.svg" alt="Fieldnote" width="395">
   </picture>
 </p>
 
@@ -11,7 +11,7 @@
 
 <p align="center">
   <img alt="Status: design stage" src="https://img.shields.io/badge/status-design%20stage-orange">
-  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
+  <img alt="License: all rights reserved" src="https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python%203.12-3776AB?logo=python&logoColor=white">
   <img alt="React Native" src="https://img.shields.io/badge/React%20Native-20232A?logo=react&logoColor=61DAFB">
@@ -37,12 +37,11 @@ Design stage. No component is implemented yet; everything below describes the pl
 work plan, with owners and dates for every task, is in the
 [Fieldnote - Master Plan](https://github.com/users/Cabacadosinformaticos/projects/7) project.
 
-| Delivery | Date | Scope |
-|---|---|---|
-| Pitch | 7 October 2026 | Idea, mockups and use cases |
-| First delivery | 9 October 2026 | Requirements, architecture, fault model, descriptive report |
-| Second delivery | 13 November 2026 | Working prototype of the distributed stack, app and dashboard |
-| Final delivery | 18 December 2026 | Complete platform and fault tolerance demonstration |
+| Delivery | Presentation | Submission | Scope |
+|---|---|---|---|
+| First delivery | 9 October 2026 (pitch) | 11 October 2026 | Idea, requirements, use cases, architecture, fault model, mockups, descriptive report |
+| Second delivery | 13 November 2026 | 15 November 2026 | Working prototype of the distributed stack, app and dashboard |
+| Final delivery | 18 December 2026 | 20 December 2026 | Complete platform and fault tolerance demonstration |
 
 ## Why a distributed system
 
@@ -56,12 +55,15 @@ and the app keeps entries in a local queue while it has no network.
 
 | Participant (mobile app) | Researcher (web dashboard) | Administrator |
 |---|---|---|
-| Join a study with an invite code | Create and configure studies | Manage researcher accounts |
+| Join a study by QR code, typed code or volunteer pool invitation | Create and configure studies | Manage researcher accounts |
 | Accept the informed consent | Define activities and schedule rules | Oversee all studies |
-| Declare daily availability | Invite participants | Consult the audit log |
-| Receive activities | Follow adherence and entries in real time | Handle data erasure requests |
-| Record text, photo, video, audio, scale or choice entries with time and location | Tag and filter entries | |
-| Record offline and send later | Export data as CSV with a media archive | |
+| Declare daily availability | Invite participants with personal codes | Consult the audit log |
+| Receive activities | Recruit with reusable poster codes, with optional approval | Handle data erasure requests |
+| Record text, photo, video, audio, scale or choice entries with time and location | Recruit from the volunteer pool by criteria (counts only) | See the volunteer pool in aggregate |
+| Record offline and send later | Follow adherence and entries in real time | |
+| Take part in several studies on one phone | Tag and filter entries | |
+| Create an optional account to recover studies on a new phone | Export data as CSV with a media archive | |
+| Leave a study or erase own data from the app | | |
 
 ## Architecture in brief
 
@@ -81,7 +83,8 @@ Diagrams: [component architecture and deployment](Fieldnote/04_Documentacao_Tecn
 | Access | Tailscale private network with two gateways; clients switch to the second if the first fails |
 
 The artificial intelligence component plans when to send each activity to each participant as a
-constraint satisfaction problem ([scheduler](Fieldnote/04_Documentacao_Tecnica/scheduler.md)).
+constraint satisfaction problem ([scheduler](Fieldnote/04_Documentacao_Tecnica/scheduler.md)),
+approved by the Artificial Intelligence lecturer on 1 October 2026.
 Security measures are in [security](Fieldnote/04_Documentacao_Tecnica/security.md), and the
 failures that will be demonstrated in the [fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md).
 
@@ -99,7 +102,12 @@ failures that will be demonstrated in the [fault model](Fieldnote/04_Documentaca
 | Access and routing | Tailscale, Traefik |
 | Deployment and monitoring | Docker Compose, Prometheus, Grafana |
 
-The stack is a proposal pending validation by the course lecturers.
+The design was reviewed by the lecturers: the Artificial Intelligence lecturer approved the
+scheduler on 1 October 2026, the Distributed Systems lecturer approved the architecture and the
+stack on 5 October 2026, the Software Engineering lecturer approved the project on 7 October
+2026, and the Projeto de Desenvolvimento de Software lecturer approved the whole repository, from
+the UML models to the stack. The security design still waits for validation by the Information
+Security lecturers.
 
 ## Documentation
 
@@ -116,6 +124,7 @@ The stack is a proposal pending validation by the course lecturers.
 | [Personas and scenarios](Fieldnote/04_Documentacao_Tecnica/requirements/personas-and-scenarios.md) | Fictional personas and user scenarios |
 | [Scheduler](Fieldnote/04_Documentacao_Tecnica/scheduler.md) | Constraint satisfaction formulation and evaluation |
 | [Security](Fieldnote/04_Documentacao_Tecnica/security.md) | Assets and planned measures |
+| [Mockups](Fieldnote/05_Artefactos/mockups/README.md) | The 64 screens of the app and the portal |
 | [Figures](Fieldnote/02_Imagens/captions.md) | Every figure with its caption |
 
 ## Repository layout
@@ -137,8 +146,8 @@ fieldnote/
 │   ├── 01_Memoria_Descritiva/    memoria.md: the descriptive report
 │   ├── 02_Imagens/               figures (PNG, 3000 px or more) and their captions
 │   ├── 03_Videos/                demonstration and presentation videos
-│   ├── 04_Documentacao_Tecnica/  architecture, fault model, data model, scheduler, security, diagram sources
-│   ├── 05_Artefactos/            other artefacts produced during the project
+│   ├── 04_Documentacao_Tecnica/  architecture, fault model, data model, scheduler, security, diagrams (SVG and PNG)
+│   ├── 05_Artefactos/            presentations, posters and mockups
 │   ├── 06_Dados_Investigacao/    research files, one per subject
 │   └── 07_Autorizacoes/          consents and authorisations
 ├── .github/assets/               logo
@@ -151,10 +160,8 @@ Portuguese because the course briefing fixes them; their content is in English.
 
 ## Team
 
-| Name | Student number | Main areas |
-|---|---|---|
-| Tiago Manuel Antunes Cabaça | 20241185 | Infrastructure, backend, offline sync, scheduler, security |
-| César de Oliveira Rodrigues | 20240449 | Dashboard, app screens, UML, project archive |
+Tiago Manuel Antunes Cabaça (20241185)\
+César de Oliveira Rodrigues (20240449)
 
 BSc in Computer Engineering (Licenciatura em Engenharia Informática)\
 IADE, Universidade Europeia
@@ -171,4 +178,21 @@ IADE, Universidade Europeia
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Copyright (c) 2026 Tiago Manuel Antunes Cabaça and César de Oliveira Rodrigues. All rights
+reserved. See [LICENSE](LICENSE).
+
+This repository is public so that the work can be read, followed and evaluated. It is not open
+source.
+
+- You may read the code, the documentation, the diagrams and the mockups on GitHub, and cite them
+  with a reference to this repository.
+- You may not copy, reuse, modify, distribute or build on any part of this repository, in another
+  project, course work, publication or product, academic or commercial, without written permission
+  from both authors.
+- The lecturers and evaluators of IADE, Universidade Europeia may download, run and copy it for the
+  evaluation of the course units.
+- IADE and Universidade Europeia may archive, reproduce and exhibit the project archive (the
+  `Fieldnote` folder) in exhibitions, books and other academic outputs, with the authors credited.
+- Third-party software, libraries, fonts and services used by the project keep their own licenses.
+
+To ask for permission, write to 20241185@iade.pt and 20240449@iade.pt.

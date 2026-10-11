@@ -38,13 +38,6 @@ volumes/
 .DS_Store
 Thumbs.db
 
-# Agent tooling
-CLAUDE.md
-AGENTS.md
-.claude/
-.codex/
-.mcp.json
-
 # Diagram sources stay outside the repository (DR-18); only SVG and PNG exports are published
 Fieldnote/04_Documentacao_Tecnica/diagrams/*.mmd
 Fieldnote/04_Documentacao_Tecnica/diagrams/*.puml

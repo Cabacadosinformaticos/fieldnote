@@ -65,8 +65,8 @@ None of the adopted items is implemented yet. File 08 collects them.
 - Mobile ethnography is a family of practices without a coherent definition, according to its own
   proponents. Fieldnote is presented as a tool that supports it, not as a method.
 - Offline capture, real-time dashboards and alias-based participants already exist in other
-  platforms. What we did not find elsewhere is the combination of media diaries, open source
-  self-hosting without a specific cloud, fault tolerance with a written fault model and planned
+  platforms. What we did not find elsewhere is the combination of media diaries, code public on GitHub for viewing
+  and self-hosting without a specific cloud, fault tolerance with a written fault model and planned
   failure tests, and a constraint-based scheduler.
 - Prompt timing affects response and accuracy. Fieldnote plans ahead from declared availability
   instead of sensing context, for privacy and load control, and declares what that costs. Push

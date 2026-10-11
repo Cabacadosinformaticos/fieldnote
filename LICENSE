@@ -1,21 +1,26 @@
-MIT License
+Copyright (c) 2026 Tiago Manuel Antunes Cabaça and César de Oliveira Rodrigues.
+All rights reserved.
 
-Copyright (c) 2026 Tiago Manuel Antunes Cabaça and César de Oliveira Rodrigues
+This repository, including its source code, documentation, diagrams, images and mockups, is made
+publicly visible so that it can be read and evaluated. Visibility does not grant a license.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permitted without asking:
+  1. Viewing the repository on GitHub, and the forking that GitHub's Terms of Service allow within
+     GitHub, for viewing only.
+  2. Quoting short excerpts with a clear reference to this repository and its authors.
+  3. Downloading, running and copying by the lecturers and evaluators of IADE, Universidade
+     Europeia, for the evaluation of the course units of the project.
+  4. Archiving, reproducing and exhibiting the project archive (the Fieldnote folder, 00 to 07)
+     by IADE and Universidade Europeia, in exhibitions, books and other academic outputs, with
+     the authors credited.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Not permitted without prior written permission from both authors:
+  Using, copying, modifying, merging, publishing, distributing, sublicensing or selling any part of
+  this repository, or creating derivative works from it, for any purpose, academic or commercial.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Third-party components keep their own licenses.
+
+Requests for permission: 20241185@iade.pt and 20240449@iade.pt.
+
+THE CONTENT IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT SHALL THE AUTHORS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM ITS USE.

@@ -90,7 +90,7 @@ institution decides.
 An account would let participants recover access on a new phone by themselves. Invite codes with
 aliases collect less data and stop diaries from being linked across studies. m-Path, an
 established research platform, uses the same alias and invitation code design (file 03). **Our
-position:** invite codes and aliases, with the researcher issuing a new code for a new phone.
+position:** invite codes and aliases by default, plus an optional account (recovery code, email or Google) to recover the studies on a new phone; the researcher can still issue a new code.
 
 ## What changed in the design because of the research
 

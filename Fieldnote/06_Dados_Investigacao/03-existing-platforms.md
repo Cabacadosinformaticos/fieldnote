@@ -92,7 +92,7 @@ open about its design choices:
 > anonymity" (Mestdagh et al., 2023)
 
 Participants join with an invitation code and an alias. That is the same participant identity
-design Fieldnote chose independently (invite code, alias, no participant account; see
+design Fieldnote chose independently (invite code, alias, and an optional account that is never required; see
 `04_Documentacao_Tecnica/data-model.md`). An established research platform making the same choice
 is a useful confirmation that it is workable.
 
@@ -160,7 +160,7 @@ participant declares (availability). File 04 compares the two approaches.
 | Entries kept on the phone and sent later | Yes | | | After a notification is opened | Yes (Wi-Fi) | Yes | Yes |
 | Real-time researcher dashboard | Yes | Yes | | Yes | | | Yes |
 | Follow-up questions on an entry | | Yes | Chat interviews | | | | Future work |
-| Participant alias or ID only, no account | | | | Yes | Yes | | Yes |
+| Participant alias or ID only, account optional and never required | | | | Yes | Yes | | Yes |
 | Deployed by the research team | No | No | No | Optional own servers | Yes, on AWS | Yes | Yes, on the team's own machines |
 | Source code available | No | No | No | No | Yes | Yes | Yes |
 | Prompt times planned by an optimiser | | | | | | | Yes |
@@ -180,7 +180,7 @@ because a diary platform needs them.
 a statement about what we found, not proof that none exists.
 
 1. Photo, video and audio diary entries, as in the commercial ethnography tools.
-2. Open source and deployable on the institution's own hardware without a specific cloud provider.
+2. Code public on GitHub for viewing, and deployable on the institution's own hardware without a specific cloud provider.
    Beiwe is open but tied to AWS; m-Path's own-server option is for data storage, and its code is
    closed.
 3. Fault tolerance as an explicit property to be tested: replicated database, broker and object
@@ -210,7 +210,7 @@ activity asks for it.
 | Finding | Decision | Status |
 |---|---|---|
 | Offline capture is standard (Indeemo, Beiwe, AWARE) | Keep it, without presenting it as new | Adopted |
-| m-Path and Beiwe use aliases or IDs without participant accounts | Confirms the invite code and alias design | Adopted, already in the data model |
+| m-Path and Beiwe use aliases or IDs without participant accounts | Confirms the default (no account); the optional account was added later for recovery | Adopted, already in the data model |
 | m-Path cannot deliver server-planned prompts to an offline phone | Same weakness in Fieldnote; mitigations in file 04 | Adopted, see file 04 |
 | dscout allows several media per entry and follow-up questions | Activities accept one or more entry types (file 02); follow-up questions deferred | Partly adopted |
 | Beiwe is open but tied to AWS | Fieldnote uses only components that run anywhere Docker runs (PostgreSQL, RabbitMQ, Garage) | Adopted, in the architecture |
