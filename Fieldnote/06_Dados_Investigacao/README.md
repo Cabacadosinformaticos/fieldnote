@@ -18,8 +18,13 @@ sources critically, and ends with what the project does because of them.
 | [06-privacy-and-research-ethics.md](06-privacy-and-research-ethics.md) | What the GDPR and research ethics ask of a platform with participants' photos, voices and locations |
 | [07-network-access-options.md](07-network-access-options.md) | How access would work in a real deployment, and why this proof of concept uses Tailscale |
 | [08-from-research-to-design.md](08-from-research-to-design.md) | What the research means as a whole: the argument, contested points, design changes and what the project will not claim |
+| [09-user-interviews.md](09-user-interviews.md) | What researchers and designers from our institution said about the design, and what changed because of it |
+| [10-response-scales.md](10-response-scales.md) | What kind of measurement a rating scale is, how many points and which formats (numbers, faces, words, sliders) work, and how to show them on a phone |
+| [11-accessible-mobile-interfaces.md](11-accessible-mobile-interfaces.md) | What WCAG 2.2, the platform guidelines and studies with older adults ask of the participant app, checked against the mockups |
+| [12-visualising-entries-and-adherence.md](12-visualising-entries-and-adherence.md) | How to show researchers entries over time and each participant's adherence without clutter |
 
-Suggested reading order: 00, then 08 for the overall argument, then the topic files as needed.
+Suggested reading order: 00, then 08 for the overall argument, then the topic files as needed. File
+09 records the interviews; files 10 to 12 follow up questions the interviewees raised.
 
 ## How the research was done
 
@@ -51,7 +56,8 @@ proposals; planned means it is in the design but must be tested before it is rel
 work means it is not in the current design.
 None of the adopted items is implemented yet. File 08 collects them.
 
-**Accessed.** All sources were accessed in September 2026.
+**Accessed.** Sources of files 00 to 08 were accessed in September 2026, and those of files 10 to
+12 in October 2026.
 
 ## Summary
 
@@ -77,3 +83,13 @@ None of the adopted items is implemented yet. File 08 collects them.
   the idempotent resend covers the remaining case.
 - Diary data is pseudonymous, not anonymous. Photos, voices and locations identify people, so
   exports leave location and media out by default.
+- Four interviews in October 2026 with researchers and designers from IADE confirmed the core of the
+  design and changed several screens: the rating scale, the availability picker, the participant's
+  main screen and the researcher's views of entries and adherence. They are design feedback, not
+  tests with participants or a validation by UNIDCOM.
+- A rating scale is ordinal at most, numbers need verbal end labels, and faces are not better for
+  older adults in general, so the researcher chooses the scale and the export records it.
+- Checked against WCAG 2.2 and studies with older adults, the mockups passed text contrast and
+  failed field borders, a focus ring and 44 px controls; these were corrected.
+- The timeline and the adherence matrix follow overview, zoom and filter, then details on demand;
+  no study shows the matrix is better than bar charts, so it carries symbols as well as colour.

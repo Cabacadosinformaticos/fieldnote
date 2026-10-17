@@ -112,6 +112,22 @@ position:** invite codes and aliases by default, plus an optional account (recov
 | Portuguese interface for the app | UNIDCOM framing, participants in Portugal | App requirements (backlog) |
 | One-page data protection summary for ethics committees | Wiles et al. (2012) | Planned for the final delivery |
 
+### After the interviews
+
+Four interviews in October 2026 (file 09) and the research that followed them (files 10 to 12)
+changed the design again.
+
+| Change | Origin | Where it is documented |
+|---|---|---|
+| Scale type, points and labels chosen per activity; export records them as ordinal | Interviews; Stevens (1946); file 10 | Requirements, data model |
+| Discrete scale options as a vertical list, all visible, numbers with verbal end labels | Interviews; Menold (2020); file 10 | Requirements, mockups |
+| Availability as several intervals with weekdays, or any time | Interviews (file 09) | Requirements, data model, scheduler |
+| One main card on the participant's Today screen; sync status with a pending count | Interviews (file 09) | Requirements, mockups |
+| Controls of at least 48 dp; field borders and focus rings at 3:1 | WCAG 2.2; Leitão and Silva (2012); file 11 | Requirements, mockups |
+| Timeline of entries with lanes, zoom and filters | Interviews; Shneiderman (1996); file 12 | Requirements, mockups |
+| Adherence matrix per participant with marks as well as colour | Interviews; Trull and Ebner-Priemer (2020); file 12 | Requirements, mockups |
+| Study-defined questions when joining | Interviews (file 09) | Requirements, data model |
+
 ## What the project will not claim
 
 - That Fieldnote improves response rates, compliance or data quality. The scheduler's evaluation
@@ -138,7 +154,8 @@ Questions for the lecturers:
 - Information Security: whether encryption at rest should be at the volume level or in the
   application, given the key management questions in the security design.
 
-For UNIDCOM, if the team can talk to its researchers:
+For UNIDCOM, if the team can talk to its researchers (file 09 records the first conversations; the
+questions below are still open):
 
 - Which studies they would run, for how long, with how many participants, and with which media.
 - Which export format their qualitative analysis software needs.
