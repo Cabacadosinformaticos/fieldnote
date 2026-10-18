@@ -1,6 +1,6 @@
 # Personas and scenarios
 
-Status: proposed, 2 October 2026. The personas and scenarios are fictional. They are built from the
+Status: proposed, 2 October 2026; scenario 2 amended on 18 October 2026. The personas and scenarios are fictional. They are built from the
 research files (`06_Dados_Investigacao/00` to `06_Dados_Investigacao/08`) and the design documents, they describe no real
 person, and they are not data from users. The platform is not implemented, so the scenarios describe
 how the designed system shall behave. Requirement IDs refer to [requirements](requirements.md) and
@@ -70,16 +70,17 @@ Result: The study is ready. The next morning the dashboard shows the planned pro
 
 ### Scenario 2: Tomás joins with an invite code and accepts consent in Portuguese
 
-Actors: Tomás. Use cases: UC1, UC2, UC3. Requirements: FR-01 to FR-05, FR-72, NFR-57.
+Actors: Tomás. Use cases: UC1, UC2, UC3. Requirements: FR-01 to FR-05, FR-72, FR-109, NFR-57.
 
 1. Tomás installs the app on his Android phone and chooses Portuguese.
 2. He types the 12-character code. The API accepts it without using it up, and the app shows the invitation card: study, team, dates, requests per day, effort and what is recorded. He chooses to take part. The API then issues a device token and invalidates the code, and the app keeps the token in the phone's secure storage.
 3. The app shows the consent text in Portuguese. It explains what is collected, that backups keep erased data for up to 7 days, and what not to record.
 4. He accepts. The API stores the accepted version and the time.
-5. He declares that he accepts prompts between 09:00 and 20:00.
-6. He is asked for no email address and no password.
+5. The study asks three optional questions, for example how he usually gets to the square. He answers two and leaves one empty. The answers are linked to his alias.
+6. He declares when requests may arrive. He adds one interval, from 09:00 to 20:00 on every weekday. He could add more intervals with other weekdays, or choose "any time".
+7. He is asked for no email address and no password.
 
-Result: He is a participant under an alias, and the next nightly plan uses his hours. If he had declined the consent, no prompt would reach him. If he had declined the card or chosen to decide later, the code would stay valid until it expires. He could also have scanned the code as a QR code (UC1b).
+Result: He is a participant under an alias, and the next nightly plan uses his intervals. If he had declined the consent, no prompt would reach him. If he had declined the card or chosen to decide later, the code would stay valid until it expires. He could also have scanned the code as a QR code (UC1b).
 
 ### Scenario 3: Tomás records a photo with no signal and sends it later
 
