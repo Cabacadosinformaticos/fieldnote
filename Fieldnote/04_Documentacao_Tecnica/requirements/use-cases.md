@@ -1,8 +1,8 @@
 # Use cases
 
-Status: proposed, 2 October 2026; stale statements reconciled on 3 October 2026. Nothing described here is implemented. The use cases follow the
+Status: proposed, 2 October 2026; stale statements reconciled on 3 October 2026; amended on 18 October 2026 after the interviews of October 2026 (source code INT in the requirements). Nothing described here is implemented. The use cases follow the
 diagram [use-cases.svg](../diagrams/use-cases.svg) (Figure 2) and keep its names; the
-diagram shows the names without IDs, and the IDs (such as UC1b, UC1c, UC5b and UC9b) are given in this document. UC23 and UC24 describe the study codes for posters (decision D6). UC25 to UC27 describe the optional participant account (decision D7), and the check against joining a study twice is part of UC1, UC1b and UC1c. Requirement IDs refer to [requirements](requirements.md).
+diagram shows the names without IDs, and the IDs (such as UC1b, UC1c, UC5b and UC9b) are given in this document. UC23 and UC24 describe the study codes for posters (decision D6). UC25 to UC27 describe the optional participant account (decision D7), and the check against joining a study twice is part of UC1, UC1b and UC1c. The study questions (FR-109) are a step of UC1, the response scale is defined in UC9, and the timeline and the adherence matrix of a participant belong to UC11; the diagram is unchanged. Requirement IDs refer to [requirements](requirements.md).
 
 ## Actors
 
@@ -78,7 +78,7 @@ diagram shows the names without IDs, and the IDs (such as UC1b, UC1c, UC5b and U
 | Goal | Become a participant of one study on this phone |
 | Preconditions | Either the researcher has created the participant and given the participant a personal invite code that is unused and issued less than 7 days ago, or the participant has a study code (UC23) that is on, before its end date and, when it has an entry limit, below it. The app is installed and has a connection |
 | Trigger | The participant opens the app, chooses to join and chooses to type the code. UC1b scans the code instead, and UC1c starts from a pool invitation |
-| Related requirements | FR-01, FR-02, FR-03, FR-04, FR-72, FR-90, FR-92, FR-93, FR-95, FR-104, FR-105, FR-106, NFR-39, NFR-46, NFR-57, NFR-71, NFR-72, NFR-81 |
+| Related requirements | FR-01, FR-02, FR-03, FR-04, FR-72, FR-90, FR-92, FR-93, FR-95, FR-104, FR-105, FR-106, FR-109, NFR-39, NFR-46, NFR-57, NFR-71, NFR-72, NFR-81 |
 
 Main success scenario:
 
@@ -90,7 +90,8 @@ Main success scenario:
 6. The participant accepts. The API creates a random 256-bit device token, stores its SHA-256 hash with the participant row, stores the device hash of the phone (FR-105) and, when the phone is signed in, the link to the account (FR-104), and invalidates the invite code.
 7. The app stores the token in the phone's secure storage.
 8. The system runs UC2 (include).
-9. The app shows the participant's study and asks for the availability (UC3).
+9. When the study defines questions, the app shows them (FR-109), with a note that the answers are linked to the participant's pseudonym and not to a name. The participant answers them or leaves them unanswered.
+10. The app shows the participant's study and asks for the availability (UC3).
 
 Extensions:
 
@@ -112,7 +113,8 @@ Extensions:
   - Erased: no participant row and no device hash remain, so nothing matches and the person joins as a new participant, with a new alias.
   - The phone does not hold the valid token of the matched row, for example after a reinstall: when the person confirms, the API issues a new token for that row and revokes the earlier one.
 - 3g. A person with another phone, or after a factory reset, and with no account: the check finds nothing, because the Android ID is different, and the person can enter a second time. Approval of the entry (8b) and the account requirement (3e) cover this case, and it is a declared limitation.
-- 8b. The study code requires approval (the default): the consent, the hours (UC3) and the notification choice are stored as usual, the participant has the status `pending_approval` and no alias, and the app shows a waiting screen that says the team will confirm the entry, that the person will be told and that no request is sent until then. No prompt is planned. UC24 decides the entry. When the team approves, the app is told (a notification that names no study, and the app also asks when it opens), the participant becomes `active` with an alias and requests start from the next nightly plan. When the team declines, the app tells the person plainly that the entry was not accepted.
+- 8b. The study code requires approval (the default): the consent, the answers to the study questions, the hours (UC3) and the notification choice are stored as usual, the participant has the status `pending_approval` and no alias, and the app shows a waiting screen that says the team will confirm the entry, that the person will be told and that no request is sent until then. No prompt is planned. UC24 decides the entry. When the team approves, the app is told (a notification that names no study, and the app also asks when it opens), the participant becomes `active` with an alias and requests start from the next nightly plan. When the team declines, the app tells the person plainly that the entry was not accepted.
+- 9a. The participant leaves a question unanswered, or all of them: nothing is stored for those questions and the participant continues. A study that defines no questions skips step 9.
 
 Postconditions: The phone holds a device token linked to one `participant` row that holds the device hash of the phone and, when the phone is signed in, a link to the account, the personal invite code can no longer be used and the consent is recorded. A study code stays usable by others, and with approval the row is `pending_approval` until UC24. After 5a or 5b the code is still unused.
 
@@ -156,7 +158,7 @@ Main success scenario:
 3. The app shows the invitation card of UC1, with a line that says why the participant was invited (member of the pool, living in the concelho given) and the date on which the invitation expires.
 4. The participant accepts. The API creates a new participant row in the study with a new alias and a new device token, marks the invitation `accepted` and does not copy the pool profile.
 5. The app stores the token in the phone's secure storage.
-6. The system runs UC2 (include), and the app asks for the availability (UC3).
+6. The system runs UC2 (include), the app shows the study questions when the study defines any (UC1, step 9) and asks for the availability (UC3).
 
 Extensions:
 
@@ -198,26 +200,27 @@ Postconditions: `consent` holds the version and the time for the participant.
 | Field | Content |
 |---|---|
 | Primary actor | Participant |
-| Goal | Tell the platform in which hours of the day prompts are acceptable |
+| Goal | Tell the platform when requests may arrive |
 | Preconditions | The participant has joined a study |
-| Trigger | The participant opens the availability screen, or the app asks for it after joining |
-| Related requirements | FR-05, FR-53, FR-84 |
+| Trigger | The participant opens the availability screen, or the app asks for it after joining. The same component is used in both places |
+| Related requirements | FR-05, FR-46, FR-53, FR-84 |
 
 Main success scenario:
 
-1. The participant selects the hours in which prompts are acceptable.
-2. The app sends the hours to the API.
-3. The API stores them in `availability`.
-4. The scheduler uses them as domains in the next nightly plan.
+1. The participant adds one or more intervals, each with a start time, an end time and the weekdays on which it applies, or chooses "any time".
+2. The app sends the intervals, or the "any time" choice, to the API.
+3. The API stores each interval as a row of `availability` and the choice of "any time" in `participant.availability_any_time`.
+4. For each plan date the scheduler takes the union of the intervals whose weekdays include that date, or the whole activity window for "any time", as the availability of the participant, and uses it for the domains in the next nightly plan.
 
 Extensions:
 
-- 3a. The participant changes the hours during the day: the API stores them and the scheduler replans only that participant's remaining prompts of the day (UC9b), keeping sent prompts fixed.
+- 3a. The participant changes the intervals during the day: the API stores them and the scheduler replans only that participant's remaining prompts of the day (UC9b), keeping sent prompts fixed.
 - 2a. There is no connection: the app keeps the change and sends it when the connection returns.
-- 1b. The participant has another study on the phone: the app offers to copy the hours of that study (FR-84). The copy becomes the availability of this study only and the two can differ afterwards.
-- 1a. The hours leave no room for an activity window: the affected prompts become `unplanned` with the reason `outside_availability`.
+- 1b. The participant has another study on the phone: the app offers to copy the availability of that study (FR-84), its intervals with their weekdays or "any time". The copy becomes the availability of this study only and the two can differ afterwards.
+- 1a. The intervals leave no room for an activity window: the affected prompts become `unplanned` with the reason `outside_availability`.
+- 1c. The participant chooses "any time": requests may arrive at any time within the hours of the study's activities, and the intervals are not used while the choice is on. The app says so in one line.
 
-Postconditions: `availability` holds the participant's hours and the next plan respects them.
+Postconditions: `availability` holds the participant's intervals, or the participant is marked "any time", and the next plan respects them.
 
 ### UC4 Receive an activity
 
@@ -227,23 +230,25 @@ Postconditions: `availability` holds the participant's hours and the next plan r
 | Goal | Learn that an activity is waiting and open it |
 | Preconditions | The participant has joined the study and accepted the consent. The scheduler has planned a prompt for the participant |
 | Trigger | The planned time of the prompt arrives, or the participant opens the app |
-| Related requirements | FR-06, FR-07, FR-08, FR-19, FR-21, FR-54, FR-83, NFR-07, NFR-22, NFR-23, NFR-52 |
+| Related requirements | FR-06, FR-07, FR-08, FR-19, FR-21, FR-54, FR-83, FR-108, NFR-07, NFR-22, NFR-23, NFR-52 |
 
 Main success scenario:
 
 1. The active scheduler replica reaches the planned time of a prompt, checks that it holds the lease and marks the prompt as sent.
 2. The scheduler asks the push notification service to deliver a notification with no participant data.
 3. The phone shows the notification.
-4. The participant opens it. The app reports `prompt.shown_at` and `prompt.opened_at`.
-5. The app shows the activity with the researcher's instruction and the accepted entry types.
+4. The participant opens the notification, or opens the app and taps the main action of the card for the open request on the Today screen (FR-108). The app reports `prompt.shown_at` and `prompt.opened_at`.
+5. The app shows the activity screen: one block above the choice of how to record, with the researcher's instruction and every warning of the activity (the privacy guidance and the location notice), the warnings collapsed into one line that opens the full text (FR-21), and then the accepted entry types.
 
 Extensions:
 
 - 3a. The push is not delivered: the local notification scheduled from the 24-hour plan fires, and it is cancelled by prompt id if the push arrives or the prompt is answered.
-- 3b. Neither notification arrives: the app fetches the pending prompts when the participant opens it (step 5).
+- 3b. Neither notification arrives: the app fetches the pending prompts when the participant opens it (step 4).
 - 1a. The scheduler leader fails: the standby takes the lease within 20 s and continues from the stored plan. One notification may be sent twice.
 - 4a. The phone has no connection: the app reports the times when the connection returns.
 - 4b. The notification belongs to a study other than the current one: the app switches to that study and opens the activity (UC21).
+- 4c. The participant opens the app without a notification: the Today screen shows one main card for the open request, with the instruction, the accepted entry types, the expected effort ("about N min") and the closing time as plain text, and one main action. Free entries are a secondary action below the card, and the sync status is an icon with the number of entries waiting (UC5, 1b; UC6, 5a).
+- 4d. No request is open: the Today screen shows no card for a request. When the study allows free entries, the free entry is the main action (UC5, 1b).
 
 Postconditions: The prompt is marked as sent and its shown and opened times are stored.
 
@@ -255,7 +260,7 @@ Postconditions: The prompt is marked as sent and its shown and opened times are 
 | Goal | Record an observation as text, photo, video, audio, a scale value or a choice |
 | Preconditions | The participant has joined the study. An activity is open, either from a prompt or as a free entry where the activity allows it |
 | Trigger | The participant starts a recording from the activity screen |
-| Related requirements | FR-09 to FR-14, FR-17, FR-21, FR-56, FR-58, FR-59, FR-60, FR-61, NFR-40 |
+| Related requirements | FR-09 to FR-14, FR-17, FR-21, FR-56, FR-58, FR-59, FR-60, FR-61, FR-107, FR-108, FR-110, NFR-40 |
 
 Main success scenario:
 
@@ -276,6 +281,9 @@ Extensions:
 - 8a. Media processing fails 5 times: the object is marked `failed`, the original is kept and the researcher can retry from the dashboard.
 - 1a. The activity allows free entries and the daily cap is reached: the app refuses a further free entry for that day.
 - 3a. The phone clock is wrong: both `recorded_at` and `received_at` are shown in the dashboard so that the difference is visible.
+- 1b. The participant starts a free entry from the Today screen, where it is a secondary action beside an open request and the main action when no request is open (FR-108, UC4 4d). The daily cap of 1a applies.
+- 2b. The entry type is scale: the app shows the response scale defined for the activity (FR-107). Numbers, faces and text labels appear as a vertical list of large options, all visible at once, and the slider as a scale from 0 to 100. Faces differ by shape and use one hue. The app keeps the value chosen together with a copy of the scale as shown (type, number of points and labels).
+- 3b. The app has saved the entry on the phone: it shows a short confirmation animation with no points, scores, badges or streaks, whether or not the entry has been sent (FR-110). When the system's reduced-motion setting is on, the confirmation is static.
 
 Postconditions: A confirmed entry is stored on two database nodes, its files are in object storage with 3 copies, and it cannot be edited through the API.
 
@@ -328,6 +336,7 @@ Extensions:
 - 3b. Two logical nodes are down and the server accepts no writes: the entry stays in the queue until a quorum returns.
 - 3c. The app is uninstalled with entries still queued: those entries are lost, a declared limitation. The app shows how many are waiting.
 - 2a. The upload URL has expired: the app requests a new one. Objects left `pending` for 7 days are deleted.
+- 5a. Entries wait in the queue: the sync status on the Today screen is an icon with the number of entries waiting. Tapping it opens an explanation of what waiting means and what the app does about it, and the icon stays visible for as long as any entry waits (FR-18).
 
 Postconditions: Every sent entry exists once on the server with its original recording time.
 
@@ -399,7 +408,7 @@ Main success scenario:
 2. The participant types the confirmation word (APAGAR in the Portuguese interface) and confirms.
 3. The API sets the participation to `erasure_scheduled`, stores the time of the request and the due time (7 days later) and writes the request to the audit log with the actor type participant.
 4. At once the scheduler plans no more prompts for the participant, the data is hidden from the research team and left out of exports, and the next daily dump and bucket copy leave out the participant's rows and files. The app deletes the queued entries of that study from the phone and shows that the data will be erased on the due date, with a button to cancel the erasure and nothing else active.
-5. After 7 days the system runs the permanent erasure, with the mechanism of UC17: identity, entries, the device hash, the link to an account and every copy of the files on the three database nodes and the three object storage copies. It removes the device token and writes the erasure to the audit log with the actor type system.
+5. After 7 days the system runs the permanent erasure, with the mechanism of UC17: identity, entries, the answers to the study questions, the device hash, the link to an account and every copy of the files on the three database nodes and the three object storage copies. It removes the device token and writes the erasure to the audit log with the actor type system.
 6. The backups made before the request were kept 7 days and have expired by the due time, so no backup holds the data. There is no further period for backups.
 
 Extensions:
@@ -458,7 +467,7 @@ Main success scenario:
 Extensions:
 
 - 3a. There is no connection: the app asks the participant to try again.
-- 4a. The participant later wants the data erased: UC20 applies to a participation that has left the study.
+- 4a. The participant later wants the data erased: UC20 applies to a participation that has left the study, or that the team removed (UC10, 4d).
 - 4b. The participant later wants to come back: the person scans or types a code of the study again, and the check of UC1 (3f) finds the participation and offers to return to it with the same pseudonym and data (FR-106).
 
 Postconditions: The participation is `withdrawn`, the entries already sent are unchanged and no new prompt is planned.
@@ -557,7 +566,7 @@ Postconditions: No account row, sign-in data or link remains. The participations
 | Goal | Set up a study that the scheduler can plan |
 | Preconditions | The researcher has an account and is signed in |
 | Trigger | The researcher chooses to create a study |
-| Related requirements | FR-22, FR-23, FR-26, FR-30, FR-39, FR-69, FR-76, NFR-34, NFR-35 |
+| Related requirements | FR-22, FR-23, FR-26, FR-30, FR-39, FR-69, FR-76, FR-112, NFR-34, NFR-35 |
 
 Main success scenario:
 
@@ -565,14 +574,16 @@ Main success scenario:
 2. The researcher chooses the schedule style: `fixed`, `balanced` or `varied`.
 3. The researcher sets `max_prompts_per_day` and `max_prompts_per_slot`. The dashboard suggests a slot cap from the number of participants and their availability.
 4. The researcher optionally adds collaborators and chooses how to recruit: with personal invite codes, which are always available (UC10), with a study code for a poster (UC23), and optionally from the volunteer pool, whose criteria are set after the study exists (UC19).
-5. The API creates the study with the researcher as owner and writes the change to the audit log.
-6. When activities and participants are ready, the researcher starts the study, which becomes `running`. The scheduler plans prompts only for running studies. The researcher closes the study when it ends, and it becomes `closed`.
+5. The researcher optionally defines questions for the participants (FR-112): single choice, multiple choice, yes or no, or short text. Every participant who joins is shown them after the consent and may leave them unanswered.
+6. The API creates the study with the researcher as owner and writes the change to the audit log.
+7. When activities and participants are ready, the researcher starts the study, which becomes `running`. The scheduler plans prompts only for running studies. The researcher closes the study when it ends, and it becomes `closed`.
 
 Extensions:
 
 - 3a. The slot cap is lower than needed for the number of participants: the dashboard warns that prompts may be left `unplanned` with the reason `slot_cap`.
 - 4a. A collaborator has no account: an administrator creates one first (UC14).
 - 1a. The session has expired: the dashboard uses the refresh token and, if it was reused or revoked, asks for a new sign in.
+- 5a. The researcher changes the questions while the study is running: the change is written to the audit log, applies to the participants who answer after it and never edits an answer already given. The dashboard warns, when a short text question is added, that the answers are free text and can contain personal data.
 
 Postconditions: A study exists with its time zone, style and limits, and the researcher is its owner.
 
@@ -584,7 +595,7 @@ Postconditions: A study exists with its time zone, style and limits, and the res
 | Goal | Define what participants are asked to record and when |
 | Preconditions | A study exists and the researcher is a member |
 | Trigger | The researcher adds or changes an activity |
-| Related requirements | FR-24, FR-25, FR-27, FR-50 |
+| Related requirements | FR-24, FR-25, FR-27, FR-50, FR-111 |
 
 Main success scenario:
 
@@ -599,6 +610,7 @@ Extensions:
 
 - 3a. The minimum gap does not fit in the window: the dashboard warns, and the prompts become `unplanned` with the reason `min_gap_infeasible`.
 - 5a. The expected effort of a day is high: the dashboard shows it so that the researcher can reduce it. It sets no limit.
+- 2a. The researcher selects the scale type: the researcher defines the response scale (FR-111). The type is numbers (2 to 11 points, including 0 to 10), faces (3 or 5 points), text labels (3, 5 or 7 points) or a slider from 0 to 100. The researcher sets the number of points (not for the slider), the labels of the two ends and, for an odd number of points, an optional middle label. No scale is preset. The dashboard shows what the participant will see and says that the answers are ordinal, to be compared with medians and percentages and not with means.
 
 Postconditions: The activity is stored with its entry types, location flag and schedule rules.
 
@@ -614,7 +626,7 @@ Postconditions: The activity is stored with its entry types, location flag and s
 
 Main success scenario:
 
-1. The scheduler builds one variable for each prompt to plan, with domains of 15-minute slots inside the availability and the activity window.
+1. The scheduler builds one variable for each prompt to plan, with domains of 15-minute slots inside the availability and the activity window. The availability of a participant on the plan date is the union of the intervals whose weekdays include that date, or the whole activity window when the participant chose "any time" (FR-46).
 2. It applies node consistency and AC-3 over the minimum-gap constraints, then adds "not planned" to every domain.
 3. It searches with backtracking, MRV, LCV and forward checking, honouring `max_prompts_per_day` and `max_prompts_per_slot`.
 4. It scores valid plans with the study's schedule style and keeps the best one.
@@ -652,8 +664,9 @@ Extensions:
 
 - 4a. The code expires after 7 days unused: the researcher issues a new code for the same participant.
 - 4c. The researcher wants to recruit many people with a poster or a leaflet: a study code (UC23) is used instead of one personal code for each person.
-- 4b. The participant changes phone: the researcher issues a new code for the same participant row, which links the new phone and keeps the history. The researcher can also revoke the old device token. A participant who has an account does not need the researcher: UC26 brings the participation back on the new phone.
-- 2b. The list of participants shows how each participant entered (QR code, typed code, pool or study code) and the state of a participant who left the study or whose erasure is scheduled (FR-87). For a scheduled erasure it shows the alias, the state and the date, and none of the participant's data.
+- 4b. The participant changes phone: the researcher issues a new code for the same participant row, which links the new phone and keeps the history. When the new phone accepts the code, the token of the old phone stops working (FR-29). A participant who has an account does not need the researcher: UC26 brings the participation back on the new phone.
+- 4d. The researcher removes a participant from the study, with the action "Retirar do estudo" on the participant page or in the menu of the list, which explains what it does and asks for a confirmation (FR-29). The API sets the participation to `removed`, as if the participant had left, but by decision of the team: the scheduler plans no further prompt, prompts planned and not yet sent are cancelled, and the entries already sent stay under the alias. The app shows the participant that the team removed them, and the participant can still erase the data (UC20). The person cannot join the study again with a code. The removal is written to the audit log.
+- 2b. The list of participants shows how each participant entered (QR code, typed code, pool or study code) and the state of a participant who left the study, was removed by the team or whose erasure is scheduled (FR-87). For a scheduled erasure it shows the alias, the state and the date, and none of the participant's data.
 - 2a. The researcher opens the identity of a participant later: only the study owner and administrators can, and the read is audited.
 
 Postconditions: The participant exists under an alias with an unused invite code.
@@ -666,7 +679,7 @@ Postconditions: The participant exists under an alias with an unused invite code
 | Goal | See how participants are responding while the study runs |
 | Preconditions | The study is running and the researcher is a member |
 | Trigger | The researcher opens the study dashboard |
-| Related requirements | FR-31 to FR-36, FR-63, NFR-31, NFR-32 |
+| Related requirements | FR-31 to FR-36, FR-63, FR-113, FR-114, NFR-31, NFR-32, NFR-84 |
 
 Main success scenario:
 
@@ -680,6 +693,8 @@ Extensions:
 
 - 2a. The connection drops because a replica or gateway failed: the dashboard reconnects after a random delay of 1 to 5 s and reloads the entries received since the last one it showed, removing duplicates by entry id.
 - 4a. A media object is `failed` or still processing: the dashboard shows its status, offers a retry for failed objects and does not offer the original for download.
+- 3b. The researcher opens the page of one participant: it shows the adherence as one matrix of study days by request slot, with the states answered, expired, sent and pending, and not yet sent, a row with the number of free entries for each day, a legend, and a summary with the percentage and the counts, for example "14 of 18" (FR-114). Each state has a mark as well as a colour.
+- 4b. The researcher opens the timeline view of the entries (FR-113): one lane per participant on a shared time axis, a zoom between week, day and hours, and filters by participant, entry type, activity and tag. Selecting an entry shows its details on demand, with `recorded_at` and `received_at`. A request that was missed or has expired is a hollow marker in the lane of its participant.
 - 1a. The researcher is not a member of the study: the API refuses the request.
 
 Postconditions: None. The use case only reads.
@@ -692,7 +707,7 @@ Postconditions: None. The use case only reads.
 | Goal | Organise entries for analysis |
 | Preconditions | The study has entries and the researcher is a member |
 | Trigger | The researcher opens an entry or the filter panel |
-| Related requirements | FR-33, FR-37 |
+| Related requirements | FR-33, FR-37, FR-113 |
 
 Main success scenario:
 
@@ -705,6 +720,7 @@ Extensions:
 
 - 2a. The researcher detaches a tag: the label is removed and the entry is unchanged.
 - 3a. No entry matches: the dashboard shows an empty list.
+- 3b. The researcher works in the timeline view: the same filters apply there, and the lanes show only the matching entries (UC11, 4b).
 
 Postconditions: `tag` and `entry_tag` rows reflect the researcher's choices. The entry content is unchanged.
 
@@ -716,20 +732,21 @@ Postconditions: `tag` and `entry_tag` rows reflect the researcher's choices. The
 | Goal | Take the data of a study out of the platform for analysis |
 | Preconditions | The study has entries, whether it is running or closed, and the researcher is a member |
 | Trigger | The researcher chooses to export |
-| Related requirements | FR-64 to FR-67, FR-69, NFR-38, NFR-42 |
+| Related requirements | FR-64 to FR-67, FR-69, FR-115, FR-116, NFR-38, NFR-42 |
 
 Main success scenario:
 
 1. The researcher opens the export dialog. No option is selected.
 2. The researcher starts the export.
-3. The system produces a CSV with, for each entry, the participant alias, activity, prompt, entry type, content, `recorded_at` and `received_at`.
-4. The file contains no identity, no location and no media files.
+3. The system produces a CSV with, for each entry, the participant alias, activity, prompt, entry type, content, `recorded_at` and `received_at`. For a scale entry it also records the scale type, the number of points, the labels as shown and the value chosen (FR-115).
+4. When the study defines questions, the export also holds a second CSV with one row for each answer (FR-116). No file contains identity, location or media files.
 5. The system writes the export to the audit log with the content chosen.
 
 Extensions:
 
 - 1a. The researcher chooses to include location, media files or identity: each option is explicit, adds only its own content and is recorded in the audit log.
 - 3a. A media file is not yet processed: the original is not exported and the export lists the file as unavailable.
+- 3b. The export documentation states that scale answers are ordinal, and the export computes no mean or other statistic (FR-115).
 - 1b. The researcher is not a member of the study: the API refuses the request.
 
 Postconditions: The researcher holds a CSV file, and the audit log holds the export with its options.
@@ -779,7 +796,7 @@ Main success scenario:
 1. The researcher gives the code a name (for example "Cartaz no quiosque"), an end date and, if wanted, an entry limit (off by default, shown as "no limit") and a limit on entries per hour (off by default), and chooses whether the team approves each entry and whether the person must have an account. Approval is on by default and the account requirement is off. The dashboard says when to require an account: a public poster, where one account per person also stops the same person entering again from another phone. The dashboard explains the difference from a personal code: many people, a new pseudonym for each, visible again later.
 2. The API creates the code, 8 characters in two groups of four, stores it readable and writes the creation to the audit log.
 3. The dashboard shows the code, its QR code, its state, its uses (waiting, approved, declined, and the count against the limit, in which declined entries do not appear), its limit or "no limit" and its end date.
-4. The researcher prints the poster: study title, one sentence on what is asked, expected effort, QR code, the code in large type, team and institution, end date for entries and the pseudonym line.
+4. The researcher chooses the poster: one of five styles (Informative, Solid colour, Circle, Band and Minimal), which carry the same text, and what it shows for joining (the code, the QR code or both). The researcher checks the preview, which shows the poster as it prints on A4, and prints it. The poster has the study title, one sentence on what is asked, expected effort, the QR code or the code in large type or both, team and institution, end date for entries and the pseudonym line.
 5. Later the researcher opens the list again and sees the code, its QR and the uses at any time.
 
 Extensions:
@@ -805,14 +822,14 @@ Postconditions: A study code exists with its settings, and every change is in th
 
 Main success scenario:
 
-1. The dashboard lists the waiting entries. Each shows its order ("Person 1"), the time it arrived and the code used, and no alias or identity.
+1. The dashboard lists the waiting entries. Each shows its order ("Person 1"), the time it arrived and the code used, and no alias, identity or answers to the study questions.
 2. The researcher approves an entry.
 3. The API sets the participant to `active`, assigns an alias, writes the approval to the audit log and tells the app with a notification that names no study. The person is counted as a participant from now on.
 4. The scheduler plans requests for the participant from the next nightly plan.
 
 Extensions:
 
-- 2a. The researcher declines an entry: the API sets the participant to `declined`, deletes the consent, hours and push token, writes the decision to the audit log and tells the app. The app tells the person plainly that the entry was not accepted. No entry or other research data exists for that person. The entry does not count against the limit of the code, so a place is freed.
+- 2a. The researcher declines an entry: the API sets the participant to `declined`, deletes the consent, the answers to the study questions, the hours and the push token, writes the decision to the audit log and tells the app. The app tells the person plainly that the entry was not accepted. No entry or other research data exists for that person. The entry does not count against the limit of the code, so a place is freed.
 - 1a. The code ends (the end of its end date) while entries are still waiting: the system declines them automatically, as in 2a, and writes each decline to the audit log with the actor type system. From 24 hours before the end the dashboard shows a reminder among the items that need attention, with the number of entries waiting and the time the code ends, so that the team can decide first.
 - 3a. The notification is not delivered: the app asks the API when it opens and shows the result.
 - 1b. The code is off or regenerated while entries wait: the waiting entries stay and can be decided.
@@ -907,7 +924,7 @@ Postconditions: None. The log is append only, and the administrator cannot chang
 Main success scenario:
 
 1. The administrator selects the participant and confirms the erasure.
-2. The system removes the participant's identity and entries from the three database nodes.
+2. The system removes the participant's identity, entries and answers to the study questions from the three database nodes.
 3. The system removes every copy of the participant's files from the three copies in object storage.
 4. The system writes the erasure to the audit log with the pseudonymous participant id.
 5. The administrator tells the participant that backups keep the data for up to 7 days. This is the manual path: it is immediate in the live system, and the data is not kept out of the backups made before it, which clear within 7 days.
