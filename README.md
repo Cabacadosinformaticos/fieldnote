@@ -114,7 +114,7 @@ Security lecturers.
 | Document | Contents |
 |---|---|
 | [Descriptive report](Fieldnote/01_Memoria_Descritiva/memoria.md) | Summary, context, process, team |
-| [Research](Fieldnote/06_Dados_Investigacao/README.md) | Research context (UNIDCOM/IADE), diary studies, mobile ethnography, existing platforms, prompt timing, fault tolerance, privacy, network access, and how the research changed the design |
+| [Research](Fieldnote/06_Dados_Investigacao/README.md) | Research context (UNIDCOM/IADE), diary studies, mobile ethnography, existing platforms, prompt timing, fault tolerance, privacy, network access, how the research changed the design, interviews with researchers and designers, response scales, accessibility, and visualising entries |
 | [Architecture](Fieldnote/04_Documentacao_Tecnica/architecture.md) | Components, deployment, consistency decisions |
 | [Fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md) | Guarantees, detection, recovery, demonstration scenarios |
 | [Data model](Fieldnote/04_Documentacao_Tecnica/data-model.md) | Entities, participant identity, design notes |
@@ -124,7 +124,7 @@ Security lecturers.
 | [Personas and scenarios](Fieldnote/04_Documentacao_Tecnica/requirements/personas-and-scenarios.md) | Fictional personas and user scenarios |
 | [Scheduler](Fieldnote/04_Documentacao_Tecnica/scheduler.md) | Constraint satisfaction formulation and evaluation |
 | [Security](Fieldnote/04_Documentacao_Tecnica/security.md) | Assets and planned measures |
-| [Mockups](Fieldnote/05_Artefactos/mockups/README.md) | The 64 screens of the app and the portal |
+| [Mockups](Fieldnote/05_Artefactos/mockups/README.md) | The 68 screens of the app and the portal |
 | [Figures](Fieldnote/02_Imagens/captions.md) | Every figure with its caption |
 
 ## Repository layout

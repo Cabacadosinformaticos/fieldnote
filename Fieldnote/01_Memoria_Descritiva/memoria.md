@@ -132,7 +132,7 @@ repository:
 | GitHub Projects | Backlog, task owners and dates, milestones, board |
 | Docker and Docker Compose | Running the whole stack on the server or on a laptop |
 | Visual Studio Code | Development |
-| Figma | Mockups of the app and the portal (64 screens) |
+| Figma | Mockups of the app and the portal (68 screens) |
 | Mermaid, PlantUML and Graphviz | Diagrams: concept map, use cases, architecture, deployment, data model, sequences |
 | Expo Go and Android devices | Testing the mobile app |
 | Prometheus and Grafana | Monitoring during the failure tests |
