@@ -5,6 +5,7 @@ administrator portal (1440 px wide), rendered at 2x. The interface is in Portugu
 generated demonstration data; no real person appears. Status: proposed design, not implemented.
 
 
+
 ## App: joining a study
 
 | File | Screen |
@@ -15,96 +16,100 @@ generated demonstration data; no real person appears. Status: proposed design, n
 | [04-study-invitation.png](04-study-invitation.png) | Study invitation |
 | [05-invitation-from-a-poster.png](05-invitation-from-a-poster.png) | Invitation from a poster |
 | [06-informed-consent.png](06-informed-consent.png) | Informed consent |
-| [07-your-hours.png](07-your-hours.png) | Your hours |
-| [08-activity-notifications.png](08-activity-notifications.png) | Activity notifications |
-| [09-waiting-for-approval.png](09-waiting-for-approval.png) | Waiting for approval |
-| [10-already-in-this-study.png](10-already-in-this-study.png) | Already in this study |
-| [11-return-to-the-study-alternative-state.png](11-return-to-the-study-alternative-state.png) | Return to the study (alternative state) |
-| [12-informed-consent-full-text.png](12-informed-consent-full-text.png) | Informed consent, full text |
+| [07-study-questions.png](07-study-questions.png) | Study questions |
+| [08-your-hours.png](08-your-hours.png) | Your hours |
+| [09-activity-notifications.png](09-activity-notifications.png) | Activity notifications |
+| [10-waiting-for-approval.png](10-waiting-for-approval.png) | Waiting for approval |
+| [11-already-in-this-study.png](11-already-in-this-study.png) | Already in this study |
+| [12-return-to-the-study-alternative-state.png](12-return-to-the-study-alternative-state.png) | Return to the study (alternative state) |
+| [13-informed-consent-full-text.png](13-informed-consent-full-text.png) | Informed consent, full text |
 
 ## App: volunteer pool
 
 | File | Screen |
 |---|---|
-| [13-what-the-volunteer-pool-is.png](13-what-the-volunteer-pool-is.png) | What the volunteer pool is |
-| [14-pool-profile.png](14-pool-profile.png) | Pool profile |
-| [15-new-study-notification.png](15-new-study-notification.png) | New study notification |
-| [16-pool-invitation.png](16-pool-invitation.png) | Pool invitation |
-| [17-volunteer-pool-settings.png](17-volunteer-pool-settings.png) | Volunteer pool settings |
-| [18-pool-profile-full-form.png](18-pool-profile-full-form.png) | Pool profile, full form |
+| [14-what-the-volunteer-pool-is.png](14-what-the-volunteer-pool-is.png) | What the volunteer pool is |
+| [15-pool-profile.png](15-pool-profile.png) | Pool profile |
+| [16-new-study-notification.png](16-new-study-notification.png) | New study notification |
+| [17-pool-invitation.png](17-pool-invitation.png) | Pool invitation |
+| [18-volunteer-pool-settings.png](18-volunteer-pool-settings.png) | Volunteer pool settings |
+| [19-pool-profile-full-form.png](19-pool-profile-full-form.png) | Pool profile, full form |
 
 ## App: optional account
 
 | File | Screen |
 |---|---|
-| [19-optional-account.png](19-optional-account.png) | Optional account |
-| [20-recovery-code.png](20-recovery-code.png) | Recovery code |
-| [21-account-with-email.png](21-account-with-email.png) | Account with email |
-| [22-sign-in-on-a-new-phone.png](22-sign-in-on-a-new-phone.png) | Sign in on a new phone |
-| [23-account-restored.png](23-account-restored.png) | Account restored |
+| [20-optional-account.png](20-optional-account.png) | Optional account |
+| [21-recovery-code.png](21-recovery-code.png) | Recovery code |
+| [22-account-with-email.png](22-account-with-email.png) | Account with email |
+| [23-sign-in-on-a-new-phone.png](23-sign-in-on-a-new-phone.png) | Sign in on a new phone |
+| [24-account-restored.png](24-account-restored.png) | Account restored |
 
 ## App: daily use
 
 | File | Screen |
 |---|---|
-| [24-lock-screen-notification.png](24-lock-screen-notification.png) | Lock screen notification |
-| [25-today.png](25-today.png) | Today |
-| [26-today-offline.png](26-today-offline.png) | Today, offline |
-| [27-free-entry-with-a-photo.png](27-free-entry-with-a-photo.png) | Free entry with a photo |
-| [28-recording-video.png](28-recording-video.png) | Recording video |
-| [29-recording-audio.png](29-recording-audio.png) | Recording audio |
-| [30-scale-from-1-to-7.png](30-scale-from-1-to-7.png) | Scale from 1 to 7 |
-| [31-entry-saved.png](31-entry-saved.png) | Entry saved |
-| [32-my-entries-offline.png](32-my-entries-offline.png) | My entries, offline |
-| [33-entry-detail.png](33-entry-detail.png) | Entry detail |
-| [34-my-hours.png](34-my-hours.png) | My hours |
+| [25-lock-screen-notification.png](25-lock-screen-notification.png) | Lock screen notification |
+| [26-today.png](26-today.png) | Today |
+| [27-today-no-open-request.png](27-today-no-open-request.png) | Today, no open request |
+| [28-today-offline.png](28-today-offline.png) | Today, offline |
+| [29-free-entry-with-a-photo.png](29-free-entry-with-a-photo.png) | Free entry with a photo |
+| [30-recording-video.png](30-recording-video.png) | Recording video |
+| [31-recording-audio.png](31-recording-audio.png) | Recording audio |
+| [32-scale-with-numbers.png](32-scale-with-numbers.png) | Scale with numbers |
+| [33-scale-with-faces.png](33-scale-with-faces.png) | Scale with faces |
+| [34-entry-saved.png](34-entry-saved.png) | Entry saved |
+| [35-my-entries-offline.png](35-my-entries-offline.png) | My entries, offline |
+| [36-entry-detail.png](36-entry-detail.png) | Entry detail |
+| [37-my-hours.png](37-my-hours.png) | My hours |
 
 ## App: several studies, leaving and erasing data
 
 | File | Screen |
 |---|---|
-| [35-studies.png](35-studies.png) | Studies |
-| [36-study-details.png](36-study-details.png) | Study details |
-| [37-erase-my-data.png](37-erase-my-data.png) | Erase my data |
-| [38-erasure-scheduled.png](38-erasure-scheduled.png) | Erasure scheduled |
-| [39-app-settings.png](39-app-settings.png) | App settings |
-| [40-study-ended.png](40-study-ended.png) | Study ended |
+| [38-studies.png](38-studies.png) | Studies |
+| [39-study-details.png](39-study-details.png) | Study details |
+| [40-erase-my-data.png](40-erase-my-data.png) | Erase my data |
+| [41-erasure-scheduled.png](41-erasure-scheduled.png) | Erasure scheduled |
+| [42-app-settings.png](42-app-settings.png) | App settings |
+| [43-study-ended.png](43-study-ended.png) | Study ended |
 
 ## Researcher portal: sign-in, studies and follow-up
 
 | File | Screen |
 |---|---|
-| [41-sign-in.png](41-sign-in.png) | Sign in |
-| [42-my-studies.png](42-my-studies.png) | My studies |
-| [43-new-study.png](43-new-study.png) | New study |
-| [44-study-overview-dashboard.png](44-study-overview-dashboard.png) | Study overview (dashboard) |
-| [45-plan.png](45-plan.png) | Plan |
-| [46-entries.png](46-entries.png) | Entries |
-| [47-export.png](47-export.png) | Export |
+| [44-sign-in.png](44-sign-in.png) | Sign in |
+| [45-my-studies.png](45-my-studies.png) | My studies |
+| [46-new-study.png](46-new-study.png) | New study |
+| [47-study-overview-dashboard.png](47-study-overview-dashboard.png) | Study overview (dashboard) |
+| [48-plan.png](48-plan.png) | Plan |
+| [49-entries.png](49-entries.png) | Entries |
+| [50-entries-timeline.png](50-entries-timeline.png) | Entries, timeline |
+| [51-export.png](51-export.png) | Export |
 
 ## Researcher portal: activities, participants and recruitment
 
 | File | Screen |
 |---|---|
-| [48-activities.png](48-activities.png) | Activities |
-| [49-edit-activity.png](49-edit-activity.png) | Edit activity |
-| [50-participants.png](50-participants.png) | Participants |
-| [51-add-participant.png](51-add-participant.png) | Add participant |
-| [52-participant-p-07.png](52-participant-p-07.png) | Participant P-07 |
-| [53-invite-codes.png](53-invite-codes.png) | Invite codes |
-| [54-new-poster-code.png](54-new-poster-code.png) | New poster code |
-| [55-printable-poster-a4.png](55-printable-poster-a4.png) | Printable poster (A4) |
-| [56-invite-from-the-pool.png](56-invite-from-the-pool.png) | Invite from the pool |
-| [57-study-settings.png](57-study-settings.png) | Study settings |
+| [52-activities.png](52-activities.png) | Activities |
+| [53-edit-activity.png](53-edit-activity.png) | Edit activity |
+| [54-participants.png](54-participants.png) | Participants |
+| [55-add-participant.png](55-add-participant.png) | Add participant |
+| [56-participant-p-07.png](56-participant-p-07.png) | Participant P-07 |
+| [57-invite-codes.png](57-invite-codes.png) | Invite codes |
+| [58-new-poster-code.png](58-new-poster-code.png) | New poster code |
+| [59-study-poster.png](59-study-poster.png) | Study poster |
+| [60-invite-from-the-pool.png](60-invite-from-the-pool.png) | Invite from the pool |
+| [61-study-settings.png](61-study-settings.png) | Study settings |
 
 ## Administration
 
 | File | Screen |
 |---|---|
-| [58-sign-in-with-a-totp-code.png](58-sign-in-with-a-totp-code.png) | Sign in with a TOTP code |
-| [59-researcher-accounts.png](59-researcher-accounts.png) | Researcher accounts |
-| [60-new-account.png](60-new-account.png) | New account |
-| [61-all-studies.png](61-all-studies.png) | All studies |
-| [62-volunteer-pool-overview.png](62-volunteer-pool-overview.png) | Volunteer pool overview |
-| [63-audit-log.png](63-audit-log.png) | Audit log |
-| [64-erasure-requests.png](64-erasure-requests.png) | Erasure requests |
+| [62-sign-in-with-a-totp-code.png](62-sign-in-with-a-totp-code.png) | Sign in with a TOTP code |
+| [63-researcher-accounts.png](63-researcher-accounts.png) | Researcher accounts |
+| [64-new-account.png](64-new-account.png) | New account |
+| [65-all-studies.png](65-all-studies.png) | All studies |
+| [66-volunteer-pool-overview.png](66-volunteer-pool-overview.png) | Volunteer pool overview |
+| [67-audit-log.png](67-audit-log.png) | Audit log |
+| [68-erasure-requests.png](68-erasure-requests.png) | Erasure requests |
