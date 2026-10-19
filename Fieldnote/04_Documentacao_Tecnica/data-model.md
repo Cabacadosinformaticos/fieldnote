@@ -1,6 +1,6 @@
 # Data model
 
-Status: proposed, 2 October 2026 (written on 29 September 2026; the volunteer pool, the participant state and several studies on one phone were added on 2 October, and later that day the invite code entity with study codes, approval of entries and the exclusion of pending erasures from backups; the optional participant account, the device check against joining twice and the final rules of the study codes were added in a third decision of the same day). Tables and columns will change during implementation.
+Status: proposed, 2 October 2026 (written on 29 September 2026; the volunteer pool, the participant state and several studies on one phone were added on 2 October, and later that day the invite code entity with study codes, approval of entries and the exclusion of pending erasures from backups; the optional participant account, the device check against joining twice and the final rules of the study codes were added in a third decision of the same day). On 18 October 2026 the changes adopted after the interviews of October 2026 (R09) added the study questions and their answers, availability as intervals and the record of the response scale. Tables and columns will change during implementation.
 
 ![Data model](diagrams/data-model.svg)
 
@@ -76,10 +76,11 @@ the pool, the profile is deleted at once and `pool_invitation.pool_member_id` is
 cuts the link and keeps the counts. The pool credential lives on one phone, so on a new phone the
 person joins the pool again, the same cost as for participants.
 
-**Participation state.** `participant.status` is `active`, `pending_approval`, `declined`, `withdrawn` or `erasure_scheduled`.
+**Participation state.** `participant.status` is `active`, `pending_approval`, `declined`, `withdrawn`, `removed` or `erasure_scheduled`.
 `pending_approval` and `declined` belong to the study code route and are described under invite codes.
 Leaving a study sets `withdrawn`: the entries and the identity stay and the scheduler plans no more
-prompts. Asking for an erasure in the app sets `erasure_scheduled`, `erasure_requested_at`,
+prompts. A researcher removing the participant (FR-29) sets `removed`, with the same effect, except that the
+person cannot come back; the device token keeps working only to show the state and to ask for an erasure. Asking for an erasure in the app sets `erasure_scheduled`, `erasure_requested_at`,
 `erasure_due_at` (7 days later) and `status_before_erasure`. While the status is
 `erasure_scheduled`, researcher queries, exports and the scheduler skip the participant, so the data
 is hidden and not yet deleted. Cancelling restores `status_before_erasure`. A system job in the API
@@ -88,7 +89,7 @@ role, which can read identities and files and the scheduler cannot, selects the 
 writes the audit row. The audit log keeps the participant id as a logical reference, so the row can
 be removed with the rest. The status also decides what goes into the backups: the daily dump leaves out
 every row with `status = 'erasure_scheduled'` and the rows that depend on it (identity, consent,
-availability, prompts, entries, media records, tags), and the copy of the object storage bucket skips
+availability, study answers, prompts, entries, media records, tags), and the copy of the object storage bucket skips
 the objects of those participants. Backups are kept 7 days and the erasure is due after 7 days, so
 the last backup that holds the data expires no later than the erasure. Cancelling sets the status back and the
 rows return in the next dump. The cost is that a restore made during the 7 days has no row for that
@@ -117,11 +118,11 @@ limit, when set, counts the participant rows of the code whose `entered_at` fall
 Each entry by a study code creates one `participant` row with a new device token hash and a new alias,
 linked to the code by `participant.admitted_by_code_id`, so each person is a separate pseudonym and the
 code does not link one entry to another. With approval on, the row starts as `pending_approval` and has
-no alias: the alias is assigned when the team approves. A pending row holds the consent, the hours, the
+no alias: the alias is assigned when the team approves. A pending row holds the consent, the answers to the study questions, the hours, the
 push token and the locale, and no entry, because no prompt is planned and the app records nothing for
-that study. The scheduler, the researcher queries on participants and the counts of the study skip it.
+that study. No researcher sees the answers until the entry is approved. The scheduler, the researcher queries on participants and the counts of the study skip it.
 Approving sets `active`, the alias, `decided_by` and `decided_at`. Declining sets `declined`, with
-`decided_by` and `decided_at`, and deletes the consent, the hours and the push token. The row keeps only the
+`decided_by` and `decided_at`, and deletes the consent, the answers to the study questions, the hours and the push token. The row keeps only the
 device token hash, so that the app can tell the person, and a system job deletes it 7 days later. A
 pending entry that nobody decides when the code ends (the end of the day of `expires_at`, in the study's time zone)
 is declined by a system job in the same way, with the actor type system. The 24-hour reminder to the team is a
@@ -203,6 +204,7 @@ already has a participation, and the behaviour depends on its status (FR-106):
 |---|---|
 | `active` | Already takes part, with a way to open the study |
 | `withdrawn` | Left on a date, with an offer to come back to the same pseudonym and data |
+| `removed` | Removed by the team, with no way back and a way to erase the data |
 | `erasure_scheduled` | Date of the erasure, with the way to cancel it |
 | `pending_approval`, `declined` | The waiting screen, or the note that the entry was not accepted |
 | no row (erased) | No match, because the row and its hash are gone: the person joins as new |
@@ -219,6 +221,16 @@ any phone. Two people who share one phone are treated as one. The Android ID is 
 who holds the phone, so it is a duplicate check and not a credential; the way a stranger could use a known ID is
 described in the security document.
 
+## Study questions, availability intervals and response scales
+
+Three changes adopted after the interviews of October 2026 (R09) add data. None of them changes the pseudonymity rules.
+
+**Study questions.** `study_question` holds one optional question of a study: `study_id`, `position`, `kind` (`single_choice`, `multiple_choice`, `yes_no` or `short_text`), `text` and `options`, the list of option texts of a choice question (empty for the other kinds). `study_answer` holds one answer of one participant: `id`, `participant_id` (deleted with the participant), `question_id` (set to null when the question is deleted), `question_text` and `kind` as they were shown, `answer` (the option texts chosen, `yes` or `no`, or the text, at most 300 characters) and `answered_at`, with a unique key on (`participant_id`, `question_id`). A question left unanswered has no row. The answer keeps the text and the option texts as shown, so it stays readable if the researcher changes or removes the question while the study runs. The change is audited and no answer is edited. An answer is linked to the participant row, which researchers know by its alias, and to nothing else. Researcher queries and exports read answers under the same filter on `participant.status` as entries, so a participant who is waiting for approval, declined or has an erasure scheduled shows none. Declining deletes the answers with the consent, and the erasure and the exclusion from the backups treat them like entries.
+
+**Availability.** `availability` has one row for each interval of a participation: `participant_id`, `start_time`, `end_time` and `weekdays` (the numbers 1 to 7, Monday to Sunday). A participant who chose "any time" has no rows and `participant.availability_any_time = true`. The scheduler reads the intervals whose weekdays include the plan date and takes their union as the availability of the day. For "any time" the availability is the whole window of each activity, so requests can arrive at any time within the hours of the study. Changing the set of intervals, or the choice of "any time", is one transaction and starts a replan of the participant's remaining prompts. The same rows serve the joining screen and the settings.
+
+**Response scales.** The scale of an activity is kept in `activity.options`: `scale_type` (`numbers`, `faces`, `text` or `slider`), `points` (2 to 11 for numbers, 3 or 5 for faces, 3, 5 or 7 for text, absent for the slider), the labels of the two ends and, for an odd number of points, an optional middle label. In `entry`, `value` holds the integer chosen: the number shown on a numbers scale, the position counted from 1 on a faces or text scale, and 0 to 100 on the slider. `scale_shown` (`jsonb`) holds a copy of the scale as the participant saw it: the type, the number of points and the label texts. The phone makes the copy with the entry, so it is part of the content hash and stays true if the researcher later changes the scale of the activity. The export reads these columns (FR-115).
+
 ## Main entities
 
 | Entity | Purpose |
@@ -226,8 +238,10 @@ described in the security document.
 | `user_account` | Administrators and researchers. Passwords stored as Argon2id hashes, failed login counter and lockout time, TOTP secret for administrators |
 | `refresh_token` | Refresh tokens of dashboard sessions, stored as hashes, grouped by family; superseded tokens are kept until the family expires, for reuse detection |
 | `study`, `study_member` | A study, its time zone, prompt limits and schedule style (fixed, balanced or varied), the random `device_salt` used for the device check, and the researchers who can see it, as owner or collaborator |
-| `activity` | What participants are asked to record, the entry types it accepts (one or more, so the participant can choose, for example photo or text), the expected effort per entry in minutes (`expected_minutes`), whether location is requested, whether free entries are allowed and how many per day, and the rules for when to ask |
-| `participant` | A pseudonymous participant in one study, identified by an alias (empty while `pending_approval`), with the hash of the device token, the code that admitted the person through a study code (`admitted_by_code_id`), the language of the app and the consent text (`locale`, `pt` or `en`), the push token of the phone, `device_hash` (null when the platform has no Android ID), `entered_at` (when the person accepted the card), and the state of the participation: `status` (`active`, `pending_approval`, `declined`, `withdrawn` or `erasure_scheduled`), `decided_by` and `decided_at` for an approval or a decline, `erasure_requested_at`, `erasure_due_at` and `status_before_erasure` |
+| `activity` | What participants are asked to record, the entry types it accepts (one or more, so the participant can choose, for example photo or text), the expected effort per entry in minutes (`expected_minutes`), whether location is requested, whether free entries are allowed and how many per day, the rules for when to ask and, when it accepts the scale type, the response scale (`options`: type, number of points, labels of the two ends and an optional middle label) |
+| `study_question` | An optional question that the researcher defines for the participants of a study: `study_id`, `position`, `kind` (`single_choice`, `multiple_choice`, `yes_no` or `short_text`), `text` and `options` (the option texts of a choice question) |
+| `study_answer` | One answer of one participant to a study question: `id`, `participant_id`, `question_id` (null if the question was deleted), the question text and kind as shown, `answer` and `answered_at`. Unique per participant and question, deleted with the participant, shown to no researcher while the participant is `pending_approval`, `declined` or `erasure_scheduled` |
+| `participant` | A pseudonymous participant in one study, identified by an alias (empty while `pending_approval`), with the hash of the device token, the code that admitted the person through a study code (`admitted_by_code_id`), the language of the app and the consent text (`locale`, `pt` or `en`), the push token of the phone, `device_hash` (null when the platform has no Android ID), `entered_at` (when the person accepted the card), `availability_any_time` (true when the person chose "any time"), and the state of the participation: `status` (`active`, `pending_approval`, `declined`, `withdrawn` or `erasure_scheduled`), `decided_by` and `decided_at` for an approval or a decline, `erasure_requested_at`, `erasure_due_at` and `status_before_erasure` |
 | `invite_code` | A way into a study. Personal kind: the hash of the code of one pre-created participant (`participant_id`), `expires_at` 7 days after issue, shown once and used once. Study kind: a reusable code stored readable (`code_value`) with a `name`, `max_uses` (null: no limit), `max_per_hour` (null: no limit), `uses`, `expires_at` (the end date), `active`, `requires_approval` and `requires_account`. Both have `study_id` and `created_at`; a study code also has `created_by` |
 | `participant_identity` | Name and email, kept apart from the entries, only when the researcher has them (zero or one row per participant). Researchers see aliases by default |
 | `participant_account` | An optional account of a participant, with no name: `recovery_hash` and `recovery_lookup`, `email_encrypted` and `email_lookup`, `google_subject_id` (each empty when the method is not used), `created_at` and `confirmed_at`. Read by no researcher interface |
@@ -235,11 +249,11 @@ described in the security document.
 | `account_device_token` | One row for each phone signed in to an account: the SHA-256 hash of its token, `created_at`, `last_used_at`, `revoked_at` |
 | `account_email_code` | One row for each email code sent: lookup value, keyed code hash, `purpose`, `expires_at`, `attempts`, `consumed_at`. Deleted a day after it expires |
 | `consent` | Which version of the informed consent each participant accepted, and when |
-| `availability` | The hours when each participant accepts prompts, used by the scheduler. One set for each participation, so a person in two studies has two sets |
+| `availability` | The intervals in which each participant accepts requests, used by the scheduler: one row for each interval, with `start_time`, `end_time` and `weekdays`. A participant who chose "any time" has no rows and `participant.availability_any_time` set. One set for each participation, so a person in two studies has two sets |
 | `pool_member` | A member of the volunteer pool, with no study and no alias: hash of the device credential, push token, `concelho` (required, from the fixed list of 308 municipalities), optional `freguesia`, `age_band`, `gender`, `occupation`, `usual_transport` and `languages` (an empty field means "prefer not to say"), `invitations_paused`, `joined_at` and `account_id` (null unless linked to an account). No name, email address or phone number. Deleted at once when the member leaves |
 | `pool_invitation` | One invitation of a pool member to a study: `study_id`, `pool_member_id` (set to null when the member leaves), `status` (`sent`, `accepted`, `declined` or `expired`), `sent_at`, `expires_at` (7 days after `sent_at`) and `responded_at`. It does not hold the id of the participant row created on acceptance. No researcher interface reads it |
 | `prompt` | One planned request of one activity to one participant, produced by the scheduler |
-| `entry` | What the participant recorded, with the entry type chosen among the activity's accepted types, the text, the scale value or the chosen option. The primary key is the UUID created on the phone. Confirming an entry that answers a prompt sets the prompt's status to `answered` |
+| `entry` | What the participant recorded, with the entry type chosen among the activity's accepted types, the text, the scale value with a copy of the scale as shown (`scale_shown`) or the chosen option. The primary key is the UUID created on the phone. Confirming an entry that answers a prompt sets the prompt's status to `answered` |
 | `plan_run` | One run of the scheduler for a study and a day: whether it finished or was cut by the time limit, nodes expanded, prompts planned and unplanned, solve time |
 | `media_object` | A file in object storage attached to an entry, with its checksum and status: `pending` from the moment an upload URL is issued, then `uploaded`, `processed` or `failed` |
 | `tag`, `entry_tag` | Labels researchers attach to entries to organise them |
@@ -292,3 +306,5 @@ described in the security document.
 - A `pending_approval` or `declined` participant is not a participant of the study for the researcher
   views, the exports, the counts and the scheduler. The participant list shows the waiting entries only
   by order, time and code used.
+- A scale answer is an ordinal value. `entry.value` is a code for a ranked answer, not a measurement. The export carries the scale type, the number of points and the labels and computes no mean, so that the analyst chooses the analysis (Stevens, 1946; `06_Dados_Investigacao/10-response-scales.md`).
+- `study_answer` rows follow the status filter of `participant`: a participant who is `pending_approval`, `declined` or `erasure_scheduled` has none in any researcher view or export.
