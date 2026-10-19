@@ -1,6 +1,6 @@
 # Domain model
 
-Status: proposed, 2 October 2026; stale statements reconciled on 3 October 2026. Nothing described here is implemented. The classes are a
+Status: proposed, 2 October 2026; stale statements reconciled on 3 October 2026; amended on 18 October 2026 after the interviews of October 2026 (study questions, availability intervals and the response scale). Nothing described here is implemented. The classes are a
 conceptual view of the domain; the tables are in the [data model](data-model.md) and will change
 during implementation.
 
@@ -17,7 +17,7 @@ a schedule style (`fixed`, `balanced` or `varied`) and a status (`draft`, `runni
 It is composed of one or more `Activity` objects, because an activity has no meaning outside its
 study. An activity says what participants are asked to record: the entry types it accepts (one or
 more), the window, the number of prompts per day, the minimum gap, the expected effort in minutes,
-whether location is requested and whether free entries are allowed. The study operations a
+whether location is requested and whether free entries are allowed. An activity that accepts the scale type also holds a `ResponseScale`: the type (numbers, faces, text labels or slider), the number of points, the labels of the two ends and an optional middle label. A study can also have optional `StudyQuestion` objects (single choice, multiple choice, yes or no, short text) that every participant is shown after the consent. The study operations a
 researcher triggers are `addActivity()`, `invite()`, `start()`, `close()` and `export()`. `planDay()` is
 run every night by the scheduler, not by the researcher, and asks the `Scheduler` for a `Plan`; it plans
 prompts only for running studies.
@@ -29,11 +29,10 @@ participant or the system (`ActorType`).
 
 **Participation.** A `Participant` belongs to exactly one study and is known by an alias and a
 locale. Three classes depend on the participant and are composed in it: `Consent` (the version
-accepted and when), `Availability` (the hours when prompts are accepted) and the optional
-`ParticipantIdentity` (name and email, zero or one). `Participant.erase()` removes the identity and
-the entries of that participant. A participant has a `ParticipantStatus` (`active`, `pending_approval`, `declined`, `withdrawn` or
+accepted and when), `Availability` (the intervals, each with its weekdays, in which requests may arrive, or "any time") and the optional
+`ParticipantIdentity` (name and email, zero or one). `Participant.erase()` removes the identity, the entries and the answers of that participant. A `StudyAnswer` is the answer of a participant to a `StudyQuestion`. It is linked to the participant and to nothing else, and can be missing, because the participant may leave a question unanswered. A participant has a `ParticipantStatus` (`active`, `pending_approval`, `declined`, `withdrawn`, `removed` or
 `erasureScheduled`). `approve()` and `decline()` decide a participant who entered by a study code with
-approval, `withdraw()`, `requestErasure()` and `cancelErasure()` change the state otherwise, and the system
+approval, `withdraw()`, `remove()` (by a researcher, FR-29), `requestErasure()` and `cancelErasure()` change the state otherwise, and the system
 runs `erase()` when the erasure is due, 7 days after the request. While a participant is
 `erasureScheduled`, the daily backups leave out that participant's data. `returnToStudy()` brings a participant who withdrew back to the same pseudonym and data. A person in several studies on one
 phone is several `Participant` objects, one for each study. An optional `Account` has one to three sign-in methods (`SignInMethod`: recovery code, email or Google), no name and no entries. It links the participations of one person, and optionally the pool membership, for the platform only: `createWithRecoveryCode()`, `signIn()`, `addMethod()`, `restoreParticipations()` and `delete()`, which can also erase the data of every linked participation. The platform can tell that the same phone or account already has a participation in a study. A `Prompt` is one request of one activity to one participant on a
@@ -70,7 +69,7 @@ What changes between types is the content, not the lifecycle: every entry has th
 the same two clocks (`recordedAt` from the phone, `receivedAt` from the server), the same hash and
 the same optional location, and every entry is confirmed the same way. For that reason `Entry` is
 abstract and holds what is common, and four specialisations hold the content: `TextEntry` (a
-body), `ScaleEntry` (a value), `ChoiceEntry` (the option chosen) and `MediaEntry`. A `MediaEntry`
+body), `ScaleEntry` (a value and a copy of the scale as shown), `ChoiceEntry` (the option chosen) and `MediaEntry`. A `MediaEntry`
 covers photo, video and audio with a `kind` attribute instead of three subclasses, because they
 differ only in the file and its processing, and the files are `MediaObject` instances. The
 `EntryType` enumeration is the shared vocabulary: `Activity.entryTypes` lists the allowed values and
@@ -86,14 +85,15 @@ entry identifier is created on the phone, so a resend after a failure refers to 
 
 | Domain class | Table in the data model | Note |
 |---|---|---|
-| `Study`, `Activity` | `study`, `activity` | `Activity.entryTypes` is the column `entry_types`. `options` is `jsonb` and holds the options of a choice activity and the range and labels of a scale activity |
+| `Study`, `Activity` | `study`, `activity` | `Activity.entryTypes` is the column `entry_types`. `options` is `jsonb` and holds the options of a choice activity and the scale of a scale activity (type, number of points, labels of the two ends and an optional middle label) |
 | `UserAccount`, `StudyMember` | `user_account`, `study_member` | Refresh tokens (`refresh_token`) are authentication detail and are not in the domain |
-| `Participant`, `ParticipantIdentity`, `Consent`, `Availability` | `participant`, `participant_identity`, `consent`, `availability` | Device token hash, device hash (the check against joining twice) and push token are columns of `participant` and are left out of the class. `ParticipantStatus` is the column `status`, `admitted_by_code_id`, `decided_by` and `decided_at` record the study code route, and `erasure_requested_at`, `erasure_due_at` and `status_before_erasure` hold the scheduled erasure |
+| `Participant`, `ParticipantIdentity`, `Consent`, `Availability` | `participant`, `participant_identity`, `consent`, `availability` | `availability` has one row for each interval, and `participant.availability_any_time` holds the choice of "any time". Device token hash, device hash (the check against joining twice) and push token are columns of `participant` and are left out of the class. `ParticipantStatus` is the column `status`, `admitted_by_code_id`, `decided_by` and `decided_at` record the study code route, and `erasure_requested_at`, `erasure_due_at` and `status_before_erasure` hold the scheduled erasure |
 | `Account` | `participant_account`, `account_participation`, `account_device_token`, `account_email_code` | Sign-in methods are columns of `participant_account`. The link to participants is the table `account_participation`, and to the pool the column `pool_member.account_id`. Tokens and email codes are authentication detail and are not in the domain |
 | `InviteCode` | `invite_code` | One table for both kinds. `code_hash` is filled for a personal code and `code_value` for a study code. `uses` and `max_uses` hold the counter and the entry limit |
 | `PoolMember`, `PoolInvitation` | `pool_member`, `pool_invitation` | The credential hash and push token are columns of `pool_member`. `pool_invitation.pool_member_id` is set to null when the member leaves |
 | `Prompt` | `prompt` | `status` and `unplanned_reason` are text columns, shown as enumerations |
-| `Entry` and its subclasses | `entry` | One table. `entry_type` holds the type, `body` the text, `value` the scale value and `choice` the option chosen |
+| `Entry` and its subclasses | `entry` | One table. `entry_type` holds the type, `body` the text, `value` the scale value, `scale_shown` a copy of the scale as shown and `choice` the option chosen |
+| `StudyQuestion`, `StudyAnswer` | `study_question`, `study_answer` | `StudyAnswer` keeps the question text and kind as shown, so it stays readable if the question changes while the study runs |
 | `MediaObject`, `Tag` | `media_object`, `tag`, `entry_tag` | `entry_tag` is the join table of the many-to-many association |
 | `AuditLogEntry` | `audit_log` | Logical references only, no foreign keys |
 | `Plan`, `Scheduler` | `plan_run` | `Plan` is a result stored as prompts; `plan_run` records for each run whether it finished or was cut, the nodes expanded, the prompts planned and unplanned and the solve time. The `Scheduler` is a service and has no table |
