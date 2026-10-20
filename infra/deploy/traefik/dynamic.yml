@@ -1,0 +1,29 @@
+http:
+  routers:
+    api:
+      rule: "PathPrefix(`/api`)"
+      entryPoints:
+        - web
+      service: api
+    # No StripPrefix middleware: the bucket is named "media", so path-style S3
+    # requests keep the /media prefix and their signatures stay valid.
+    media:
+      rule: "PathPrefix(`/media`)"
+      entryPoints:
+        - web
+      service: garage
+
+  services:
+    api:
+      loadBalancer:
+        healthCheck:
+          path: /api/v1/health
+          interval: 2s
+          timeout: 1s
+        servers:
+          - url: "http://api:8000"
+
+    garage:
+      loadBalancer:
+        servers:
+          - url: "http://garage:3900"

@@ -1,0 +1,166 @@
+name: fieldnote
+
+networks:
+  edge:
+  cluster:
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  garage-meta:
+  garage-data:
+
+services:
+  traefik:
+    profiles: ["dev"]
+    image: traefik:v3.7.0
+    command:
+      - --log.level=INFO
+      - --accesslog=true
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --entrypoints.web.address=:8080
+      - --entrypoints.traefik.address=:8081
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --providers.file.watch=true
+    ports:
+      - "8080:8080"
+      - "127.0.0.1:8081:8081"
+    volumes:
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - edge
+
+  postgres:
+    profiles: ["dev"]
+    image: postgres:17.8
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - cluster
+
+  rabbitmq:
+    profiles: ["dev"]
+    image: rabbitmq:4.2-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cluster
+
+  garage:
+    profiles: ["dev"]
+    image: dxflrs/garage:v2.2.0
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN}
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - edge
+      - cluster
+
+  # The published Garage image is a single static binary with no shell. Build a
+  # small image that adds one so the idempotent bootstrap can run as a script.
+  garage-init:
+    profiles: ["dev"]
+    build:
+      context: ./garage
+      dockerfile_inline: |
+        FROM dxflrs/garage:v2.2.0 AS garage
+        FROM alpine:3.22
+        COPY --from=garage /garage /usr/local/bin/garage
+        ENTRYPOINT ["/bin/sh", "/init.sh"]
+    restart: "no"
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-media}
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - ./garage/init.sh:/init.sh:ro
+      - garage-meta:/var/lib/garage/meta:ro
+    depends_on:
+      garage:
+        condition: service_healthy
+    networks:
+      - cluster
+
+  mailpit:
+    profiles: ["dev"]
+    image: axllent/mailpit:v1.29.0
+    ports:
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8025/api/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - cluster
+
+  api:
+    profiles: ["dev"]
+    build:
+      context: ../../services/api
+    environment:
+      FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+      FIELDNOTE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      FIELDNOTE_S3_ENDPOINT: http://garage:3900
+      FIELDNOTE_S3_BUCKET: ${GARAGE_BUCKET:-media}
+      FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      FIELDNOTE_S3_REGION: garage
+      FIELDNOTE_RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=2)
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      garage-init:
+        condition: service_completed_successfully
+    networks:
+      - edge
+      - cluster
