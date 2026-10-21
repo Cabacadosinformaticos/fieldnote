@@ -8,6 +8,10 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --create-home --uid 10001 fieldnote
 
 COPY pyproject.toml uv.lock ./

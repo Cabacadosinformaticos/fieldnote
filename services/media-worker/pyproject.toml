@@ -3,7 +3,12 @@ name = "fieldnote-media-worker"
 version = "0.1.0"
 description = "Fieldnote media worker"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "boto3>=1.43.123",
+    "pika>=1.4.4",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.16.2",
+]
 
 [project.scripts]
 fieldnote-media-worker = "media_worker.main:main"
