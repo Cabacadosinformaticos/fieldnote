@@ -76,6 +76,16 @@ export default function WelcomeScreen() {
         <View style={styles.accountLink}>
           <Text style={styles.accountLinkText}>{t('welcome.alreadyHaveAccount')}</Text>
         </View>
+
+        {__DEV__ ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/(tabs)')}
+            style={styles.devLink}
+          >
+            <Text style={styles.devLinkText}>Ver o dia (demo)</Text>
+          </Pressable>
+        ) : null}
       </View>
     </Screen>
   );
@@ -364,5 +374,16 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textDecorationLine: 'underline',
     color: colors.primaryDark,
+  },
+  devLink: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devLinkText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
   },
 });
