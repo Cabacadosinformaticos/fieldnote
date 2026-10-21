@@ -85,7 +85,10 @@ export default function InvitationScreen() {
       <View style={styles.spacer} />
 
       <View style={styles.actions}>
-        <Button label={t('invitation.accept')} onPress={() => undefined} />
+        <Button
+          label={t('invitation.accept')}
+          onPress={() => router.push('/join/consent')}
+        />
         <Button
           label={t('invitation.decline')}
           variant="secondary"
