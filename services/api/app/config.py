@@ -1,4 +1,11 @@
+from typing import Literal
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Only used when FIELDNOTE_ENVIRONMENT is not production. Production refuses to start without its
+# own secret.
+_DEVELOPMENT_JWT_SECRET = "fieldnote-development-jwt-secret-not-for-production"
 
 
 class Settings(BaseSettings):
@@ -14,6 +21,40 @@ class Settings(BaseSettings):
     s3_region: str = "garage"
 
     rabbitmq_url: str = "amqp://fieldnote:fieldnote@127.0.0.1:5672/"
+
+    jwt_secret: str | None = None
+    jwt_algorithm: str = "HS256"
+    access_token_minutes: int = 15
+    refresh_token_days: int = 30
+    refresh_cookie_name: str = "fieldnote_refresh"
+    refresh_cookie_path: str = "/api/v1/auth"
+    cookie_secure: bool = True
+    cookie_samesite: Literal["lax", "strict", "none"] = "strict"
+
+    login_max_failures: int = 5
+    login_lockout_minutes: int = 15
+    login_failure_delay_seconds: float = 0.25
+    login_failure_delay_max_failures: int = 5
+
+    totp_issuer: str = "Fieldnote"
+    totp_digits: int = 6
+    totp_period_seconds: int = 30
+    totp_valid_window: int = 1
+
+    @model_validator(mode="after")
+    def _validate_security_settings(self) -> "Settings":
+        if self.environment.strip().lower() == "production":
+            if not self.jwt_secret:
+                raise ValueError(
+                    "FIELDNOTE_JWT_SECRET is required when FIELDNOTE_ENVIRONMENT is production."
+                )
+            if not self.cookie_secure:
+                raise ValueError(
+                    "FIELDNOTE_COOKIE_SECURE must be true when FIELDNOTE_ENVIRONMENT is production."
+                )
+        elif self.jwt_secret is None:
+            self.jwt_secret = _DEVELOPMENT_JWT_SECRET
+        return self
 
 
 settings = Settings()
