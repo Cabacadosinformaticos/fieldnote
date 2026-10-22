@@ -1,0 +1,21 @@
+FROM dxflrs/garage:v2.2.0 AS garage
+
+FROM alpine:3.22
+
+RUN apk add --no-cache python3
+
+COPY --from=garage /garage /garage
+COPY --from=garage /garage /usr/local/bin/garage
+COPY garage-cluster.toml /etc/garage.toml
+COPY garage-cluster-entrypoint.sh /usr/local/bin/garage-cluster-entrypoint.sh
+COPY garage-cluster-init.py /usr/local/bin/garage-cluster-init.py
+
+# The verification and the health check call `garage`, and the image documents
+# /garage as the binary path. Git Bash on Windows also rewrites an absolute
+# /garage argument to the path below before handing it to Docker; keep that
+# path working so the same command runs from the Windows host.
+RUN chmod 755 /usr/local/bin/garage-cluster-entrypoint.sh /usr/local/bin/garage-cluster-init.py \
+    && mkdir -p "/C:/Program Files/Git" \
+    && ln -s /garage "/C:/Program Files/Git/garage"
+
+ENTRYPOINT ["/usr/local/bin/garage-cluster-entrypoint.sh"]
