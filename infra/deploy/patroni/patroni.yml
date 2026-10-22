@@ -1,0 +1,58 @@
+scope: fieldnote
+namespace: /fieldnote/
+name: ${PATRONI_NAME}
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: ${PATRONI_NAME}:8008
+  authentication:
+    username: patroni
+    password: ${PG_RESTAPI_PASSWORD}
+
+etcd3:
+  hosts: etcd1:2379,etcd2:2379,etcd3:2379
+  protocol: http
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    synchronous_mode: true
+    synchronous_mode_strict: true
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: replica
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_keep_size: 256MB
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  pg_hba:
+    - local all all trust
+    - host all all 127.0.0.1/32 trust
+    - host all all ::1/128 trust
+    - host replication replicator 127.0.0.1/32 scram-sha-256
+    - host replication replicator 172.30.0.0/16 scram-sha-256
+    - host all all 172.30.0.0/16 scram-sha-256
+  post_bootstrap: /usr/local/bin/post-bootstrap.sh
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: ${PATRONI_NAME}:5432
+  data_dir: /var/lib/postgresql/data
+  bin_dir: /usr/lib/postgresql/17/bin
+  authentication:
+    superuser:
+      username: postgres
+      password: ${PG_SUPERUSER_PASSWORD}
+    replication:
+      username: replicator
+      password: ${PG_REPLICATION_PASSWORD}
+  parameters:
+    unix_socket_directories: /var/run/postgresql
+    password_encryption: scram-sha-256
