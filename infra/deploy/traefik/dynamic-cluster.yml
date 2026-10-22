@@ -1,0 +1,41 @@
+http:
+  routers:
+    api:
+      rule: "PathPrefix(`/api`)"
+      entryPoints:
+        - web
+      service: api
+    # No StripPrefix middleware: the bucket is named "media", so path-style S3
+    # requests keep the /media prefix and their signatures stay valid.
+    media:
+      rule: "PathPrefix(`/media`)"
+      entryPoints:
+        - web
+      service: garage
+
+  services:
+    api:
+      loadBalancer:
+        healthCheck:
+          path: /api/v1/health
+          interval: 2s
+          timeout: 1s
+          status: 200
+        servers:
+          - url: "http://api1:8000"
+          - url: "http://api2:8000"
+          - url: "http://api3:8000"
+
+    garage:
+      loadBalancer:
+        # An unauthenticated S3 request is answered with 403; anything else
+        # means the S3 endpoint is not serving.
+        healthCheck:
+          path: /
+          interval: 5s
+          timeout: 2s
+          status: 403
+        servers:
+          - url: "http://garage1:3900"
+          - url: "http://garage2:3900"
+          - url: "http://garage3:3900"

@@ -1,0 +1,577 @@
+# Three logical nodes on one Docker host: the cluster profile of the
+# architecture. The dev stack in compose.yaml keeps running untouched on
+# 8080, 5432 and 15672; this project uses 8090, 8092 and 15673.
+name: fieldnote-cluster
+
+x-patroni-environment: &patroni-environment
+  PATRONI_SCOPE: fieldnote
+  PATRONI_NAMESPACE: /fieldnote/
+  PATRONI_ETCD3_HOSTS: etcd1:2379,etcd2:2379,etcd3:2379
+  PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+  PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data
+  PATRONI_SUPERUSER_USERNAME: postgres
+  PATRONI_REPLICATION_USERNAME: replicator
+  PG_SUPERUSER_PASSWORD: ${PATRONI_SUPERUSER_PASSWORD:-patroni-superuser-dev}
+  PG_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-patroni-replication-dev}
+  PG_RESTAPI_PASSWORD: ${PATRONI_RESTAPI_PASSWORD:-patroni-restapi-dev}
+  FIELDNOTE_DB_USER: ${POSTGRES_USER:-fieldnote}
+  FIELDNOTE_DB_PASSWORD: ${POSTGRES_PASSWORD:-fieldnote}
+  FIELDNOTE_DB_NAME: ${POSTGRES_DB:-fieldnote}
+
+x-api-environment: &api-environment
+  FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+  # libpq multi-host connection: libpq accepts the comma-separated host list
+  # and target_session_attrs makes it pick the writable member after failover.
+  FIELDNOTE_DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-fieldnote}:${POSTGRES_PASSWORD:-fieldnote}@pg1,pg2,pg3/${POSTGRES_DB:-fieldnote}?target_session_attrs=read-write&connect_timeout=3"
+  FIELDNOTE_S3_ENDPOINT: http://traefik1:8080
+  FIELDNOTE_S3_BUCKET: ${GARAGE_BUCKET:-media}
+  FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
+  FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
+  FIELDNOTE_S3_REGION: garage
+  FIELDNOTE_RABBITMQ_URL: "amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq1:5672/,amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq2:5672/,amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq3:5672/"
+
+x-garage-build: &garage-build
+  context: ./garage
+  dockerfile: Dockerfile.cluster
+
+x-garage-environment: &garage-environment
+  GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-garage-rpc-secret-dev}
+  GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-garage-admin-token-dev}
+  GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-garage-metrics-token-dev}
+  # The daemon and the CLI both read this rendered copy, so `garage status`
+  # inside the container works without repeating -c.
+  GARAGE_CONFIG_FILE: /tmp/garage.toml
+
+networks:
+  edge:
+  cluster:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+volumes:
+  etcd1-data:
+  etcd2-data:
+  etcd3-data:
+  pg1-data:
+  pg2-data:
+  pg3-data:
+  rabbitmq1-data:
+  rabbitmq2-data:
+  rabbitmq3-data:
+  garage1-meta:
+  garage1-data:
+  garage2-meta:
+  garage2-data:
+  garage3-meta:
+  garage3-data:
+
+services:
+  # ---------------------------------------------------------------- node 1
+  etcd1:
+    profiles: ["cluster", "node1"]
+    image: quay.io/coreos/etcd:v3.5.17
+    container_name: etcd1
+    hostname: etcd1
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd1
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd1:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd1:2380
+      - --initial-cluster=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=fieldnote-cluster
+    environment:
+      ETCDCTL_ENDPOINTS: http://127.0.0.1:2379
+    volumes:
+      - etcd1-data:/etcd-data
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  pg1:
+    profiles: ["cluster", "node1"]
+    build:
+      context: ./patroni
+    container_name: pg1
+    hostname: pg1
+    environment:
+      <<: *patroni-environment
+      PATRONI_NAME: pg1
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg1:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg1:8008
+    volumes:
+      - pg1-data:/var/lib/postgresql/data
+    depends_on:
+      etcd1:
+        condition: service_healthy
+      etcd2:
+        condition: service_healthy
+      etcd3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U postgres && patronictl list | grep -qi 'Sync Standby'"]
+      interval: 5s
+      timeout: 20s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  rabbitmq1:
+    profiles: ["cluster", "node1"]
+    image: rabbitmq:4.2-management
+    container_name: rabbitmq1
+    hostname: rabbitmq1
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-fieldnote}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-fieldnote}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:-fieldnote-cluster-cookie-dev}
+    ports:
+      # The dev stack already publishes 15672.
+      - "127.0.0.1:15673:15672"
+    volumes:
+      - rabbitmq1-data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq-cluster.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/healthcheck.sh:/usr/local/bin/rabbitmq-cluster-healthcheck.sh:ro
+    healthcheck:
+      test: ["CMD", "sh", "/usr/local/bin/rabbitmq-cluster-healthcheck.sh"]
+      interval: 10s
+      timeout: 20s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  garage1:
+    profiles: ["cluster", "node1"]
+    build: *garage-build
+    container_name: garage1
+    hostname: garage1
+    environment:
+      <<: *garage-environment
+      GARAGE_RPC_PUBLIC_ADDR: garage1:3901
+    volumes:
+      - ./garage/garage-cluster.toml:/etc/garage.toml:ro
+      - garage1-meta:/var/lib/garage/meta
+      - garage1-data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/garage", "-c", "/tmp/garage.toml", "status"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - cluster
+
+  api1:
+    profiles: ["cluster", "node1"]
+    build:
+      context: ../../services/api
+    container_name: api1
+    hostname: api1
+    environment:
+      <<: *api-environment
+    depends_on:
+      pg1:
+        condition: service_healthy
+      pg2:
+        condition: service_healthy
+      pg3:
+        condition: service_healthy
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+      rabbitmq3:
+        condition: service_healthy
+      garage-cluster-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=2)
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - cluster
+
+  traefik1:
+    profiles: ["cluster", "node1"]
+    image: traefik:v3.7.0
+    container_name: traefik1
+    hostname: traefik1
+    command:
+      - --log.level=INFO
+      - --accesslog=true
+      - --entrypoints.web.address=:8080
+      - --providers.file.filename=/etc/traefik/dynamic-cluster.yml
+      - --providers.file.watch=true
+    ports:
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - ./traefik/dynamic-cluster.yml:/etc/traefik/dynamic-cluster.yml:ro
+    restart: unless-stopped
+    networks:
+      - edge
+
+  # ---------------------------------------------------------------- node 2
+  etcd2:
+    profiles: ["cluster", "node2"]
+    image: quay.io/coreos/etcd:v3.5.17
+    container_name: etcd2
+    hostname: etcd2
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd2
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd2:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd2:2380
+      - --initial-cluster=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=fieldnote-cluster
+    environment:
+      ETCDCTL_ENDPOINTS: http://127.0.0.1:2379
+    volumes:
+      - etcd2-data:/etcd-data
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  pg2:
+    profiles: ["cluster", "node2"]
+    build:
+      context: ./patroni
+    container_name: pg2
+    hostname: pg2
+    environment:
+      <<: *patroni-environment
+      PATRONI_NAME: pg2
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg2:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg2:8008
+    volumes:
+      - pg2-data:/var/lib/postgresql/data
+    depends_on:
+      etcd1:
+        condition: service_healthy
+      etcd2:
+        condition: service_healthy
+      etcd3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U postgres && patronictl list | grep -qi 'Sync Standby'"]
+      interval: 5s
+      timeout: 20s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  rabbitmq2:
+    profiles: ["cluster", "node2"]
+    image: rabbitmq:4.2-management
+    container_name: rabbitmq2
+    hostname: rabbitmq2
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-fieldnote}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-fieldnote}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:-fieldnote-cluster-cookie-dev}
+      RABBITMQ_REQUIRE_FULL_CLUSTER: "1"
+    volumes:
+      - rabbitmq2-data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq-cluster.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/healthcheck.sh:/usr/local/bin/rabbitmq-cluster-healthcheck.sh:ro
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "/usr/local/bin/rabbitmq-cluster-healthcheck.sh"]
+      interval: 10s
+      timeout: 20s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  garage2:
+    profiles: ["cluster", "node2"]
+    build: *garage-build
+    container_name: garage2
+    hostname: garage2
+    environment:
+      <<: *garage-environment
+      GARAGE_RPC_PUBLIC_ADDR: garage2:3901
+    volumes:
+      - ./garage/garage-cluster.toml:/etc/garage.toml:ro
+      - garage2-meta:/var/lib/garage/meta
+      - garage2-data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/garage", "-c", "/tmp/garage.toml", "status"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - cluster
+
+  api2:
+    profiles: ["cluster", "node2"]
+    build:
+      context: ../../services/api
+    container_name: api2
+    hostname: api2
+    environment:
+      <<: *api-environment
+    depends_on:
+      pg1:
+        condition: service_healthy
+      pg2:
+        condition: service_healthy
+      pg3:
+        condition: service_healthy
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+      rabbitmq3:
+        condition: service_healthy
+      garage-cluster-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=2)
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - cluster
+
+  traefik2:
+    profiles: ["cluster", "node2"]
+    image: traefik:v3.7.0
+    container_name: traefik2
+    hostname: traefik2
+    command:
+      - --log.level=INFO
+      - --accesslog=true
+      - --entrypoints.web.address=:8080
+      - --providers.file.filename=/etc/traefik/dynamic-cluster.yml
+      - --providers.file.watch=true
+    ports:
+      - "127.0.0.1:8092:8080"
+    volumes:
+      - ./traefik/dynamic-cluster.yml:/etc/traefik/dynamic-cluster.yml:ro
+    restart: unless-stopped
+    networks:
+      - edge
+
+  # ---------------------------------------------------------------- node 3
+  etcd3:
+    profiles: ["cluster", "node3"]
+    image: quay.io/coreos/etcd:v3.5.17
+    container_name: etcd3
+    hostname: etcd3
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd3
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd3:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd3:2380
+      - --initial-cluster=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=fieldnote-cluster
+    environment:
+      ETCDCTL_ENDPOINTS: http://127.0.0.1:2379
+    volumes:
+      - etcd3-data:/etcd-data
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  pg3:
+    profiles: ["cluster", "node3"]
+    build:
+      context: ./patroni
+    container_name: pg3
+    hostname: pg3
+    environment:
+      <<: *patroni-environment
+      PATRONI_NAME: pg3
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg3:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg3:8008
+    volumes:
+      - pg3-data:/var/lib/postgresql/data
+    depends_on:
+      etcd1:
+        condition: service_healthy
+      etcd2:
+        condition: service_healthy
+      etcd3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U postgres && patronictl list | grep -qi 'Sync Standby'"]
+      interval: 5s
+      timeout: 20s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  rabbitmq3:
+    profiles: ["cluster", "node3"]
+    image: rabbitmq:4.2-management
+    container_name: rabbitmq3
+    hostname: rabbitmq3
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-fieldnote}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-fieldnote}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:-fieldnote-cluster-cookie-dev}
+      RABBITMQ_REQUIRE_FULL_CLUSTER: "1"
+    volumes:
+      - rabbitmq3-data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq-cluster.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/healthcheck.sh:/usr/local/bin/rabbitmq-cluster-healthcheck.sh:ro
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "/usr/local/bin/rabbitmq-cluster-healthcheck.sh"]
+      interval: 10s
+      timeout: 20s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  garage3:
+    profiles: ["cluster", "node3"]
+    build: *garage-build
+    container_name: garage3
+    hostname: garage3
+    environment:
+      <<: *garage-environment
+      GARAGE_RPC_PUBLIC_ADDR: garage3:3901
+    volumes:
+      - ./garage/garage-cluster.toml:/etc/garage.toml:ro
+      - garage3-meta:/var/lib/garage/meta
+      - garage3-data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/garage", "-c", "/tmp/garage.toml", "status"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - cluster
+
+  api3:
+    profiles: ["cluster", "node3"]
+    build:
+      context: ../../services/api
+    container_name: api3
+    hostname: api3
+    environment:
+      <<: *api-environment
+    depends_on:
+      pg1:
+        condition: service_healthy
+      pg2:
+        condition: service_healthy
+      pg3:
+        condition: service_healthy
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+      rabbitmq3:
+        condition: service_healthy
+      garage-cluster-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=2)
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - edge
+      - cluster
+
+  # --------------------------------------------------------------- one-off
+  garage-cluster-init:
+    profiles: ["cluster", "node1"]
+    build: *garage-build
+    container_name: garage-cluster-init
+    entrypoint: ["python3", "/usr/local/bin/garage-cluster-init.py"]
+    environment:
+      <<: *garage-environment
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-media}
+    depends_on:
+      garage1:
+        condition: service_healthy
+      garage2:
+        condition: service_healthy
+      garage3:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - cluster
