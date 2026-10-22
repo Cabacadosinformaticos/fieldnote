@@ -5,6 +5,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.routers.auth import router as auth_router
+
 API_PREFIX = "/api/v1"
 
 app = FastAPI(title="Fieldnote API", version="0.1.0")
@@ -23,7 +25,12 @@ def _error_code(status_code: int) -> str:
 async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": {"code": _error_code(exc.status_code), "message": str(exc.detail)}},
+        content={
+            "error": {
+                "code": getattr(exc, "code", _error_code(exc.status_code)),
+                "message": getattr(exc, "message", str(exc.detail)),
+            }
+        },
         headers=exc.headers,
     )
 
@@ -49,3 +56,4 @@ async def ready() -> dict[str, str]:
 
 
 app.include_router(router)
+app.include_router(auth_router, prefix=API_PREFIX)
