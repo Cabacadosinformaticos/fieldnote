@@ -1,0 +1,111 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Button } from '@/components/Button';
+import { Screen } from '@/components/Screen';
+import { InfoRow } from '@/components/more/InfoRow';
+import { endedStudy } from '@/fake/more';
+import { tm } from '@/i18n/tm';
+import { colors, fonts, radii, spacing } from '@/theme';
+
+export default function StudyEndedScreen() {
+  return (
+    <Screen contentStyle={styles.content}>
+      <StatusBar style="dark" />
+
+      <View style={styles.intro}>
+        <View style={styles.icon}>
+          <Ionicons name="happy-outline" size={38} color={colors.primaryDark} />
+        </View>
+        <Text style={styles.title}>{tm('ended.title')}</Text>
+        <Text style={styles.body}>
+          {tm('ended.body', {
+            study: endedStudy.name,
+            date: endedStudy.endedDate,
+          })}
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{tm('ended.whatTitle')}</Text>
+        <InfoRow
+          body={tm('ended.noRequestsBody')}
+          icon="notifications-off-outline"
+          title={tm('ended.noRequests')}
+        />
+        <InfoRow
+          body={tm('ended.waitingBody')}
+          icon="cloud-upload-outline"
+          title={tm('ended.waiting')}
+        />
+        <InfoRow
+          body={tm('ended.contactBody', {
+            name: endedStudy.teamName,
+            email: endedStudy.teamEmail,
+          })}
+          icon="mail-outline"
+          title={tm('ended.contact')}
+        />
+      </View>
+
+      <View style={styles.spacer} />
+
+      <Button
+        label={tm('ended.entries')}
+        onPress={() => router.replace('/(tabs)/entries')}
+      />
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    gap: spacing.xxl,
+    paddingTop: 72,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
+  intro: {
+    alignItems: 'flex-start',
+    gap: spacing.lg,
+  },
+  icon: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 36,
+    backgroundColor: colors.primarySoft,
+  },
+  title: {
+    fontFamily: fonts.extrabold,
+    fontSize: 28,
+    lineHeight: 32,
+    color: colors.text,
+  },
+  body: {
+    fontFamily: fonts.regular,
+    fontSize: 17,
+    lineHeight: 26,
+    color: colors.text,
+  },
+  card: {
+    gap: spacing.lg,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+  },
+  cardTitle: {
+    fontFamily: fonts.extrabold,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.text,
+  },
+  spacer: {
+    flexGrow: 1,
+  },
+});

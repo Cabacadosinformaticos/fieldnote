@@ -1,38 +1,87 @@
-import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/Card';
-import { Pill } from '@/components/Pill';
 import { Screen } from '@/components/Screen';
-import { td } from '@/i18n/td';
+import { SettingsRow } from '@/components/more/SettingsRow';
+import { StudyCard } from '@/components/more/StudyCard';
+import { moreHref } from '@/components/more/navigation';
+import { moreStudies, type Study } from '@/fake/more';
+import { tm } from '@/i18n/tm';
 import { colors, fonts, radii, spacing } from '@/theme';
+
+function openStudy(study: Study) {
+  if (study.status === 'erasing') {
+    router.push(moreHref('/erase/scheduled'));
+    return;
+  }
+  if (study.status === 'ended') {
+    router.push(moreHref('/study/ended'));
+    return;
+  }
+  router.push('/(tabs)');
+}
+
+function openDetails(study: Study) {
+  if (study.status === 'erasing') {
+    router.push(moreHref('/erase/scheduled'));
+    return;
+  }
+  if (study.status === 'ended') {
+    router.push(moreHref('/study/ended'));
+    return;
+  }
+  router.push(moreHref(`/study/${study.id}`));
+}
 
 export default function StudiesScreen() {
   return (
     <Screen contentStyle={styles.content} edges={['top']}>
       <StatusBar style="dark" />
-      <Text style={styles.title}>{td('studies.title')}</Text>
 
-      <Card style={styles.card}>
-        <View style={styles.icon}>
-          <Ionicons name="layers-outline" size={28} color={colors.primaryDark} />
-        </View>
-        <Text style={styles.body}>{td('studies.body')}</Text>
-        <View style={styles.pill}>
-          <Pill tone="primary">{td('common.comingSoon')}</Pill>
-        </View>
-      </Card>
+      <View style={styles.header}>
+        <Text style={styles.title}>{tm('studies.title')}</Text>
+        <Text style={styles.subtitle}>
+          {tm('studies.count', { count: moreStudies.length })}
+        </Text>
+      </View>
+
+      {moreStudies.map((study) => (
+        <StudyCard
+          key={study.id}
+          onDetails={() => openDetails(study)}
+          onOpen={() => openStudy(study)}
+          study={study}
+        />
+      ))}
+
+      <View style={styles.moreCard}>
+        <SettingsRow
+          divider
+          icon="add"
+          onPress={() => router.push('/join/code')}
+          title={tm('studies.enterAnother')}
+        />
+        <SettingsRow
+          icon="settings-outline"
+          onPress={() => router.push(moreHref('/settings'))}
+          title={tm('studies.settings')}
+        />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
+    gap: 10,
     paddingTop: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
-    gap: spacing.lg,
+  },
+  header: {
+    gap: 1,
+    paddingVertical: spacing.sm,
   },
   title: {
     fontFamily: fonts.extrabold,
@@ -41,27 +90,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.28,
     color: colors.text,
   },
-  card: {
-    alignItems: 'center',
-    gap: spacing.lg,
-    paddingVertical: spacing.xxxl,
-  },
-  icon: {
-    width: 64,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.xxl,
-    backgroundColor: colors.primarySoft,
-  },
-  body: {
+  subtitle: {
     fontFamily: fonts.regular,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-    color: colors.textBody,
+    fontSize: 14,
+    lineHeight: 19,
+    color: colors.textMuted,
   },
-  pill: {
-    alignSelf: 'center',
+  moreCard: {
+    overflow: 'hidden',
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
   },
 });
