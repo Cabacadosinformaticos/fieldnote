@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     rabbitmq_url: str = "amqp://fieldnote:fieldnote@127.0.0.1:5672/"
 
+    # Origin of the gateway as the phones see it; signed upload URLs are built on it.
+    media_public_endpoint: str = "http://127.0.0.1:8080"
+
     jwt_secret: str | None = None
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 15
