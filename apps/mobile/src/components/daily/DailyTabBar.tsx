@@ -18,8 +18,8 @@ const tabPresentation: Record<
   studies: { label: td('tabs.studies'), icon: 'layers-outline', activeIcon: 'layers' },
   profile: {
     label: td('tabs.profile'),
-    icon: 'person-circle-outline',
-    activeIcon: 'person-circle',
+    icon: 'time-outline',
+    activeIcon: 'time',
   },
 };
 
