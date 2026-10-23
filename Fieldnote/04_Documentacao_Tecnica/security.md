@@ -350,6 +350,23 @@ There are three roles: administrator, researcher and participant. A researcher s
 where they are a member (`study_member`), and a participant sees only their own entries. Every request
 checks that the user belongs to the study of the object requested.
 
+Inside a study a researcher has one of three fixed roles, the same in every study (decided after the
+first interview, 14 October 2026): principal investigator, co-investigator and member. Permissions
+configurable per study are left for a later version.
+
+| Action | Principal investigator | Co-investigator | Member |
+|---|---|---|---|
+| Read the study, its entries, timeline and adherence | Yes | Yes | Yes |
+| Tag entries | Yes | Yes | Yes |
+| Design the study: activities, response scales, study questions | Yes | Yes | No |
+| Add participants, issue codes, approve or decline entries, remove a participant | Yes | Yes | Yes |
+| Export the data | Yes | Yes | Yes |
+| Include identity in an export, read a participant's identity | Yes | No | No |
+| Change the study details, start and close it, manage the team | Yes | No | No |
+
+An administrator can do everything a principal investigator can, in every study. Reading identity
+and every export are written to the audit log.
+
 ## Pseudonymisation and the identity table
 
 Researchers see aliases. Names and emails, when the researcher has them, live in
