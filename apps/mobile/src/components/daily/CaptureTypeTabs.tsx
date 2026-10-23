@@ -7,7 +7,10 @@ import type { CaptureType } from '@/fake/daily';
 import { td } from '@/i18n/td';
 import { colors, fonts, radii, spacing } from '@/theme';
 
-const recordRoutes: Record<CaptureType, string> = {
+const recordRoutes: Record<
+  CaptureType,
+  '/record/photo' | '/record/text' | '/record/video' | '/record/audio' | '/record/scale'
+> = {
   photo: '/record/photo',
   text: '/record/text',
   video: '/record/video',
