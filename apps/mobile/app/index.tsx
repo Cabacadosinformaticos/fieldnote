@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { accountHref } from '@/components/account/navigation';
 import { t } from '@/i18n/pt';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
@@ -62,7 +63,15 @@ export default function WelcomeScreen() {
           onPress={() => router.push('/join/code')}
         />
 
-        <View style={styles.poolCard}>
+        <Pressable
+          accessibilityLabel={t('welcome.poolTitle')}
+          accessibilityRole="button"
+          onPress={() => router.push(accountHref('/pool'))}
+          style={({ pressed }) => [
+            styles.poolCard,
+            pressed && styles.pressed,
+          ]}
+        >
           <View style={styles.poolIcon}>
             <Ionicons name="people-outline" size={24} color={colors.primary} />
           </View>
@@ -71,11 +80,15 @@ export default function WelcomeScreen() {
             <Text style={styles.poolBody}>{t('welcome.poolBody')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </View>
+        </Pressable>
 
-        <View style={styles.accountLink}>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push(accountHref('/account/restore'))}
+          style={styles.accountLink}
+        >
           <Text style={styles.accountLinkText}>{t('welcome.alreadyHaveAccount')}</Text>
-        </View>
+        </Pressable>
 
         {__DEV__ ? (
           <Pressable
@@ -385,5 +398,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: colors.textMuted,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });
