@@ -10,6 +10,12 @@ volumes:
   garage-meta:
   garage-data:
 
+x-api-build: &api-build
+  context: ../../services/api
+
+x-database-url: &database-url "postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+x-rabbitmq-url: &rabbitmq-url "amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/"
+
 services:
   traefik:
     profiles: ["dev"]
@@ -133,19 +139,78 @@ services:
     networks:
       - cluster
 
-  api:
+  # One-shot schema upgrade. Every other backend service waits for it, so the
+  # stack is usable as soon as `up` returns.
+  migrate:
     profiles: ["dev"]
-    build:
-      context: ../../services/api
+    build: *api-build
+    command: ["alembic", "upgrade", "head"]
     environment:
       FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
-      FIELDNOTE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      FIELDNOTE_DATABASE_URL: *database-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - cluster
+
+  outbox-relay:
+    profiles: ["dev"]
+    build: *api-build
+    command: ["python", "-m", "app.outbox_relay"]
+    environment:
+      FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+      FIELDNOTE_DATABASE_URL: *database-url
+      FIELDNOTE_RABBITMQ_URL: *rabbitmq-url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  media-worker:
+    profiles: ["dev"]
+    build:
+      context: ../../services/media-worker
+    environment:
+      FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+      FIELDNOTE_DATABASE_URL: *database-url
       FIELDNOTE_S3_ENDPOINT: http://garage:3900
       FIELDNOTE_S3_BUCKET: ${GARAGE_BUCKET:-media}
       FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
       FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY}
       FIELDNOTE_S3_REGION: garage
-      FIELDNOTE_RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      FIELDNOTE_RABBITMQ_URL: *rabbitmq-url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      garage-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  api:
+    profiles: ["dev"]
+    build: *api-build
+    environment:
+      FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+      FIELDNOTE_DATABASE_URL: *database-url
+      FIELDNOTE_S3_ENDPOINT: http://garage:3900
+      FIELDNOTE_S3_BUCKET: ${GARAGE_BUCKET:-media}
+      FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      FIELDNOTE_S3_REGION: garage
+      FIELDNOTE_RABBITMQ_URL: *rabbitmq-url
+      # Origin of the gateway as the phones see it: 10.0.2.2 is the host from
+      # inside the Android emulator.
+      FIELDNOTE_MEDIA_PUBLIC_ENDPOINT: ${FIELDNOTE_MEDIA_PUBLIC_ENDPOINT:-http://10.0.2.2:8080}
     healthcheck:
       test:
         - CMD
@@ -158,6 +223,10 @@ services:
       start_period: 10s
     depends_on:
       postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
         condition: service_healthy
       garage-init:
         condition: service_completed_successfully

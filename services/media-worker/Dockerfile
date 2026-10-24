@@ -23,4 +23,4 @@ RUN uv sync --locked --no-dev && chown -R fieldnote:fieldnote /app
 
 USER fieldnote
 
-CMD ["fieldnote-media-worker"]
+CMD ["python", "-m", "media_worker.main"]

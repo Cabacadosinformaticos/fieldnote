@@ -29,6 +29,8 @@ x-api-environment: &api-environment
   FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
   FIELDNOTE_S3_REGION: garage
   FIELDNOTE_RABBITMQ_URL: "amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq1:5672/,amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq2:5672/,amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq3:5672/"
+  # Origin of the node 1 gateway as the phones see it.
+  FIELDNOTE_MEDIA_PUBLIC_ENDPOINT: ${FIELDNOTE_MEDIA_PUBLIC_ENDPOINT:-http://10.0.2.2:8090}
 
 x-garage-build: &garage-build
   context: ./garage
@@ -178,6 +180,26 @@ services:
       - edge
       - cluster
 
+  # One-shot schema upgrade; the API replicas and the workers wait for it.
+  migrate:
+    profiles: ["cluster", "node1"]
+    build:
+      context: ../../services/api
+    container_name: migrate
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      <<: *api-environment
+    depends_on:
+      pg1:
+        condition: service_healthy
+      pg2:
+        condition: service_healthy
+      pg3:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - cluster
+
   api1:
     profiles: ["cluster", "node1"]
     build:
@@ -193,6 +215,8 @@ services:
         condition: service_healthy
       pg3:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       rabbitmq1:
         condition: service_healthy
       rabbitmq2:
@@ -214,6 +238,28 @@ services:
     restart: unless-stopped
     networks:
       - edge
+      - cluster
+
+  outbox-relay1:
+    profiles: ["cluster", "node1"]
+    build:
+      context: ../../services/api
+    container_name: outbox-relay1
+    hostname: outbox-relay1
+    command: ["python", "-m", "app.outbox_relay"]
+    environment:
+      <<: *api-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+      rabbitmq3:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
       - cluster
 
   traefik1:
@@ -347,6 +393,31 @@ services:
       - edge
       - cluster
 
+  media-worker2:
+    profiles: ["cluster", "node2"]
+    build:
+      context: ../../services/media-worker
+    container_name: media-worker2
+    hostname: media-worker2
+    environment:
+      <<: *api-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+      rabbitmq3:
+        condition: service_healthy
+      garage-cluster-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # S3 goes through the gateway, which lives on the edge network.
+    networks:
+      - edge
+      - cluster
+
   api2:
     profiles: ["cluster", "node2"]
     build:
@@ -362,6 +433,8 @@ services:
         condition: service_healthy
       pg3:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       rabbitmq1:
         condition: service_healthy
       rabbitmq2:
@@ -383,6 +456,28 @@ services:
     restart: unless-stopped
     networks:
       - edge
+      - cluster
+
+  outbox-relay2:
+    profiles: ["cluster", "node2"]
+    build:
+      context: ../../services/api
+    container_name: outbox-relay2
+    hostname: outbox-relay2
+    command: ["python", "-m", "app.outbox_relay"]
+    environment:
+      <<: *api-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+      rabbitmq3:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
       - cluster
 
   traefik2:
@@ -516,6 +611,31 @@ services:
       - edge
       - cluster
 
+  media-worker3:
+    profiles: ["cluster", "node3"]
+    build:
+      context: ../../services/media-worker
+    container_name: media-worker3
+    hostname: media-worker3
+    environment:
+      <<: *api-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+      rabbitmq3:
+        condition: service_healthy
+      garage-cluster-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # S3 goes through the gateway, which lives on the edge network.
+    networks:
+      - edge
+      - cluster
+
   api3:
     profiles: ["cluster", "node3"]
     build:
@@ -531,6 +651,8 @@ services:
         condition: service_healthy
       pg3:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       rabbitmq1:
         condition: service_healthy
       rabbitmq2:

@@ -13,6 +13,8 @@ RUN useradd --create-home --uid 10001 fieldnote
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
+COPY alembic.ini ./
+COPY migrations ./migrations
 COPY app ./app
 
 RUN uv sync --locked --no-dev && chown -R fieldnote:fieldnote /app
