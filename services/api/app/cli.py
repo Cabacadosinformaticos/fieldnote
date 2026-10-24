@@ -24,13 +24,26 @@ def _prompt_password() -> str:
         return password
 
 
-def create_admin(email: str) -> int:
+def _read_password_from_stdin() -> str | None:
+    line = sys.stdin.readline()
+    if not line:
+        print("No password was provided on standard input.", file=sys.stderr)
+        return None
+    password = line.rstrip("\r\n")
+    if not password:
+        print("The password must not be empty.", file=sys.stderr)
+        return None
+    return password
+
+
+def create_admin(email: str, password: str | None = None) -> int:
     email = email.strip().lower()
     if not email:
         print("An email address is required.", file=sys.stderr)
         return 2
 
-    password = _prompt_password()
+    if password is None:
+        password = _prompt_password()
     with SessionLocal() as session:
         existing = session.scalar(select(UserAccount).where(UserAccount.email == email))
         if existing is not None:
@@ -55,10 +68,20 @@ def main(argv: list[str] | None = None) -> int:
 
     admin_parser = commands.add_parser("create-admin", help="Create an administrator account.")
     admin_parser.add_argument("--email", required=True, help="Email address of the account.")
+    admin_parser.add_argument(
+        "--password-stdin",
+        action="store_true",
+        help="Read the password from standard input instead of prompting.",
+    )
 
     arguments = parser.parse_args(argv)
     if arguments.command == "create-admin":
-        return create_admin(arguments.email)
+        password = None
+        if arguments.password_stdin:
+            password = _read_password_from_stdin()
+            if password is None:
+                return 2
+        return create_admin(arguments.email, password)
     parser.error(f"unknown command {arguments.command}")
     return 2
 
