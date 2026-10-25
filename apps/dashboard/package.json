@@ -7,23 +7,32 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "api:types": "node --import ./src/api/openapi-loader.mjs ./node_modules/openapi-typescript/bin/cli.js ../../services/api/openapi.json -o src/api/schema.d.ts && node ./src/api/strip-api-prefix.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/manrope": "^5.3.0",
     "@tanstack/react-query": "^5.105.2",
+    "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "openapi-typescript": "^7.13.0",
     "oxlint": "^1.89.0",
     "typescript": "~7.0.2",
+    "typescript5": "npm:typescript@^5.9.3",
     "vite": "^8.3.5"
   }
 }
