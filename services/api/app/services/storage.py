@@ -74,3 +74,26 @@ def object_exists(object_key: str) -> bool:
             return False
         raise
     return True
+
+
+def delete_participant_objects(participant_id: uuid.UUID) -> int:
+    """Delete every object stored for one participant and return how many were deleted.
+
+    The participant id is the first segment of every key, so a prefix delete also removes an
+    upload that never got a database row. Deleting a prefix that holds no object is not an error,
+    which makes a retried erasure safe.
+    """
+    client = _client(settings.s3_endpoint)
+    prefix = f"{OBJECT_KEY_PREFIX}/{participant_id}/"
+    deleted = 0
+    paginator = client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=settings.s3_bucket, Prefix=prefix):
+        objects = [{"Key": item["Key"]} for item in page.get("Contents", [])]
+        if not objects:
+            continue
+        client.delete_objects(
+            Bucket=settings.s3_bucket,
+            Delete={"Objects": objects, "Quiet": True},
+        )
+        deleted += len(objects)
+    return deleted
