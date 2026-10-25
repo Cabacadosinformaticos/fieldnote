@@ -32,6 +32,8 @@ export const pt = {
   'user.researcher.role': 'Investigadora',
   'user.admin.name': 'Carla Nunes',
   'user.admin.role': 'Administradora',
+  'user.role.researcher': 'Investigadora',
+  'user.role.admin': 'Administradora',
 
   'pages.studies.title': 'Os meus estudos',
   'pages.overview.title': 'Visão geral',
@@ -69,4 +71,13 @@ export const pt = {
   'signIn.adminNote':
     'Contas de administrador: depois da palavra-passe é pedido um código de 6 dígitos.',
   'signIn.error': 'Não foi possível entrar. Verifique o email e a palavra-passe.',
+  'signIn.accountLocked': 'Demasiadas tentativas falhadas. Tente novamente mais tarde.',
+  'signIn.totpEnrolmentRequired':
+    'Esta conta de administrador ainda não tem um autenticador configurado.',
+  'auth.loading': 'A restaurar a sessão…',
+  'totp.submitting': 'A verificar…',
+  'totp.error.invalid': 'Código inválido. Verifique o código e tente novamente.',
+  'totp.error.locked': 'Demasiadas tentativas falhadas. Tente novamente mais tarde.',
+  'totp.error.enrolment':
+    'Esta conta de administrador ainda não tem um autenticador configurado.',
 } as const

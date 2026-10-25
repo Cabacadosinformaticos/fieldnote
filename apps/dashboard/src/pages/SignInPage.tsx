@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signIn } from '../api/auth'
+import { AuthError } from '../api/auth'
+import { useAuth } from '../auth/useAuth'
 import { CheckIcon, EyeIcon, LogoMark } from '../components/icons'
 import { t } from '../i18n'
 
@@ -10,13 +11,32 @@ const heroBullets = [
   t('signIn.heroBullet3'),
 ] as const
 
+function errorMessage(error: unknown): string {
+  if (error instanceof AuthError) {
+    if (error.code === 'account_locked') {
+      return t('signIn.accountLocked')
+    }
+    if (error.code === 'totp_enrolment_required') {
+      return t('signIn.totpEnrolmentRequired')
+    }
+  }
+  return t('signIn.error')
+}
+
 export default function SignInPage() {
   const navigate = useNavigate()
+  const { status, signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      navigate('/estudos', { replace: true })
+    }
+  }, [status, navigate])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -24,10 +44,14 @@ export default function SignInPage() {
     setSubmitting(true)
 
     try {
-      await signIn(email, password)
-      navigate('/estudos')
-    } catch {
-      setError(t('signIn.error'))
+      const outcome = await signIn(email, password)
+      if (outcome === 'totp_required') {
+        navigate('/entrar/codigo', { replace: true })
+        return
+      }
+      navigate('/estudos', { replace: true })
+    } catch (caught) {
+      setError(errorMessage(caught))
     } finally {
       setSubmitting(false)
     }

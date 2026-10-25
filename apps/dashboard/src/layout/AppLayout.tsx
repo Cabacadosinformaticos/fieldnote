@@ -1,5 +1,6 @@
 import type { ComponentType, SVGProps } from 'react'
-import { Link, Outlet, useLocation, useParams } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import {
   ActivitiesIcon,
   ChevronRightIcon,
@@ -19,8 +20,6 @@ import {
 } from '../components/icons'
 import { t, type TranslationKey } from '../i18n'
 
-export type AppRole = 'researcher' | 'admin'
-
 type NavItem = {
   key: TranslationKey
   to: string
@@ -37,8 +36,10 @@ const adminNav: NavItem[] = [
   { key: 'nav.admin.erasure', to: '/admin/pedidos-de-apagamento', icon: ErasureIcon },
 ]
 
-export default function AppLayout({ role = 'researcher' }: { role?: AppRole }) {
+export default function AppLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const params = useParams<{ studyId?: string }>()
   const studyId = params.studyId ?? DEMO_STUDY_ID
 
@@ -52,14 +53,22 @@ export default function AppLayout({ role = 'researcher' }: { role?: AppRole }) {
     { key: 'nav.settings', to: `/estudos/${studyId}/definicoes`, icon: SettingsIcon },
   ]
 
-  const isAdmin = role === 'admin'
+  const isAdmin = user?.role === 'admin'
   const navItems = isAdmin ? adminNav : researcherNav
   const currentItem = navItems.find((item) => item.to === location.pathname)
   const isStudiesIndex = location.pathname === '/estudos'
 
-  const user = isAdmin
-    ? { name: t('user.admin.name'), role: t('user.admin.role'), initials: 'CN' }
-    : { name: t('user.researcher.name'), role: t('user.researcher.role'), initials: 'IM' }
+  const userEmail = user?.email ?? ''
+  const userCard = {
+    name: userEmail,
+    role: t(isAdmin ? 'user.role.admin' : 'user.role.researcher'),
+    initials: userEmail.split('@')[0].slice(0, 2).toUpperCase(),
+  }
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/entrar', { replace: true })
+  }
 
   return (
     <div className="app-shell">
@@ -120,17 +129,28 @@ export default function AppLayout({ role = 'researcher' }: { role?: AppRole }) {
 
           <div className="sidebar-footer">
             <div className={isAdmin ? 'user-card user-card-admin' : 'user-card'}>
-              <span className="user-avatar">{user.initials}</span>
+              <span className="user-avatar">{userCard.initials}</span>
               <span className="user-meta">
-                <span className="user-name">{user.name}</span>
-                <span className="user-role">{user.role}</span>
+                <span className="user-name">{userCard.name}</span>
+                <span className="user-role">{userCard.role}</span>
               </span>
             </div>
             <nav className="sidebar-nav" aria-label={t('nav.account')}>
-              <Link className="nav-link" to="/entrar">
+              <button
+                type="button"
+                className="nav-link"
+                style={{
+                  width: '100%',
+                  background: 'none',
+                  border: 0,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onClick={handleSignOut}
+              >
                 <SignOutIcon width={isAdmin ? 18 : 20} height={isAdmin ? 18 : 20} />
                 <span className="nav-link-text">{t('nav.signOut')}</span>
-              </Link>
+              </button>
             </nav>
           </div>
         </div>
