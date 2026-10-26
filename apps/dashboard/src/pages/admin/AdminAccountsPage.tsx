@@ -1,6 +1,19 @@
 import { useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  AdminApiError,
+  useAccounts,
+  useChangeAccountRole,
+  useCreateAccount,
+  useDeleteAccount,
+  useLockAccount,
+  useUnlockAccount,
+  type AdminAccount,
+  type CreatedAccount,
+  type UserRole,
+} from '../../api/admin'
 import AccountDialog, { type AccountDraft } from '../../components/admin/AccountDialog'
+import { formatDateTime, shortId } from '../../components/admin/format'
 import {
   ClockIcon,
   LockIcon,
@@ -8,111 +21,165 @@ import {
   SearchIcon,
   ShieldCheckIcon,
 } from '../../components/admin/icons'
-import {
-  accounts as initialAccounts,
-  type AccountState,
-  type AdminAccount,
-} from '../../fake/admin'
+import { useAuth } from '../../auth/useAuth'
 import { t, type AdminKey } from '../../i18n/admin'
 import '../../styles/admin.css'
 
-type FilterKey = 'all' | AccountState
+type FilterKey = 'all' | 'active' | 'locked'
 
 const filters: { key: FilterKey; labelKey: AdminKey }[] = [
   { key: 'all', labelKey: 'acct.filter.all' },
   { key: 'active', labelKey: 'acct.filter.active' },
-  { key: 'disabled', labelKey: 'acct.filter.disabled' },
-  { key: 'blocked', labelKey: 'acct.filter.blocked' },
+  { key: 'locked', labelKey: 'acct.filter.locked' },
 ]
 
-const stateLabel: Record<AccountState, 'acct.state.active' | 'acct.state.disabled' | 'acct.state.blocked'> = {
-  active: 'acct.state.active',
-  disabled: 'acct.state.disabled',
-  blocked: 'acct.state.blocked',
+function roleLabel(role: UserRole) {
+  return role === 'admin' ? t('acct.role.admin') : t('acct.role.researcher')
+}
+
+function accountErrorText(error: unknown): string {
+  if (!(error instanceof AdminApiError)) {
+    return t('acct.error.generic', { code: 'unknown' })
+  }
+  switch (error.code) {
+    case 'email_in_use':
+      return t('acct.error.emailInUse')
+    case 'invalid_email':
+      return t('acct.error.invalidEmail')
+    case 'cannot_lock_own_account':
+    case 'cannot_delete_own_account':
+    case 'cannot_change_own_role':
+      return t('acct.error.self')
+    case 'account_not_found':
+      return t('acct.error.notFound')
+    default:
+      return t('acct.error.generic', { code: error.code })
+  }
 }
 
 export default function AdminAccountsPage({ newAccountOpen = false }: { newAccountOpen?: boolean }) {
   const navigate = useNavigate()
-  const location = useLocation()
-  const locationState = location.state as { created?: string } | null
-  const createdEmail = locationState?.created ?? ''
+  const { user } = useAuth()
+  const accountsQuery = useAccounts()
+  const createAccount = useCreateAccount()
+  const changeRole = useChangeAccountRole()
+  const lockAccount = useLockAccount()
+  const unlockAccount = useUnlockAccount()
+  const deleteAccount = useDeleteAccount()
 
-  const [accounts, setAccounts] = useState<AdminAccount[]>(initialAccounts)
+  const [createOpen, setCreateOpen] = useState(newAccountOpen)
+  const [created, setCreated] = useState<CreatedAccount | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [editing, setEditing] = useState<AdminAccount | null>(null)
   const [filter, setFilter] = useState<FilterKey>('all')
   const [query, setQuery] = useState('')
-  const [editing, setEditing] = useState<AdminAccount | null>(null)
-  const [notice, setNotice] = useState(
-    createdEmail ? t('acct.created', { email: createdEmail }) : '',
-  )
+  const [notice, setNotice] = useState('')
+  const [actionError, setActionError] = useState('')
 
-  const counts = useMemo(() => {
-    return {
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
+
+  const counts = useMemo(
+    () => ({
       all: accounts.length,
-      active: accounts.filter((account) => account.state === 'active').length,
-      disabled: accounts.filter((account) => account.state === 'disabled').length,
-      blocked: accounts.filter((account) => account.state === 'blocked').length,
-    }
-  }, [accounts])
+      active: accounts.filter((account) => !account.locked).length,
+      locked: accounts.filter((account) => account.locked).length,
+    }),
+    [accounts],
+  )
 
   const visibleAccounts = useMemo(() => {
     const term = query.trim().toLowerCase()
     return accounts.filter((account) => {
-      const matchesFilter = filter === 'all' || account.state === filter
-      const matchesQuery =
-        term.length === 0 ||
-        account.name.toLowerCase().includes(term) ||
-        account.email.toLowerCase().includes(term)
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'active' && !account.locked) ||
+        (filter === 'locked' && account.locked)
+      const matchesQuery = term.length === 0 || account.email.toLowerCase().includes(term)
       return matchesFilter && matchesQuery
     })
   }, [accounts, filter, query])
 
-  function closeDialog() {
+  function closeCreate() {
+    createAccount.reset()
     if (newAccountOpen) {
       navigate('/admin/contas')
       return
     }
-    setEditing(null)
+    setCreateOpen(false)
   }
 
   function handleCreate(draft: AccountDraft) {
-    navigate('/admin/contas', { state: { created: draft.email } })
+    createAccount.mutate(draft, {
+      onSuccess: (account) => {
+        setCreateOpen(false)
+        setNotice('')
+        setCopied(false)
+        setCreated(account)
+      },
+    })
   }
 
   function handleUpdate(draft: AccountDraft) {
     if (!editing) {
       return
     }
-    setAccounts((current) =>
-      current.map((account) =>
-        account.id === editing.id
-          ? {
-              ...account,
-              name: draft.name,
-              email: draft.email,
-              role: draft.role,
-              roleLabel:
-                draft.role === account.role
-                  ? account.roleLabel
-                  : draft.role === 'admin'
-                    ? 'Administrador'
-                    : 'Investigador',
-            }
-          : account,
-      ),
+    changeRole.mutate(
+      { userId: editing.id, role: draft.role },
+      {
+        onSuccess: () => {
+          setNotice(t('acct.updated', { email: editing.email }))
+          setEditing(null)
+        },
+      },
     )
-    setNotice(t('acct.updated', { name: draft.name }))
-    setEditing(null)
   }
 
-  function changeState(account: AdminAccount, state: AccountState) {
-    setAccounts((current) =>
-      current.map((item) => (item.id === account.id ? { ...item, state } : item)),
-    )
-    setNotice(
-      state === 'disabled'
-        ? t('acct.deactivated', { name: account.name })
-        : t('acct.reactivated', { name: account.name }),
-    )
+  function handleLock(account: AdminAccount) {
+    setActionError('')
+    lockAccount.mutate(account.id, {
+      onSuccess: () => setNotice(t('acct.locked', { email: account.email })),
+      onError: (error) => {
+        setNotice('')
+        setActionError(accountErrorText(error))
+      },
+    })
+  }
+
+  function handleUnlock(account: AdminAccount) {
+    setActionError('')
+    unlockAccount.mutate(account.id, {
+      onSuccess: () => setNotice(t('acct.unlocked', { email: account.email })),
+      onError: (error) => {
+        setNotice('')
+        setActionError(accountErrorText(error))
+      },
+    })
+  }
+
+  function handleDelete(account: AdminAccount) {
+    if (!window.confirm(t('acct.deleteConfirm', { email: account.email }))) {
+      return
+    }
+    setActionError('')
+    deleteAccount.mutate(account.id, {
+      onSuccess: () => setNotice(t('acct.deleted', { email: account.email })),
+      onError: (error) => {
+        setNotice('')
+        setActionError(accountErrorText(error))
+      },
+    })
+  }
+
+  async function copyPassword() {
+    if (!created) {
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(created.temporary_password)
+      setCopied(true)
+    } catch {
+      // The password stays visible so it can be copied by hand.
+    }
   }
 
   return (
@@ -122,7 +189,15 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
           <h1 className="ad-title">{t('acct.title')}</h1>
           <p className="ad-subtitle">{t('acct.subtitle')}</p>
         </div>
-        <Link className="btn btn-p" to="/admin/contas/nova">
+        <Link
+          className="btn btn-p"
+          to="/admin/contas/nova"
+          onClick={() => {
+            createAccount.reset()
+            setCreateOpen(true)
+            setCopied(false)
+          }}
+        >
           <PlusIcon />
           {t('acct.new')}
         </Link>
@@ -167,130 +242,147 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
         </div>
       ) : null}
 
+      {actionError ? (
+        <div className="ad-error-notice" role="alert">
+          {accountErrorText(actionError)}
+        </div>
+      ) : null}
+
+      {created ? (
+        <section className="ad-temp-card" role="status">
+          <div>
+            <h2 className="ad-info-title">{t('acct.tempTitle')}</h2>
+            <p className="ad-info-text">{t('acct.tempBody', { email: created.email })}</p>
+          </div>
+          <div className="ad-temp-row">
+            <span className="ad-label">{t('acct.tempLabel')}</span>
+            <code className="ad-temp-password">{created.temporary_password}</code>
+            <button type="button" className="ad-btn-sm" onClick={() => void copyPassword()}>
+              {copied ? t('acct.copied') : t('acct.copy')}
+            </button>
+            <button type="button" className="btn btn-p" onClick={() => setCreated(null)}>
+              {t('acct.tempDone')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <section className="ad-table-card" aria-label={t('acct.listLabel')}>
         <div className="ad-table-scroll">
           <div className="ad-account-grid ad-table-head">
             <span>{t('acct.col.account')}</span>
             <span>{t('acct.col.role')}</span>
-            <span>{t('acct.col.studies')}</span>
-            <span>{t('acct.col.lastSession')}</span>
             <span>{t('acct.col.state')}</span>
             <span>{t('acct.col.totp')}</span>
             <span>{t('acct.col.actions')}</span>
           </div>
 
-          {visibleAccounts.map((account) => (
-            <div
-              key={account.id}
-              className={
-                account.self ? 'ad-account-grid ad-table-row is-self' : 'ad-account-grid ad-table-row'
-              }
-            >
-              <div className="ad-account-identity">
-                <span
-                  className={
-                    account.state === 'disabled'
-                      ? 'ad-account-name is-disabled'
-                      : 'ad-account-name'
-                  }
-                >
-                  {account.name}
-                </span>
-                <span className="ad-account-email">{account.email}</span>
-              </div>
-
-              <span className="ad-cell-strong">{account.roleLabel}</span>
-
-              <span
-                className={
-                  account.studies === 'Nenhum' ? 'ad-cell ad-cell-muted' : 'ad-cell'
-                }
-              >
-                {account.studies}
-              </span>
-
-              <div className="ad-last-session">
-                <span className="ad-cell-strong">{account.lastDay}</span>
-                <span className="ad-mono ad-time">{account.lastTime}</span>
-              </div>
-
-              <div>
-                <span
-                  className={`pill ${account.state === 'active' ? 'ok' : 'ne'} ad-state-pill`}
-                >
-                  <span
-                    className={`ad-state-dot ${account.state === 'active' ? 'is-active' : ''}`}
-                    aria-hidden="true"
-                  />
-                  {t(stateLabel[account.state])}
-                </span>
-              </div>
-
-              <div>
-                {account.totp ? (
-                  <span className="pill ok ad-totp-pill">
-                    <ShieldCheckIcon width={14} height={14} />
-                    {t('acct.totp.active')}
-                  </span>
-                ) : (
-                  <span className="ad-cell ad-cell-muted">{t('acct.totp.notRequired')}</span>
-                )}
-              </div>
-
-              <div className="ad-row-actions">
-                <button
-                  type="button"
-                  className="ad-btn-sm"
-                  aria-label={t('acct.editAria', { name: account.name })}
-                  onClick={() => setEditing(account)}
-                >
-                  {t('common.edit')}
-                </button>
-
-                {account.state !== 'disabled' ? (
-                  <button
-                    type="button"
-                    className="ad-btn-sm"
-                    aria-label={t('acct.sendLinkAria', { name: account.name })}
-                    onClick={() => setNotice(t('acct.linkSent', { email: account.email }))}
-                  >
-                    {t('acct.sendLink')}
-                  </button>
-                ) : null}
-
-                {account.state === 'disabled' || account.state === 'blocked' ? (
-                  <button
-                    type="button"
-                    className="ad-btn-sm"
-                    aria-label={t('acct.reactivateAria', { name: account.name })}
-                    onClick={() => changeState(account, 'active')}
-                  >
-                    {t('acct.reactivate')}
-                  </button>
-                ) : account.self ? (
-                  <button
-                    type="button"
-                    className="ad-btn-sm ad-btn-muted"
-                    aria-label={t('acct.selfAria')}
-                    disabled
-                  >
-                    {t('acct.deactivate')}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="ad-btn-sm ad-btn-danger"
-                    aria-label={t('acct.deactivateAria', { name: account.name })}
-                    onClick={() => changeState(account, 'disabled')}
-                  >
-                    {t('acct.deactivate')}
-                  </button>
-                )}
-              </div>
+          {accountsQuery.isPending ? (
+            <div className="ad-empty" aria-busy="true">
+              {t('acct.loading')}
             </div>
-          ))}
+          ) : null}
 
-          {visibleAccounts.length === 0 ? (
+          {accountsQuery.isError ? (
+            <div className="ad-empty">
+              <p>{t('acct.loadError')}</p>
+              <button type="button" className="ad-btn-sm" onClick={() => void accountsQuery.refetch()}>
+                {t('common.retry')}
+              </button>
+            </div>
+          ) : null}
+
+          {!accountsQuery.isPending && !accountsQuery.isError
+            ? visibleAccounts.map((account) => {
+                const isSelf = account.id === user?.id
+                return (
+                  <div
+                    key={account.id}
+                    className={
+                      isSelf ? 'ad-account-grid ad-table-row is-self' : 'ad-account-grid ad-table-row'
+                    }
+                  >
+                    <div className="ad-account-identity">
+                      <span className={account.locked ? 'ad-account-name is-disabled' : 'ad-account-name'}>
+                        {account.email}
+                      </span>
+                      <span className="ad-account-email">
+                        {formatDateTime(account.created_at)} · {shortId(account.id)}
+                      </span>
+                    </div>
+
+                    <span className="ad-cell-strong">{roleLabel(account.role)}</span>
+
+                    <div>
+                      <span className={`pill ${account.locked ? 'ne' : 'ok'} ad-state-pill`}>
+                        <span
+                          className={`ad-state-dot ${account.locked ? '' : 'is-active'}`}
+                          aria-hidden="true"
+                        />
+                        {account.locked ? t('acct.state.locked') : t('acct.state.active')}
+                      </span>
+                    </div>
+
+                    <div>
+                      {account.totp_enrolled ? (
+                        <span className="pill ok ad-totp-pill">
+                          <ShieldCheckIcon width={14} height={14} />
+                          {t('acct.totp.active')}
+                        </span>
+                      ) : (
+                        <span className="ad-cell ad-cell-muted">{t('acct.totp.notRequired')}</span>
+                      )}
+                    </div>
+
+                    <div className="ad-row-actions">
+                      <button
+                        type="button"
+                        className={isSelf ? 'ad-btn-sm ad-btn-muted' : 'ad-btn-sm'}
+                        aria-label={isSelf ? t('acct.selfAria') : t('acct.editAria', { email: account.email })}
+                        onClick={() => setEditing(account)}
+                        disabled={isSelf || changeRole.isPending}
+                      >
+                        {t('common.edit')}
+                      </button>
+
+                      {account.locked ? (
+                        <button
+                          type="button"
+                          className="ad-btn-sm"
+                          aria-label={t('acct.unlockAria', { email: account.email })}
+                          onClick={() => handleUnlock(account)}
+                          disabled={unlockAccount.isPending}
+                        >
+                          {t('acct.unlock')}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className={isSelf ? 'ad-btn-sm ad-btn-muted' : 'ad-btn-sm ad-btn-danger'}
+                          aria-label={isSelf ? t('acct.selfAria') : t('acct.lockAria', { email: account.email })}
+                          onClick={() => handleLock(account)}
+                          disabled={isSelf || lockAccount.isPending}
+                        >
+                          {t('acct.lock')}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className={isSelf ? 'ad-btn-sm ad-btn-muted' : 'ad-btn-sm ad-btn-danger'}
+                        aria-label={isSelf ? t('acct.selfAria') : t('acct.deleteAria', { email: account.email })}
+                        onClick={() => handleDelete(account)}
+                        disabled={isSelf || deleteAccount.isPending}
+                      >
+                        {t('acct.delete')}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })
+            : null}
+
+          {!accountsQuery.isPending && !accountsQuery.isError && visibleAccounts.length === 0 ? (
             <div className="ad-empty">{t('acct.empty')}</div>
           ) : null}
         </div>
@@ -322,8 +414,14 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
         </section>
       </div>
 
-      {newAccountOpen ? (
-        <AccountDialog mode="create" onClose={closeDialog} onSubmit={handleCreate} />
+      {createOpen ? (
+        <AccountDialog
+          mode="create"
+          submitting={createAccount.isPending}
+          error={createAccount.error ? accountErrorText(createAccount.error) : ''}
+          onClose={closeCreate}
+          onSubmit={handleCreate}
+        />
       ) : null}
 
       {editing ? (
@@ -331,7 +429,12 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
           key={editing.id}
           mode="edit"
           account={editing}
-          onClose={closeDialog}
+          submitting={changeRole.isPending}
+          error={changeRole.error ? accountErrorText(changeRole.error) : ''}
+          onClose={() => {
+            changeRole.reset()
+            setEditing(null)
+          }}
           onSubmit={handleUpdate}
         />
       ) : null}

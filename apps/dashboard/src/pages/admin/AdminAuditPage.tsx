@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react'
-import { LockIcon, SearchIcon } from '../../components/admin/icons'
-import {
-  auditActions,
-  auditEvents,
-  type AuditActorType,
-} from '../../fake/admin'
+import { useAuditLog, type AuditActorType, type AuditEvent } from '../../api/admin'
+import { formatDay, formatTime, isUuid, shortId } from '../../components/admin/format'
+import { LockIcon } from '../../components/admin/icons'
 import { t, type AdminKey } from '../../i18n/admin'
 import '../../styles/admin.css'
 
@@ -23,63 +20,129 @@ const actorLabel: Record<AuditActorType, AdminKey> = {
   system: 'audit.actor.system',
 }
 
-const months = [
-  'jan.',
-  'fev.',
-  'mar.',
-  'abr.',
-  'mai.',
-  'jun.',
-  'jul.',
-  'ago.',
-  'set.',
-  'out.',
-  'nov.',
-  'dez.',
+const auditActions: { code: string; labelKey: AdminKey }[] = [
+  { code: 'login', labelKey: 'audit.action.login' },
+  { code: 'login_failed', labelKey: 'audit.action.login_failed' },
+  { code: 'logout', labelKey: 'audit.action.logout' },
+  { code: 'refresh_reuse_detected', labelKey: 'audit.action.refresh_reuse_detected' },
+  { code: 'totp_enrolment', labelKey: 'audit.action.totp_enrolment' },
+  { code: 'account_created', labelKey: 'audit.action.account_created' },
+  { code: 'account_role_changed', labelKey: 'audit.action.account_role_changed' },
+  { code: 'account_locked', labelKey: 'audit.action.account_locked' },
+  { code: 'account_unlocked', labelKey: 'audit.action.account_unlocked' },
+  { code: 'account_deleted', labelKey: 'audit.action.account_deleted' },
+  { code: 'study_created', labelKey: 'audit.action.study_created' },
+  { code: 'study_updated', labelKey: 'audit.action.study_updated' },
+  { code: 'study_started', labelKey: 'audit.action.study_started' },
+  { code: 'study_closed', labelKey: 'audit.action.study_closed' },
+  { code: 'study_member_added', labelKey: 'audit.action.study_member_added' },
+  { code: 'study_member_removed', labelKey: 'audit.action.study_member_removed' },
+  { code: 'study_member_role_changed', labelKey: 'audit.action.study_member_role_changed' },
+  { code: 'study_question_created', labelKey: 'audit.action.study_question_created' },
+  { code: 'study_question_updated', labelKey: 'audit.action.study_question_updated' },
+  { code: 'study_question_deleted', labelKey: 'audit.action.study_question_deleted' },
+  { code: 'study_questions_reordered', labelKey: 'audit.action.study_questions_reordered' },
+  { code: 'study_code_created', labelKey: 'audit.action.study_code_created' },
+  { code: 'study_code_regenerated', labelKey: 'audit.action.study_code_regenerated' },
+  { code: 'study_code_entry', labelKey: 'audit.action.study_code_entry' },
+  { code: 'tag_created', labelKey: 'audit.action.tag_created' },
+  { code: 'tag_deleted', labelKey: 'audit.action.tag_deleted' },
+  { code: 'activity_created', labelKey: 'audit.action.activity_created' },
+  { code: 'activity_updated', labelKey: 'audit.action.activity_updated' },
+  { code: 'activity_deleted', labelKey: 'audit.action.activity_deleted' },
+  { code: 'participant_added', labelKey: 'audit.action.participant_added' },
+  { code: 'participant_approved', labelKey: 'audit.action.participant_approved' },
+  { code: 'participant_declined', labelKey: 'audit.action.participant_declined' },
+  { code: 'participant_removed', labelKey: 'audit.action.participant_removed' },
+  { code: 'participant_invite_issued', labelKey: 'audit.action.participant_invite_issued' },
+  { code: 'participant_identity_read', labelKey: 'audit.action.participant_identity_read' },
+  { code: 'participant_erased', labelKey: 'audit.action.participant_erased' },
+  { code: 'entry_created', labelKey: 'audit.action.entry_created' },
+  { code: 'media_upload_url_issued', labelKey: 'audit.action.media_upload_url_issued' },
+  { code: 'media_url_issued', labelKey: 'audit.action.media_url_issued' },
+  { code: 'export', labelKey: 'audit.action.export' },
+  { code: 'erasure_requested', labelKey: 'audit.action.erasure_requested' },
+  { code: 'erasure_cancelled', labelKey: 'audit.action.erasure_cancelled' },
+  { code: 'pool_invitations_sent', labelKey: 'audit.action.pool_invitations_sent' },
 ]
 
-function formatDate(iso: string) {
-  if (!iso) {
+const actionLabels = new Map(auditActions.map((item) => [item.code, item.labelKey]))
+
+const failedActions = new Set(['login_failed', 'refresh_reuse_detected'])
+
+function renderValue(value: unknown): string {
+  if (value === null || value === undefined) {
     return '—'
   }
-  const [year, month, day] = iso.split('-')
-  return `${Number(day)} ${months[Number(month) - 1]} ${year}`
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return JSON.stringify(value)
+}
+
+function detailSummary(event: AuditEvent): string {
+  if (!event.details) {
+    return t('audit.detailsEmpty')
+  }
+  const entries = Object.entries(event.details)
+  if (entries.length === 0) {
+    return t('audit.detailsEmpty')
+  }
+  return entries
+    .slice(0, 2)
+    .map(([key, value]) => `${key}: ${renderValue(value)}`)
+    .join(' · ')
+}
+
+function toIsoDate(value: string, endOfDay: boolean): string | null {
+  if (!value) {
+    return null
+  }
+  const time = endOfDay ? '23:59:59.999' : '00:00:00'
+  const parsed = new Date(`${value}T${time}`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
 }
 
 export default function AdminAuditPage() {
   const [actor, setActor] = useState<'all' | AuditActorType>('all')
   const [action, setAction] = useState('all')
-  const [from, setFrom] = useState('2026-09-29')
-  const [to, setTo] = useState('2026-10-09')
-  const [query, setQuery] = useState('')
-  const [openId, setOpenId] = useState<string | null>('AUD-001284')
-  const [page, setPage] = useState(1)
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [cursors, setCursors] = useState<(number | null)[]>([null])
+  const [pageIndex, setPageIndex] = useState(0)
+  const [openId, setOpenId] = useState<number | null>(null)
 
-  const visibleEvents = useMemo(() => {
-    const term = query.trim().toLowerCase()
-    return auditEvents.filter((item) => {
-      const matchesActor = actor === 'all' || item.actorType === actor
-      const matchesAction = action === 'all' || item.action === action
-      const matchesFrom = from.length === 0 || item.date >= from
-      const matchesTo = to.length === 0 || item.date <= to
-      const matchesQuery =
-        term.length === 0 ||
-        item.actor.toLowerCase().includes(term) ||
-        item.target.toLowerCase().includes(term) ||
-        item.detail.toLowerCase().includes(term) ||
-        item.action.toLowerCase().includes(term)
-      return matchesActor && matchesAction && matchesFrom && matchesTo && matchesQuery
+  const filters = useMemo(
+    () => ({
+      actorType: actor === 'all' ? null : actor,
+      action: action === 'all' ? null : action,
+      since: toIsoDate(from, false),
+      until: toIsoDate(to, true),
+      cursor: cursors[pageIndex] ?? null,
+      limit: PAGE_SIZE,
+    }),
+    [actor, action, from, to, cursors, pageIndex],
+  )
+
+  const auditQuery = useAuditLog(filters)
+  const events = auditQuery.data?.items ?? []
+  const nextCursor = auditQuery.data?.next_cursor ?? null
+
+  function resetPaging() {
+    setCursors([null])
+    setPageIndex(0)
+  }
+
+  function goNext() {
+    if (nextCursor === null) {
+      return
+    }
+    setCursors((current) => {
+      const next = [...current]
+      next[pageIndex + 1] = nextCursor
+      return next
     })
-  }, [actor, action, from, to, query])
-
-  const totalPages = Math.max(1, Math.ceil(visibleEvents.length / PAGE_SIZE))
-  const safePage = Math.min(page, totalPages)
-  const pageEvents = visibleEvents.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
-  const shown = Math.min(visibleEvents.length, safePage * PAGE_SIZE)
-
-  function updateFilter(setter: (value: string) => void, value: string) {
-    setter(value)
-    setPage(1)
+    setPageIndex((index) => index + 1)
   }
 
   return (
@@ -118,7 +181,7 @@ export default function AdminAuditPage() {
                   aria-pressed={actor === item.key}
                   onClick={() => {
                     setActor(item.key)
-                    setPage(1)
+                    resetPaging()
                   }}
                 >
                   {t(item.labelKey)}
@@ -135,12 +198,15 @@ export default function AdminAuditPage() {
               id="ad-audit-action"
               className="ad-input ad-select"
               value={action}
-              onChange={(event) => updateFilter(setAction, event.target.value)}
+              onChange={(event) => {
+                setAction(event.target.value)
+                resetPaging()
+              }}
             >
               <option value="all">{t('audit.action.all')}</option>
               {auditActions.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+                <option key={item.code} value={item.code}>
+                  {t(item.labelKey)}
                 </option>
               ))}
             </select>
@@ -155,7 +221,10 @@ export default function AdminAuditPage() {
               type="date"
               className="ad-input"
               value={from}
-              onChange={(event) => updateFilter(setFrom, event.target.value)}
+              onChange={(event) => {
+                setFrom(event.target.value)
+                resetPaging()
+              }}
             />
           </div>
 
@@ -168,38 +237,18 @@ export default function AdminAuditPage() {
               type="date"
               className="ad-input"
               value={to}
-              onChange={(event) => updateFilter(setTo, event.target.value)}
+              onChange={(event) => {
+                setTo(event.target.value)
+                resetPaging()
+              }}
             />
-          </div>
-
-          <div className="ad-field ad-field-grow">
-            <label className="ad-label" htmlFor="ad-audit-query">
-              {t('audit.search')}
-            </label>
-            <div className="ad-search ad-search-full">
-              <SearchIcon />
-              <input
-                id="ad-audit-query"
-                type="search"
-                className="ad-input"
-                placeholder={t('audit.searchPlaceholder')}
-                value={query}
-                onChange={(event) => updateFilter(setQuery, event.target.value)}
-              />
-            </div>
           </div>
         </div>
       </section>
 
       <section className="ad-events-card" aria-label={t('audit.title')}>
         <div className="ad-events-head">
-          <h2 className="ad-events-title">
-            {t('audit.heading', {
-              count: visibleEvents.length,
-              from: formatDate(from),
-              to: formatDate(to),
-            })}
-          </h2>
+          <h2 className="ad-events-title">{t('audit.heading', { count: events.length })}</h2>
           <span className="ad-muted">{t('audit.order')}</span>
         </div>
 
@@ -210,87 +259,107 @@ export default function AdminAuditPage() {
             <span>{t('audit.col.action')}</span>
             <span>{t('audit.col.target')}</span>
             <span>{t('audit.col.detail')}</span>
-            <span>{t('audit.col.origin')}</span>
           </div>
 
-          {pageEvents.map((item) => {
-            const isOpen = openId === item.id
-            return (
-              <div key={item.id} className={isOpen ? 'ad-event is-open' : 'ad-event'}>
-                <button
-                  type="button"
-                  className="ad-event-toggle"
-                  aria-expanded={isOpen}
-                  onClick={() => setOpenId(isOpen ? null : item.id)}
-                >
-                  <div className="ad-audit-grid ad-event-grid">
-                    <div className="ad-stack">
-                      <span className="ad-cell-strong">{item.day}</span>
-                      <span className="ad-mono ad-time">{item.time}</span>
-                    </div>
+          {auditQuery.isPending ? (
+            <div className="ad-empty" aria-busy="true">
+              {t('audit.loading')}
+            </div>
+          ) : null}
 
-                    <div className="ad-actor">
-                      <span className={`ad-actor-badge is-${item.actorType}`}>
-                        {t(actorLabel[item.actorType])}
-                      </span>
-                      <span className="ad-cell-strong">{item.actor}</span>
-                    </div>
+          {auditQuery.isError ? (
+            <div className="ad-empty">
+              <p>{t('audit.loadError')}</p>
+              <button type="button" className="ad-btn-sm" onClick={() => void auditQuery.refetch()}>
+                {t('common.retry')}
+              </button>
+            </div>
+          ) : null}
 
-                    <div className="ad-actor">
-                      <span className="ad-action-name">{item.action}</span>
-                      {item.failed ? (
-                        <span className="pill da ad-failed-pill">{t('audit.failed')}</span>
-                      ) : null}
-                    </div>
+          {!auditQuery.isPending && !auditQuery.isError
+            ? events.map((item) => {
+                const isOpen = openId === item.id
+                const labelKey = actionLabels.get(item.action)
+                return (
+                  <div key={item.id} className={isOpen ? 'ad-event is-open' : 'ad-event'}>
+                    <button
+                      type="button"
+                      className="ad-event-toggle"
+                      aria-expanded={isOpen}
+                      onClick={() => setOpenId(isOpen ? null : item.id)}
+                    >
+                      <div className="ad-audit-grid ad-event-grid">
+                        <div className="ad-stack">
+                          <span className="ad-cell-strong">{formatDay(item.at)}</span>
+                          <span className="ad-mono ad-time">{formatTime(item.at)}</span>
+                        </div>
 
-                    <span className="ad-event-target">{item.target}</span>
-                    <span className="ad-event-detail">{item.detail}</span>
+                        <div className="ad-actor">
+                          <span className={`ad-actor-badge is-${item.actor_type}`}>
+                            {t(actorLabel[item.actor_type])}
+                          </span>
+                          <span className="ad-cell-strong">
+                            {item.actor_id ? shortId(item.actor_id) : t('audit.actorUnknown')}
+                          </span>
+                        </div>
 
-                    <div className="ad-stack">
-                      <span className="ad-mono ad-ip">{item.ip}</span>
-                      <span className="ad-cell-note">{item.via}</span>
-                    </div>
-                  </div>
-                </button>
+                        <div className="ad-actor">
+                          <span className="ad-action-name">
+                            {labelKey ? t(labelKey) : item.action}
+                          </span>
+                          {failedActions.has(item.action) ? (
+                            <span className="pill da ad-failed-pill">{t('audit.failed')}</span>
+                          ) : null}
+                        </div>
 
-                {isOpen && item.fields ? (
-                  <div className="ad-event-fields">
-                    {item.fields.map((field) => (
-                      <div key={field.k} className="ad-event-field">
-                        <span className="ad-event-field-key">{field.k}</span>
-                        <span className="ad-event-field-value">{field.v}</span>
+                        <span className="ad-event-target">
+                          {item.target
+                            ? isUuid(item.target)
+                              ? shortId(item.target)
+                              : item.target
+                            : '—'}
+                        </span>
+                        <span className="ad-event-detail">{detailSummary(item)}</span>
                       </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            )
-          })}
+                    </button>
 
-          {pageEvents.length === 0 ? <div className="ad-empty">{t('audit.empty')}</div> : null}
+                    {isOpen && item.details ? (
+                      <div className="ad-event-fields">
+                        {Object.entries(item.details).map(([key, value]) => (
+                          <div key={key} className="ad-event-field">
+                            <span className="ad-event-field-key">{key}</span>
+                            <span className="ad-event-field-value">{renderValue(value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })
+            : null}
+
+          {!auditQuery.isPending && !auditQuery.isError && events.length === 0 ? (
+            <div className="ad-empty">{t('audit.empty')}</div>
+          ) : null}
         </div>
 
         <div className="ad-events-foot">
-          <span className="ad-muted">
-            {t('audit.showing', { shown, total: visibleEvents.length })}
-          </span>
+          <span className="ad-muted">{t('audit.showing', { shown: events.length })}</span>
           <div className="ad-pager">
             <button
               type="button"
               className="ad-btn-sm ad-btn-muted"
-              disabled={safePage <= 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={pageIndex === 0}
+              onClick={() => setPageIndex((index) => Math.max(0, index - 1))}
             >
               {t('audit.previous')}
             </button>
-            <span className="ad-page-label">
-              {t('audit.page', { page: safePage, pages: totalPages })}
-            </span>
+            <span className="ad-page-label">{t('audit.page', { page: pageIndex + 1 })}</span>
             <button
               type="button"
               className="ad-btn-sm"
-              disabled={safePage >= totalPages}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              disabled={nextCursor === null}
+              onClick={goNext}
             >
               {t('audit.next')}
             </button>

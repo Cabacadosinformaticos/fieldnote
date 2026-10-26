@@ -1,31 +1,39 @@
 import { useState, type FormEvent } from 'react'
-import type { AccountRole, AdminAccount } from '../../fake/admin'
+import type { UserRole } from '../../api/admin'
 import { t } from '../../i18n/admin'
 import { CloseIcon, MailIcon } from './icons'
 
-export type AccountDraft = { name: string; email: string; role: AccountRole }
+export type AccountDraft = { email: string; role: UserRole }
 
 type Props = {
   mode: 'create' | 'edit'
-  account?: AdminAccount
+  account?: { email: string; role: UserRole }
+  submitting?: boolean
+  error?: string
   onClose: () => void
   onSubmit: (draft: AccountDraft) => void
 }
 
-export default function AccountDialog({ mode, account, onClose, onSubmit }: Props) {
-  const [name, setName] = useState(account?.name ?? '')
+export default function AccountDialog({
+  mode,
+  account,
+  submitting = false,
+  error = '',
+  onClose,
+  onSubmit,
+}: Props) {
   const [email, setEmail] = useState(account?.email ?? '')
-  const [role, setRole] = useState<AccountRole>(account?.role ?? 'researcher')
+  const [role, setRole] = useState<UserRole>(account?.role ?? 'researcher')
 
   const isCreate = mode === 'create'
-  const canSubmit = name.trim().length > 0 && email.trim().length > 0
+  const canSubmit = email.trim().length > 0 && !submitting
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canSubmit) {
       return
     }
-    onSubmit({ name: name.trim(), email: email.trim(), role })
+    onSubmit({ email: email.trim(), role })
   }
 
   return (
@@ -51,27 +59,13 @@ export default function AccountDialog({ mode, account, onClose, onSubmit }: Prop
             className="ad-dialog-close"
             aria-label={t('common.close')}
             onClick={onClose}
+            disabled={submitting}
           >
             <CloseIcon />
           </button>
         </div>
 
         <div className="ad-dialog-body">
-          <div className="ad-field">
-            <label htmlFor="ad-account-name" className="ad-label">
-              {t('acct.dialog.name')}
-            </label>
-            <input
-              id="ad-account-name"
-              type="text"
-              className="ad-input"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              autoFocus
-              required
-            />
-          </div>
-
           <div className="ad-field">
             <label htmlFor="ad-account-email" className="ad-label">
               {t('common.email')}
@@ -83,6 +77,8 @@ export default function AccountDialog({ mode, account, onClose, onSubmit }: Prop
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               aria-describedby="ad-account-email-hint"
+              autoFocus={isCreate}
+              readOnly={!isCreate}
               required
             />
             <span id="ad-account-email-hint" className="ad-hint">
@@ -98,6 +94,7 @@ export default function AccountDialog({ mode, account, onClose, onSubmit }: Prop
                 name="ad-account-role"
                 checked={role === 'researcher'}
                 onChange={() => setRole('researcher')}
+                disabled={submitting}
               />
               <span className="ad-role-text">
                 <span className="ad-role-title">{t('acct.dialog.researcherTitle')}</span>
@@ -110,6 +107,7 @@ export default function AccountDialog({ mode, account, onClose, onSubmit }: Prop
                 name="ad-account-role"
                 checked={role === 'admin'}
                 onChange={() => setRole('admin')}
+                disabled={submitting}
               />
               <span className="ad-role-text">
                 <span className="ad-role-title">{t('acct.dialog.adminTitle')}</span>
@@ -122,16 +120,22 @@ export default function AccountDialog({ mode, account, onClose, onSubmit }: Prop
             <div className="ad-note-box">
               <MailIcon width={20} height={20} />
               <p>
-                {t('acct.dialog.linkNoteBefore')}
-                <strong>{t('acct.dialog.linkNoteStrong')}</strong>
-                {t('acct.dialog.linkNoteAfter')}
+                {t('acct.dialog.passwordNoteBefore')}
+                <strong>{t('acct.dialog.passwordNoteStrong')}</strong>
+                {t('acct.dialog.passwordNoteAfter')}
               </p>
             </div>
+          ) : null}
+
+          {error ? (
+            <p className="ad-form-error" role="alert">
+              {error}
+            </p>
           ) : null}
         </div>
 
         <div className="ad-dialog-foot">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={onClose} disabled={submitting}>
             {t('common.cancel')}
           </button>
           <button type="submit" className="btn btn-p" disabled={!canSubmit}>

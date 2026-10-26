@@ -27,6 +27,14 @@ export default function AdminPoolPage() {
         </div>
       </header>
 
+      <div className="ad-banner">
+        <LockIcon width={20} height={20} />
+        <p>
+          <strong>{t('pool.localTitle')}</strong>
+          {t('pool.localBody')}
+        </p>
+      </div>
+
       <section className="ad-kpis" aria-label={t('pool.title')}>
         {poolKpis.map((kpi) => (
           <div key={kpi.labelKey} className="ad-kpi">
