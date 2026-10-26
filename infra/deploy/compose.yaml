@@ -9,6 +9,8 @@ volumes:
   rabbitmq-data:
   garage-meta:
   garage-data:
+  prometheus-data:
+  grafana-data:
 
 x-api-build: &api-build
   context: ../../services/api
@@ -27,6 +29,8 @@ services:
       - --api.insecure=true
       - --entrypoints.web.address=:8080
       - --entrypoints.traefik.address=:8081
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entryPoint=traefik
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --providers.file.watch=true
     ports:
@@ -67,6 +71,7 @@ services:
       - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -232,4 +237,102 @@ services:
         condition: service_completed_successfully
     networks:
       - edge
+      - cluster
+
+  # The erasure job runs once and exits; loop it so deletions that become due are picked up
+  # within the interval. Several replicas could overlap safely, but the dev stack needs one.
+  erasure-job:
+    profiles: ["dev"]
+    build: *api-build
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          python -m app.erasure_job || true
+          sleep "$$ERASURE_JOB_INTERVAL_SECONDS"
+        done
+    environment:
+      FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+      FIELDNOTE_DATABASE_URL: *database-url
+      FIELDNOTE_S3_ENDPOINT: http://garage:3900
+      FIELDNOTE_S3_BUCKET: ${GARAGE_BUCKET:-media}
+      FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      FIELDNOTE_S3_REGION: garage
+      ERASURE_JOB_INTERVAL_SECONDS: ${ERASURE_JOB_INTERVAL_SECONDS:-300}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      garage-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  # The scheduler runs its own loop and takes the scheduler lease; two cluster replicas can
+  # run together because only the lease holder plans.
+  scheduler:
+    profiles: ["dev"]
+    build:
+      context: ../../services/scheduler
+    environment:
+      FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+      FIELDNOTE_DATABASE_URL: *database-url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  prometheus:
+    profiles: ["dev"]
+    image: prom/prometheus:v3.5.0
+    # The Garage metrics token comes from the environment, so render it to the file the scrape
+    # config points at before starting Prometheus.
+    entrypoint:
+      - /bin/sh
+      - -c
+    command:
+      - |
+        set -eu
+        mkdir -p /tmp/prometheus-secrets
+        printf '%s' "$$GARAGE_METRICS_TOKEN" > /tmp/prometheus-secrets/garage_metrics_token
+        exec /bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --web.listen-address=0.0.0.0:9090
+    environment:
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-garage-metrics-token-dev}
+    volumes:
+      - ./prometheus/prometheus.dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+    # Traefik lives only on the edge network; the API, Garage and RabbitMQ are on both.
+    networks:
+      - edge
+      - cluster
+
+  grafana:
+    profiles: ["dev"]
+    image: grafana/grafana:12.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-fieldnote-grafana-dev}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
       - cluster

@@ -1,7 +1,9 @@
 # Development deployment
 
 Single-node development stack run with Docker Compose: Traefik, PostgreSQL,
-RabbitMQ, Garage, Mailpit and the API. Every service is in the `dev` profile.
+RabbitMQ, Garage, Mailpit, the API, the outbox relay, the media worker, the
+erasure job, the scheduler, Prometheus and Grafana. Every service is in the
+`dev` profile.
 
 ## Start
 
@@ -28,11 +30,39 @@ docker compose --profile dev down -v       # stop and delete all data
 | Mailpit UI | http://localhost:8025 |
 | Mailpit SMTP | `mailpit:1025` on the `cluster` network |
 | RabbitMQ management | http://localhost:15672 |
+| Prometheus | http://127.0.0.1:9090 |
+| Grafana | http://127.0.0.1:3000 |
 | PostgreSQL | `127.0.0.1:5432`, user and database `fieldnote` |
 
 `garage-init` is a one-shot service. It assigns the single-node layout, applies
 it, creates the `media` bucket, imports the S3 key from `.env` and grants it
 read/write access. It is idempotent, so restarting the stack is safe.
+
+## Background services
+
+Both services run after `migrate` and are restarted by Docker if they exit.
+
+| Service | What it does |
+|---|---|
+| `erasure-job` | runs `python -m app.erasure_job` every `ERASURE_JOB_INTERVAL_SECONDS` (default 300) to settle the erasures that are due |
+| `scheduler` | runs `python -m scheduler.main`, which loops and holds the scheduler lease |
+
+## Monitoring
+
+Prometheus scrapes the API metrics endpoint, Traefik, RabbitMQ and Garage. In
+the cluster profile it also scrapes the Patroni REST API. The targets are listed
+at http://127.0.0.1:9090/api/v1/targets.
+
+Grafana provisions its Prometheus data source and the `Fieldnote` dashboard
+from `grafana/`. Anonymous access is read-only (Viewer); the administrator logs
+in with `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD`.
+
+The API serves Prometheus metrics at `/api/v1/metrics` on port 8000. Traefik
+does **not** forward that path: `traefik/dynamic*.yml` routes it to the built-in
+`noop@internal` service, so it answers 418 from the public gateway and is only
+reachable by Prometheus inside the Compose network.
+
+The media worker does not expose metrics and is not scraped.
 
 ## Cluster
 
@@ -80,9 +110,15 @@ docker compose -f compose.cluster.yaml exec garage1 /garage status
 | API health (through either gateway) | http://127.0.0.1:8090/api/v1/health |
 | Media, Garage path-style | http://127.0.0.1:8090/media/ |
 | RabbitMQ management, node1 only | http://127.0.0.1:15673 |
+| Prometheus, node3 | http://127.0.0.1:9091 |
+| Grafana, node3 | http://127.0.0.1:3001 |
 
 These are the only published ports. PostgreSQL, etcd, RabbitMQ AMQP, Garage S3
 and the Garage admin API are reachable only inside the project network.
+
+Prometheus and Grafana run on node 3 only and are not replicated. Losing them
+hides the metrics during a demonstration but does not affect the service. The
+scheduler runs two replicas, on nodes 1 and 2; the erasure job runs on node 1.
 
 ### Memory use
 
@@ -100,11 +136,18 @@ RABBITMQ_ERLANG_COOKIE=fieldnote-cluster-cookie-dev
 PATRONI_SUPERUSER_PASSWORD=patroni-superuser-dev
 PATRONI_REPLICATION_PASSWORD=patroni-replication-dev
 PATRONI_RESTAPI_PASSWORD=patroni-restapi-dev
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=fieldnote-grafana-dev
 ```
 
-| Variable | Used for |
-|---|---|
-| `RABBITMQ_ERLANG_COOKIE` | shared Erlang cookie that lets the three RabbitMQ nodes form one cluster |
-| `PATRONI_SUPERUSER_PASSWORD` | password of the PostgreSQL `postgres` superuser on the Patroni nodes |
-| `PATRONI_REPLICATION_PASSWORD` | password of the `replicator` role used for streaming replication |
-| `PATRONI_RESTAPI_PASSWORD` | password of the Patroni REST API (`patroni` user) |
+| Variable | Default | Used for |
+|---|---|---|
+| `RABBITMQ_ERLANG_COOKIE` | `fieldnote-cluster-cookie-dev` | shared Erlang cookie that lets the three RabbitMQ nodes form one cluster |
+| `PATRONI_SUPERUSER_PASSWORD` | `patroni-superuser-dev` | password of the PostgreSQL `postgres` superuser on the Patroni nodes |
+| `PATRONI_REPLICATION_PASSWORD` | `patroni-replication-dev` | password of the `replicator` role used for streaming replication |
+| `PATRONI_RESTAPI_PASSWORD` | `patroni-restapi-dev` | password of the Patroni REST API (`patroni` user) |
+| `GRAFANA_ADMIN_USER` | `admin` | Grafana administrator account |
+| `GRAFANA_ADMIN_PASSWORD` | `fieldnote-grafana-dev` | Grafana administrator password; change it outside the lab |
+| `PROMETHEUS_PORT` | `9091` | host port of Prometheus in the cluster profile (dev uses 9090) |
+| `GRAFANA_PORT` | `3001` | host port of Grafana in the cluster profile (dev uses 3000) |
+| `ERASURE_JOB_INTERVAL_SECONDS` | `300` | how often the erasure job runs |

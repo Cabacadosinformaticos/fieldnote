@@ -67,6 +67,8 @@ volumes:
   garage2-data:
   garage3-meta:
   garage3-data:
+  prometheus-data:
+  grafana-data:
 
 services:
   # ---------------------------------------------------------------- node 1
@@ -262,6 +264,47 @@ services:
     networks:
       - cluster
 
+  erasure-job1:
+    profiles: ["cluster", "node1"]
+    build:
+      context: ../../services/api
+    container_name: erasure-job1
+    hostname: erasure-job1
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          python -m app.erasure_job || true
+          sleep "$$ERASURE_JOB_INTERVAL_SECONDS"
+        done
+    environment:
+      <<: *api-environment
+      ERASURE_JOB_INTERVAL_SECONDS: ${ERASURE_JOB_INTERVAL_SECONDS:-300}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      garage-cluster-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  scheduler1:
+    profiles: ["cluster", "node1"]
+    build:
+      context: ../../services/scheduler
+    container_name: scheduler1
+    hostname: scheduler1
+    environment:
+      <<: *api-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - cluster
+
   traefik1:
     profiles: ["cluster", "node1"]
     image: traefik:v3.7.0
@@ -271,6 +314,9 @@ services:
       - --log.level=INFO
       - --accesslog=true
       - --entrypoints.web.address=:8080
+      - --entrypoints.traefik.address=:8081
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entryPoint=traefik
       - --providers.file.filename=/etc/traefik/dynamic-cluster.yml
       - --providers.file.watch=true
     ports:
@@ -480,6 +526,22 @@ services:
     networks:
       - cluster
 
+  # Two scheduler replicas on nodes 1 and 2; the lease decides which one plans.
+  scheduler2:
+    profiles: ["cluster", "node2"]
+    build:
+      context: ../../services/scheduler
+    container_name: scheduler2
+    hostname: scheduler2
+    environment:
+      <<: *api-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - cluster
+
   traefik2:
     profiles: ["cluster", "node2"]
     image: traefik:v3.7.0
@@ -489,6 +551,9 @@ services:
       - --log.level=INFO
       - --accesslog=true
       - --entrypoints.web.address=:8080
+      - --entrypoints.traefik.address=:8081
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entryPoint=traefik
       - --providers.file.filename=/etc/traefik/dynamic-cluster.yml
       - --providers.file.watch=true
     ports:
@@ -674,6 +739,63 @@ services:
     restart: unless-stopped
     networks:
       - edge
+      - cluster
+
+  # Monitoring lives on node 3 and is not replicated: its loss hides metrics during a
+  # demonstration but does not affect the service (fault-model.md).
+  prometheus:
+    profiles: ["cluster", "node3"]
+    image: prom/prometheus:v3.5.0
+    container_name: prometheus
+    hostname: prometheus
+    entrypoint:
+      - /bin/sh
+      - -c
+    command:
+      - |
+        set -eu
+        mkdir -p /tmp/prometheus-secrets
+        printf '%s' "$$GARAGE_METRICS_TOKEN" > /tmp/prometheus-secrets/garage_metrics_token
+        exec /bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --web.listen-address=0.0.0.0:9090
+    environment:
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-garage-metrics-token-dev}
+    volumes:
+      - ./prometheus/prometheus.cluster.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      # The dev stack already publishes 9090.
+      - "127.0.0.1:${PROMETHEUS_PORT:-9091}:9090"
+    restart: unless-stopped
+    # Traefik and the API/Garage replicas live on the edge network; PostgreSQL and RabbitMQ on
+    # the cluster network.
+    networks:
+      - edge
+      - cluster
+
+  grafana:
+    profiles: ["cluster", "node3"]
+    image: grafana/grafana:12.1.0
+    container_name: grafana
+    hostname: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-fieldnote-grafana-dev}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
       - cluster
 
   # --------------------------------------------------------------- one-off
