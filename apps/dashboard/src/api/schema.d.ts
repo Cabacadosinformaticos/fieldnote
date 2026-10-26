@@ -4,6 +4,327 @@
  */
 
 export interface paths {
+    "/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Account */
+        delete: operations["delete_account_api_v1_account_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Account */
+        post: operations["confirm_account_api_v1_account_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/email/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Email Code */
+        post: operations["request_email_code_api_v1_account_email_codes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/email/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Email Code */
+        post: operations["verify_email_code_api_v1_account_email_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Account */
+        get: operations["get_account_api_v1_account_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/methods/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Sign In Method */
+        delete: operations["remove_sign_in_method_api_v1_account_methods__method__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/participations/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Link Participations */
+        post: operations["link_participations_api_v1_account_participations_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Recovery Account */
+        post: operations["create_recovery_account_api_v1_account_recovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/sign-in/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign In With Recovery */
+        post: operations["sign_in_with_recovery_api_v1_account_sign_in_recovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Accounts
+         * @description FR-41: every researcher and administrator account.
+         */
+        get: operations["list_accounts_api_v1_admin_accounts_get"];
+        put?: never;
+        /**
+         * Create Account
+         * @description FR-41: create an account and return its temporary password once.
+         */
+        post: operations["create_account_api_v1_admin_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounts/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Account
+         * @description FR-41: remove an account.
+         */
+        delete: operations["delete_account_api_v1_admin_accounts__user_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Change Account Role
+         * @description FR-41: change an account between researcher and administrator.
+         */
+        patch: operations["change_account_role_api_v1_admin_accounts__user_id__patch"];
+        trace?: never;
+    };
+    "/admin/accounts/{user_id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock Account
+         * @description FR-41 and UC14: deactivate an account and revoke its refresh tokens.
+         */
+        post: operations["lock_account_api_v1_admin_accounts__user_id__lock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounts/{user_id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock Account
+         * @description FR-41: reactivate an account.
+         */
+        post: operations["unlock_account_api_v1_admin_accounts__user_id__unlock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit Log
+         * @description FR-43 and UC16: read-only audit log with filters and cursor pagination.
+         */
+        get: operations["list_audit_log_api_v1_admin_audit_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/erasures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Erasures
+         * @description FR-44, FR-85: erasures scheduled from the app (read only) and those already run.
+         */
+        get: operations["list_erasures_api_v1_admin_erasures_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/participants/{participant_id}/erasure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erase Participant
+         * @description FR-44 and UC17: erase one participant from the live system, immediately.
+         */
+        post: operations["erase_participant_api_v1_admin_participants__participant_id__erasure_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/studies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List All Studies
+         * @description FR-42 and UC15: every study with its team, owner and counts.
+         */
+        get: operations["list_all_studies_api_v1_admin_studies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -339,6 +660,110 @@ export interface paths {
         put?: never;
         /** Return To Study */
         post: operations["return_to_study_api_v1_participation_me_return_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pool/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Invitations */
+        get: operations["list_my_invitations_api_v1_pool_invitations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pool/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Invitation */
+        get: operations["get_my_invitation_api_v1_pool_invitations__invitation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pool/invitations/{invitation_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept My Invitation */
+        post: operations["accept_my_invitation_api_v1_pool_invitations__invitation_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pool/invitations/{invitation_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline My Invitation */
+        post: operations["decline_my_invitation_api_v1_pool_invitations__invitation_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pool/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Profile */
+        get: operations["get_my_profile_api_v1_pool_me_get"];
+        put?: never;
+        post?: never;
+        /** Leave The Pool */
+        delete: operations["leave_the_pool_api_v1_pool_me_delete"];
+        options?: never;
+        head?: never;
+        /** Update My Profile */
+        patch: operations["update_my_profile_api_v1_pool_me_patch"];
+        trace?: never;
+    };
+    "/pool/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join Pool */
+        post: operations["join_pool_api_v1_pool_members_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -745,6 +1170,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/studies/{study_id}/pool/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Count Pool Members */
+        post: operations["count_pool_members_api_v1_studies__study_id__pool_count_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/studies/{study_id}/pool/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Pool Invitations */
+        post: operations["send_pool_invitations_api_v1_studies__study_id__pool_invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/studies/{study_id}/questions": {
         parameters: {
             query?: never;
@@ -871,6 +1330,83 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountConfirmRequest */
+        AccountConfirmRequest: {
+            /** Device Tokens */
+            device_tokens?: string[];
+            /** Pool Credential */
+            pool_credential?: string | null;
+        };
+        /** AccountCreate */
+        AccountCreate: {
+            /** Email */
+            email: string;
+            /** @default researcher */
+            role: components["schemas"]["UserRole"];
+        };
+        /** AccountCreatedOut */
+        AccountCreatedOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Locked */
+            locked: boolean;
+            /** Locked Until */
+            locked_until: string | null;
+            role: components["schemas"]["UserRole"];
+            /** Temporary Password */
+            temporary_password: string;
+            /** Totp Enrolled */
+            totp_enrolled: boolean;
+        };
+        /** AccountLinkRequest */
+        AccountLinkRequest: {
+            /** Device Tokens */
+            device_tokens?: string[];
+            /** Pool Credential */
+            pool_credential?: string | null;
+        };
+        /** AccountMethodsOut */
+        AccountMethodsOut: {
+            /** Email Masked */
+            email_masked: string | null;
+            /**
+             * Google
+             * @default false
+             */
+            google: boolean;
+            /** Recovery Code */
+            recovery_code: boolean;
+        };
+        /** AccountParticipationOut */
+        AccountParticipationOut: {
+            /** Alias */
+            alias: string | null;
+            /** Device Token */
+            device_token?: string | null;
+            /** Erasure Due At */
+            erasure_due_at: string | null;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            status: components["schemas"]["ParticipantStatus"];
+            study: components["schemas"]["StudySummaryOut"];
+        };
+        /** AccountRoleUpdate */
+        AccountRoleUpdate: {
+            role: components["schemas"]["UserRole"];
+        };
         /** ActivityCreate */
         ActivityCreate: {
             /**
@@ -1081,6 +1617,34 @@ export interface components {
             /** Sent Pending */
             sent_pending: number;
         };
+        /** AdminStudyOut */
+        AdminStudyOut: {
+            /** Ends On */
+            ends_on: string | null;
+            /** Entries */
+            entries: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Owner Email */
+            owner_email: string | null;
+            /** Participants */
+            participants: number;
+            /** Starts On */
+            starts_on: string | null;
+            status: components["schemas"]["StudyStatus"];
+            /** Team */
+            team: components["schemas"]["StudyResearcherOut"][];
+            /** Title */
+            title: string;
+        };
+        /**
+         * AgeBand
+         * @enum {string}
+         */
+        AgeBand: "18-24" | "25-34" | "35-44" | "45-54" | "55-64" | "65+";
         /**
          * ApprovalOut
          * @description A waiting entry, shown without an alias, an identity or any answer.
@@ -1107,6 +1671,39 @@ export interface components {
             /** Decided At */
             decided_at: string | null;
             status: components["schemas"]["ParticipantStatus"];
+        };
+        /**
+         * AuditActorType
+         * @enum {string}
+         */
+        AuditActorType: "user" | "participant" | "system";
+        /** AuditEventOut */
+        AuditEventOut: {
+            /** Action */
+            action: string;
+            /** Actor Id */
+            actor_id: string | null;
+            actor_type: components["schemas"]["AuditActorType"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Details */
+            details: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id: number;
+            /** Target */
+            target: string | null;
+        };
+        /** AuditLogPage */
+        AuditLogPage: {
+            /** Items */
+            items: components["schemas"]["AuditEventOut"][];
+            /** Next Cursor */
+            next_cursor: number | null;
         };
         /** AvailabilityIntervalIn */
         AvailabilityIntervalIn: {
@@ -1154,6 +1751,51 @@ export interface components {
             any_time: boolean;
             /** Intervals */
             intervals?: components["schemas"]["AvailabilityIntervalIn"][];
+        };
+        /** CompletedErasureOut */
+        CompletedErasureOut: {
+            /** Actor Id */
+            actor_id: string | null;
+            actor_type: components["schemas"]["AuditActorType"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Entries */
+            entries: number;
+            /** Files */
+            files: number;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            /** Study Id */
+            study_id: string | null;
+            /** Study Title */
+            study_title: string | null;
+        };
+        /** EmailCodeRequest */
+        EmailCodeRequest: {
+            /** Email */
+            email: string;
+        };
+        /** EmailCodeSentOut */
+        EmailCodeSentOut: {
+            /** Detail */
+            detail: string;
+        };
+        /** EmailVerifyRequest */
+        EmailVerifyRequest: {
+            /** Code */
+            code: string;
+            /** Device Tokens */
+            device_tokens?: string[];
+            /** Email */
+            email: string;
+            /** Pool Credential */
+            pool_credential?: string | null;
         };
         /** EntryListResponse */
         EntryListResponse: {
@@ -1271,10 +1913,29 @@ export interface components {
          * @enum {string}
          */
         EntryType: "text" | "photo" | "video" | "audio" | "scale" | "choice";
+        /** ErasureListOut */
+        ErasureListOut: {
+            /** Completed */
+            completed: components["schemas"]["CompletedErasureOut"][];
+            /** Scheduled */
+            scheduled: components["schemas"]["ScheduledErasureOut"][];
+        };
         /** ErasureRequest */
         ErasureRequest: {
             /** Confirmation */
             confirmation: string;
+        };
+        /** ErasureResultOut */
+        ErasureResultOut: {
+            /** Entries Deleted */
+            entries_deleted: number;
+            /** Files Deleted */
+            files_deleted: number;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /** ExistingParticipationOut */
         ExistingParticipationOut: {
@@ -1292,6 +1953,11 @@ export interface components {
             erasure_due_at: string | null;
             status: components["schemas"]["ParticipantStatus"];
         };
+        /**
+         * Gender
+         * @enum {string}
+         */
+        Gender: "female" | "male" | "other";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1426,6 +2092,11 @@ export interface components {
             /** Upload Url */
             upload_url: string;
         };
+        /**
+         * Occupation
+         * @enum {string}
+         */
+        Occupation: "student" | "employee" | "self_employed" | "unemployed" | "retired" | "other";
         /** OpenPromptOut */
         OpenPromptOut: {
             /**
@@ -1565,6 +2236,208 @@ export interface components {
              */
             expires_at: string;
         };
+        /** PoolCountOut */
+        PoolCountOut: {
+            /** Count */
+            count: number | null;
+            /**
+             * Minimum
+             * @default 5
+             */
+            minimum: number;
+        };
+        /**
+         * PoolCriteria
+         * @description The criteria a researcher sets; every field is optional and narrows the group.
+         */
+        PoolCriteria: {
+            age_band?: components["schemas"]["AgeBand"] | null;
+            /** Concelho */
+            concelho?: string | null;
+            /** Freguesia */
+            freguesia?: string | null;
+            gender?: components["schemas"]["Gender"] | null;
+            language?: components["schemas"]["Locale"] | null;
+            occupation?: components["schemas"]["Occupation"] | null;
+            usual_transport?: components["schemas"]["TransportMode"] | null;
+        };
+        /** PoolInvitationAcceptOut */
+        PoolInvitationAcceptOut: {
+            /** Device Token */
+            device_token: string;
+            /**
+             * Outcome
+             * @constant
+             */
+            outcome: "joined";
+            participant: components["schemas"]["PoolJoinedParticipantOut"];
+            /**
+             * Token Type
+             * @default Device
+             */
+            token_type: string;
+        };
+        /** PoolInvitationAcceptRequest */
+        PoolInvitationAcceptRequest: {
+            /** Android Id */
+            android_id?: string | null;
+            /** Answers */
+            answers?: components["schemas"]["StudyAnswerIn"][];
+            /** Consent Version */
+            consent_version: string;
+            /** @default pt */
+            locale: components["schemas"]["Locale"];
+        };
+        /** PoolInvitationOut */
+        PoolInvitationOut: {
+            /** Concelho */
+            concelho: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reason */
+            reason: string;
+            /** Responded At */
+            responded_at: string | null;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            status: components["schemas"]["PoolInvitationStatus"];
+            study: components["schemas"]["StudyCardOut"];
+        };
+        /**
+         * PoolInvitationStatus
+         * @enum {string}
+         */
+        PoolInvitationStatus: "sent" | "accepted" | "declined" | "expired";
+        /** PoolJoinOut */
+        PoolJoinOut: {
+            /** Account Linked */
+            account_linked: boolean;
+            age_band: components["schemas"]["AgeBand"] | null;
+            /** Concelho */
+            concelho: string;
+            /** Credential */
+            credential: string;
+            /** Freguesia */
+            freguesia: string | null;
+            gender: components["schemas"]["Gender"] | null;
+            /** Invitations Paused */
+            invitations_paused: boolean;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            /** Languages */
+            languages: string[] | null;
+            occupation: components["schemas"]["Occupation"] | null;
+            /**
+             * Token Type
+             * @default Pool
+             */
+            token_type: string;
+            usual_transport: components["schemas"]["TransportMode"] | null;
+        };
+        /**
+         * PoolJoinRequest
+         * @description The concelho is the only required field (FR-73).
+         */
+        PoolJoinRequest: {
+            age_band?: components["schemas"]["AgeBand"] | null;
+            /** Concelho */
+            concelho: string;
+            /** Freguesia */
+            freguesia?: string | null;
+            gender?: components["schemas"]["Gender"] | null;
+            /** Languages */
+            languages?: components["schemas"]["Locale"][];
+            occupation?: components["schemas"]["Occupation"] | null;
+            /** Push Token */
+            push_token?: string | null;
+            usual_transport?: components["schemas"]["TransportMode"] | null;
+        };
+        /** PoolJoinedParticipantOut */
+        PoolJoinedParticipantOut: {
+            /** Alias */
+            alias: string | null;
+            /** Has Consent */
+            has_consent: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ParticipantStatus"];
+            study: components["schemas"]["StudySummaryOut"];
+        };
+        /** PoolMemberOut */
+        PoolMemberOut: {
+            /** Account Linked */
+            account_linked: boolean;
+            age_band: components["schemas"]["AgeBand"] | null;
+            /** Concelho */
+            concelho: string;
+            /** Freguesia */
+            freguesia: string | null;
+            gender: components["schemas"]["Gender"] | null;
+            /** Invitations Paused */
+            invitations_paused: boolean;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            /** Languages */
+            languages: string[] | null;
+            occupation: components["schemas"]["Occupation"] | null;
+            usual_transport: components["schemas"]["TransportMode"] | null;
+        };
+        /**
+         * PoolProfileUpdate
+         * @description A PATCH: an absent field is unchanged and an explicit ``null`` clears it.
+         */
+        PoolProfileUpdate: {
+            age_band?: components["schemas"]["AgeBand"] | null;
+            /** Concelho */
+            concelho?: string | null;
+            /** Freguesia */
+            freguesia?: string | null;
+            gender?: components["schemas"]["Gender"] | null;
+            /** Invitations Paused */
+            invitations_paused?: boolean | null;
+            /** Languages */
+            languages?: components["schemas"]["Locale"][] | null;
+            occupation?: components["schemas"]["Occupation"] | null;
+            /** Push Token */
+            push_token?: string | null;
+            usual_transport?: components["schemas"]["TransportMode"] | null;
+        };
+        /** PoolRestoredOut */
+        PoolRestoredOut: {
+            /** Credential */
+            credential: string;
+            member: components["schemas"]["PoolMemberOut"];
+        };
+        /** PoolSendOut */
+        PoolSendOut: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Sent */
+            sent: number;
+        };
         /**
          * PromptStatus
          * @enum {string}
@@ -1580,11 +2453,76 @@ export interface components {
          * @enum {string}
          */
         QuestionKind: "single_choice" | "multiple_choice" | "yes_no" | "short_text";
+        /** RecoveryAccountOut */
+        RecoveryAccountOut: {
+            /** Account Token */
+            account_token: string;
+            /**
+             * Confirmed
+             * @default false
+             */
+            confirmed: boolean;
+            /** Recovery Code */
+            recovery_code: string;
+            /**
+             * Token Type
+             * @default Account
+             */
+            token_type: string;
+        };
+        /** RecoverySignInRequest */
+        RecoverySignInRequest: {
+            /** Code */
+            code: string;
+            /** Device Tokens */
+            device_tokens?: string[];
+            /** Pool Credential */
+            pool_credential?: string | null;
+        };
         /**
          * ScheduleStyle
          * @enum {string}
          */
         ScheduleStyle: "fixed" | "balanced" | "varied";
+        /** ScheduledErasureOut */
+        ScheduledErasureOut: {
+            /** Alias */
+            alias: string | null;
+            /** Due At */
+            due_at: string | null;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            /** Requested At */
+            requested_at: string | null;
+            /**
+             * Study Id
+             * Format: uuid
+             */
+            study_id: string;
+            /** Study Title */
+            study_title: string | null;
+        };
+        /** SignInOut */
+        SignInOut: {
+            /** Account Token */
+            account_token: string;
+            /**
+             * Created
+             * @default false
+             */
+            created: boolean;
+            /** Participations */
+            participations: components["schemas"]["AccountParticipationOut"][];
+            pool: components["schemas"]["PoolRestoredOut"] | null;
+            /**
+             * Token Type
+             * @default Account
+             */
+            token_type: string;
+        };
         /** StudyAnswerIn */
         StudyAnswerIn: {
             /** Answer */
@@ -1811,6 +2749,17 @@ export interface components {
             /** Text */
             text?: string | null;
         };
+        /** StudyResearcherOut */
+        StudyResearcherOut: {
+            /** Email */
+            email: string;
+            role: components["schemas"]["StudyRole"];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
         /**
          * StudyRole
          * @enum {string}
@@ -1985,6 +2934,11 @@ export interface components {
             /** Secret */
             secret: string;
         };
+        /**
+         * TransportMode
+         * @enum {string}
+         */
+        TransportMode: "walking" | "public_transport" | "car" | "bicycle" | "scooter" | "other";
         /** UserOut */
         UserOut: {
             /** Email */
@@ -2014,6 +2968,43 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** AccountOut */
+        app__schemas__account__AccountOut: {
+            /** Confirmed */
+            confirmed: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            methods: components["schemas"]["AccountMethodsOut"];
+            /** Participations */
+            participations: components["schemas"]["AccountParticipationOut"][];
+            /** Pool Linked */
+            pool_linked: boolean;
+        };
+        /** AccountOut */
+        app__schemas__admin__AccountOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Locked */
+            locked: boolean;
+            /** Locked Until */
+            locked_until: string | null;
+            role: components["schemas"]["UserRole"];
+            /** Totp Enrolled */
+            totp_enrolled: boolean;
+        };
     };
     responses: never;
     parameters: never;
@@ -2023,6 +3014,581 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    delete_account_api_v1_account_delete: {
+        parameters: {
+            query?: {
+                erase_study_data?: boolean;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_account_api_v1_account_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__account__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_email_code_api_v1_account_email_codes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailCodeSentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_email_code_api_v1_account_email_verify_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__account__AccountOut"] | components["schemas"]["SignInOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_account_api_v1_account_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__account__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_sign_in_method_api_v1_account_methods__method__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                method: "recovery_code" | "email";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__account__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_participations_api_v1_account_participations_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__account__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_recovery_account_api_v1_account_recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryAccountOut"];
+                };
+            };
+        };
+    };
+    sign_in_with_recovery_api_v1_account_sign_in_recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoverySignInRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_accounts_api_v1_admin_accounts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__admin__AccountOut"][];
+                };
+            };
+        };
+    };
+    create_account_api_v1_admin_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountCreatedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_account_api_v1_admin_accounts__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_account_role_api_v1_admin_accounts__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__admin__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lock_account_api_v1_admin_accounts__user_id__lock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__admin__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlock_account_api_v1_admin_accounts__user_id__unlock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__admin__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_log_api_v1_admin_audit_log_get: {
+        parameters: {
+            query?: {
+                actor_type?: components["schemas"]["AuditActorType"] | null;
+                action?: string | null;
+                study_id?: string | null;
+                since?: string | null;
+                until?: string | null;
+                cursor?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_erasures_api_v1_admin_erasures_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureListOut"];
+                };
+            };
+        };
+    };
+    erase_participant_api_v1_admin_participants__participant_id__erasure_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_studies_api_v1_admin_studies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStudyOut"][];
+                };
+            };
+        };
+    };
     login_api_v1_auth_login_post: {
         parameters: {
             query?: never;
@@ -2634,6 +4200,268 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ParticipantMeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_invitations_api_v1_pool_invitations_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolInvitationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_invitation_api_v1_pool_invitations__invitation_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolInvitationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_my_invitation_api_v1_pool_invitations__invitation_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PoolInvitationAcceptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolInvitationAcceptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_my_invitation_api_v1_pool_invitations__invitation_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolInvitationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_profile_api_v1_pool_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_the_pool_api_v1_pool_me_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_my_profile_api_v1_pool_me_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PoolProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    join_pool_api_v1_pool_members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PoolJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolJoinOut"];
                 };
             };
             /** @description Validation Error */
@@ -3673,6 +5501,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_pool_members_api_v1_studies__study_id__pool_count_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PoolCriteria"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolCountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_pool_invitations_api_v1_studies__study_id__pool_invitations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PoolCriteria"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolSendOut"];
+                };
             };
             /** @description Validation Error */
             422: {

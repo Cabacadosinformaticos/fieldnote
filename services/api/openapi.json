@@ -1,6 +1,234 @@
 {
   "components": {
     "schemas": {
+      "AccountConfirmRequest": {
+        "properties": {
+          "device_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Device Tokens",
+            "type": "array"
+          },
+          "pool_credential": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Credential"
+          }
+        },
+        "title": "AccountConfirmRequest",
+        "type": "object"
+      },
+      "AccountCreate": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole",
+            "default": "researcher"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "AccountCreate",
+        "type": "object"
+      },
+      "AccountCreatedOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "locked_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locked Until"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "temporary_password": {
+            "title": "Temporary Password",
+            "type": "string"
+          },
+          "totp_enrolled": {
+            "title": "Totp Enrolled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "locked",
+          "locked_until",
+          "totp_enrolled",
+          "created_at",
+          "temporary_password"
+        ],
+        "title": "AccountCreatedOut",
+        "type": "object"
+      },
+      "AccountLinkRequest": {
+        "properties": {
+          "device_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Device Tokens",
+            "type": "array"
+          },
+          "pool_credential": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Credential"
+          }
+        },
+        "title": "AccountLinkRequest",
+        "type": "object"
+      },
+      "AccountMethodsOut": {
+        "properties": {
+          "email_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Masked"
+          },
+          "google": {
+            "default": false,
+            "title": "Google",
+            "type": "boolean"
+          },
+          "recovery_code": {
+            "title": "Recovery Code",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recovery_code",
+          "email_masked"
+        ],
+        "title": "AccountMethodsOut",
+        "type": "object"
+      },
+      "AccountParticipationOut": {
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "device_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Token"
+          },
+          "erasure_due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erasure Due At"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ParticipantStatus"
+          },
+          "study": {
+            "$ref": "#/components/schemas/StudySummaryOut"
+          }
+        },
+        "required": [
+          "participant_id",
+          "study",
+          "status",
+          "alias",
+          "erasure_due_at"
+        ],
+        "title": "AccountParticipationOut",
+        "type": "object"
+      },
+      "AccountRoleUpdate": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "AccountRoleUpdate",
+        "type": "object"
+      },
       "ActivityCreate": {
         "properties": {
           "allow_free_entries": {
@@ -651,6 +879,97 @@
         "title": "AdherenceSummary",
         "type": "object"
       },
+      "AdminStudyOut": {
+        "properties": {
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "entries": {
+            "title": "Entries",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "participants": {
+            "title": "Participants",
+            "type": "integer"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudyStatus"
+          },
+          "team": {
+            "items": {
+              "$ref": "#/components/schemas/StudyResearcherOut"
+            },
+            "title": "Team",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "starts_on",
+          "ends_on",
+          "owner_email",
+          "team",
+          "participants",
+          "entries"
+        ],
+        "title": "AdminStudyOut",
+        "type": "object"
+      },
+      "AgeBand": {
+        "enum": [
+          "18-24",
+          "25-34",
+          "35-44",
+          "45-54",
+          "55-64",
+          "65+"
+        ],
+        "title": "AgeBand",
+        "type": "string"
+      },
       "ApprovalOut": {
         "description": "A waiting entry, shown without an alias, an identity or any answer.",
         "properties": {
@@ -744,6 +1063,109 @@
           "decided_at"
         ],
         "title": "ApprovalStatusOut",
+        "type": "object"
+      },
+      "AuditActorType": {
+        "enum": [
+          "user",
+          "participant",
+          "system"
+        ],
+        "title": "AuditActorType",
+        "type": "string"
+      },
+      "AuditEventOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_type": {
+            "$ref": "#/components/schemas/AuditActorType"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          }
+        },
+        "required": [
+          "id",
+          "actor_type",
+          "actor_id",
+          "action",
+          "target",
+          "details",
+          "at"
+        ],
+        "title": "AuditEventOut",
+        "type": "object"
+      },
+      "AuditLogPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEventOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "AuditLogPage",
         "type": "object"
       },
       "AvailabilityIntervalIn": {
@@ -841,6 +1263,149 @@
           }
         },
         "title": "AvailabilityUpdate",
+        "type": "object"
+      },
+      "CompletedErasureOut": {
+        "properties": {
+          "actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_type": {
+            "$ref": "#/components/schemas/AuditActorType"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "entries": {
+            "title": "Entries",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "study_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Study Id"
+          },
+          "study_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Study Title"
+          }
+        },
+        "required": [
+          "participant_id",
+          "study_id",
+          "study_title",
+          "actor_type",
+          "actor_id",
+          "at",
+          "entries",
+          "files"
+        ],
+        "title": "CompletedErasureOut",
+        "type": "object"
+      },
+      "EmailCodeRequest": {
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "EmailCodeRequest",
+        "type": "object"
+      },
+      "EmailCodeSentOut": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "EmailCodeSentOut",
+        "type": "object"
+      },
+      "EmailVerifyRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "device_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Device Tokens",
+            "type": "array"
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "pool_credential": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Credential"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "EmailVerifyRequest",
         "type": "object"
       },
       "EntryListResponse": {
@@ -1209,6 +1774,30 @@
         "title": "EntryType",
         "type": "string"
       },
+      "ErasureListOut": {
+        "properties": {
+          "completed": {
+            "items": {
+              "$ref": "#/components/schemas/CompletedErasureOut"
+            },
+            "title": "Completed",
+            "type": "array"
+          },
+          "scheduled": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduledErasureOut"
+            },
+            "title": "Scheduled",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scheduled",
+          "completed"
+        ],
+        "title": "ErasureListOut",
+        "type": "object"
+      },
       "ErasureRequest": {
         "properties": {
           "confirmation": {
@@ -1222,6 +1811,30 @@
           "confirmation"
         ],
         "title": "ErasureRequest",
+        "type": "object"
+      },
+      "ErasureResultOut": {
+        "properties": {
+          "entries_deleted": {
+            "title": "Entries Deleted",
+            "type": "integer"
+          },
+          "files_deleted": {
+            "title": "Files Deleted",
+            "type": "integer"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "entries_deleted",
+          "files_deleted"
+        ],
+        "title": "ErasureResultOut",
         "type": "object"
       },
       "ExistingParticipationOut": {
@@ -1288,6 +1901,15 @@
         ],
         "title": "ExistingParticipationOut",
         "type": "object"
+      },
+      "Gender": {
+        "enum": [
+          "female",
+          "male",
+          "other"
+        ],
+        "title": "Gender",
+        "type": "string"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1646,6 +2268,18 @@
         ],
         "title": "MediaUploadResponse",
         "type": "object"
+      },
+      "Occupation": {
+        "enum": [
+          "student",
+          "employee",
+          "self_employed",
+          "unemployed",
+          "retired",
+          "other"
+        ],
+        "title": "Occupation",
+        "type": "string"
       },
       "OpenPromptOut": {
         "properties": {
@@ -2125,6 +2759,725 @@
         "title": "PersonalInviteCodeOut",
         "type": "object"
       },
+      "PoolCountOut": {
+        "properties": {
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "minimum": {
+            "default": 5,
+            "title": "Minimum",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "PoolCountOut",
+        "type": "object"
+      },
+      "PoolCriteria": {
+        "description": "The criteria a researcher sets; every field is optional and narrows the group.",
+        "properties": {
+          "age_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgeBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concelho": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concelho"
+          },
+          "freguesia": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freguesia"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Occupation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usual_transport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransportMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "PoolCriteria",
+        "type": "object"
+      },
+      "PoolInvitationAcceptOut": {
+        "properties": {
+          "device_token": {
+            "title": "Device Token",
+            "type": "string"
+          },
+          "outcome": {
+            "const": "joined",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "participant": {
+            "$ref": "#/components/schemas/PoolJoinedParticipantOut"
+          },
+          "token_type": {
+            "default": "Device",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "device_token",
+          "participant"
+        ],
+        "title": "PoolInvitationAcceptOut",
+        "type": "object"
+      },
+      "PoolInvitationAcceptRequest": {
+        "properties": {
+          "android_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Android Id"
+          },
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/StudyAnswerIn"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "consent_version": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Consent Version",
+            "type": "string"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/Locale",
+            "default": "pt"
+          }
+        },
+        "required": [
+          "consent_version"
+        ],
+        "title": "PoolInvitationAcceptRequest",
+        "type": "object"
+      },
+      "PoolInvitationOut": {
+        "properties": {
+          "concelho": {
+            "title": "Concelho",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "responded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responded At"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PoolInvitationStatus"
+          },
+          "study": {
+            "$ref": "#/components/schemas/StudyCardOut"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "concelho",
+          "sent_at",
+          "expires_at",
+          "responded_at",
+          "study"
+        ],
+        "title": "PoolInvitationOut",
+        "type": "object"
+      },
+      "PoolInvitationStatus": {
+        "enum": [
+          "sent",
+          "accepted",
+          "declined",
+          "expired"
+        ],
+        "title": "PoolInvitationStatus",
+        "type": "string"
+      },
+      "PoolJoinOut": {
+        "properties": {
+          "account_linked": {
+            "title": "Account Linked",
+            "type": "boolean"
+          },
+          "age_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgeBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concelho": {
+            "title": "Concelho",
+            "type": "string"
+          },
+          "credential": {
+            "title": "Credential",
+            "type": "string"
+          },
+          "freguesia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freguesia"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invitations_paused": {
+            "title": "Invitations Paused",
+            "type": "boolean"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languages"
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Occupation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "token_type": {
+            "default": "Pool",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "usual_transport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransportMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "concelho",
+          "freguesia",
+          "age_band",
+          "gender",
+          "occupation",
+          "usual_transport",
+          "languages",
+          "invitations_paused",
+          "joined_at",
+          "account_linked",
+          "credential"
+        ],
+        "title": "PoolJoinOut",
+        "type": "object"
+      },
+      "PoolJoinRequest": {
+        "description": "The concelho is the only required field (FR-73).",
+        "properties": {
+          "age_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgeBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concelho": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Concelho",
+            "type": "string"
+          },
+          "freguesia": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freguesia"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "languages": {
+            "items": {
+              "$ref": "#/components/schemas/Locale"
+            },
+            "title": "Languages",
+            "type": "array"
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Occupation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "push_token": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Push Token"
+          },
+          "usual_transport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransportMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "concelho"
+        ],
+        "title": "PoolJoinRequest",
+        "type": "object"
+      },
+      "PoolJoinedParticipantOut": {
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "has_consent": {
+            "title": "Has Consent",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ParticipantStatus"
+          },
+          "study": {
+            "$ref": "#/components/schemas/StudySummaryOut"
+          }
+        },
+        "required": [
+          "id",
+          "study",
+          "alias",
+          "status",
+          "has_consent"
+        ],
+        "title": "PoolJoinedParticipantOut",
+        "type": "object"
+      },
+      "PoolMemberOut": {
+        "properties": {
+          "account_linked": {
+            "title": "Account Linked",
+            "type": "boolean"
+          },
+          "age_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgeBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concelho": {
+            "title": "Concelho",
+            "type": "string"
+          },
+          "freguesia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freguesia"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invitations_paused": {
+            "title": "Invitations Paused",
+            "type": "boolean"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languages"
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Occupation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usual_transport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransportMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "concelho",
+          "freguesia",
+          "age_band",
+          "gender",
+          "occupation",
+          "usual_transport",
+          "languages",
+          "invitations_paused",
+          "joined_at",
+          "account_linked"
+        ],
+        "title": "PoolMemberOut",
+        "type": "object"
+      },
+      "PoolProfileUpdate": {
+        "description": "A PATCH: an absent field is unchanged and an explicit ``null`` clears it.",
+        "properties": {
+          "age_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgeBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concelho": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concelho"
+          },
+          "freguesia": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freguesia"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invitations_paused": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invitations Paused"
+          },
+          "languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Locale"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languages"
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Occupation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "push_token": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Push Token"
+          },
+          "usual_transport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransportMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "PoolProfileUpdate",
+        "type": "object"
+      },
+      "PoolRestoredOut": {
+        "properties": {
+          "credential": {
+            "title": "Credential",
+            "type": "string"
+          },
+          "member": {
+            "$ref": "#/components/schemas/PoolMemberOut"
+          }
+        },
+        "required": [
+          "credential",
+          "member"
+        ],
+        "title": "PoolRestoredOut",
+        "type": "object"
+      },
+      "PoolSendOut": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sent",
+          "expires_at"
+        ],
+        "title": "PoolSendOut",
+        "type": "object"
+      },
       "PromptStatus": {
         "enum": [
           "planned",
@@ -2164,6 +3517,69 @@
         "title": "QuestionKind",
         "type": "string"
       },
+      "RecoveryAccountOut": {
+        "properties": {
+          "account_token": {
+            "title": "Account Token",
+            "type": "string"
+          },
+          "confirmed": {
+            "default": false,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "recovery_code": {
+            "title": "Recovery Code",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "Account",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recovery_code",
+          "account_token"
+        ],
+        "title": "RecoveryAccountOut",
+        "type": "object"
+      },
+      "RecoverySignInRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "device_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Device Tokens",
+            "type": "array"
+          },
+          "pool_credential": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Credential"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "RecoverySignInRequest",
+        "type": "object"
+      },
       "ScheduleStyle": {
         "enum": [
           "fixed",
@@ -2172,6 +3588,118 @@
         ],
         "title": "ScheduleStyle",
         "type": "string"
+      },
+      "ScheduledErasureOut": {
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          },
+          "study_id": {
+            "format": "uuid",
+            "title": "Study Id",
+            "type": "string"
+          },
+          "study_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Study Title"
+          }
+        },
+        "required": [
+          "participant_id",
+          "study_id",
+          "study_title",
+          "alias",
+          "requested_at",
+          "due_at"
+        ],
+        "title": "ScheduledErasureOut",
+        "type": "object"
+      },
+      "SignInOut": {
+        "properties": {
+          "account_token": {
+            "title": "Account Token",
+            "type": "string"
+          },
+          "created": {
+            "default": false,
+            "title": "Created",
+            "type": "boolean"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/AccountParticipationOut"
+            },
+            "title": "Participations",
+            "type": "array"
+          },
+          "pool": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PoolRestoredOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "token_type": {
+            "default": "Account",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_token",
+          "participations",
+          "pool"
+        ],
+        "title": "SignInOut",
+        "type": "object"
       },
       "StudyAnswerIn": {
         "properties": {
@@ -2879,6 +4407,29 @@
         "title": "StudyQuestionUpdate",
         "type": "object"
       },
+      "StudyResearcherOut": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/StudyRole"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "role"
+        ],
+        "title": "StudyResearcherOut",
+        "type": "object"
+      },
       "StudyRole": {
         "enum": [
           "principal_investigator",
@@ -3348,6 +4899,18 @@
         "title": "TotpEnrolmentResponse",
         "type": "object"
       },
+      "TransportMode": {
+        "enum": [
+          "walking",
+          "public_transport",
+          "car",
+          "bicycle",
+          "scooter",
+          "other"
+        ],
+        "title": "TransportMode",
+        "type": "string"
+      },
       "UserOut": {
         "properties": {
           "email": {
@@ -3418,6 +4981,94 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "app__schemas__account__AccountOut": {
+        "properties": {
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "methods": {
+            "$ref": "#/components/schemas/AccountMethodsOut"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/AccountParticipationOut"
+            },
+            "title": "Participations",
+            "type": "array"
+          },
+          "pool_linked": {
+            "title": "Pool Linked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "confirmed",
+          "created_at",
+          "methods",
+          "participations",
+          "pool_linked"
+        ],
+        "title": "AccountOut",
+        "type": "object"
+      },
+      "app__schemas__admin__AccountOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "locked_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locked Until"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "totp_enrolled": {
+            "title": "Totp Enrolled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "locked",
+          "locked_until",
+          "totp_enrolled",
+          "created_at"
+        ],
+        "title": "AccountOut",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -3433,6 +5084,1006 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/account": {
+      "delete": {
+        "operationId": "delete_account_api_v1_account_delete",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "erase_study_data",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Erase Study Data",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/confirm": {
+      "post": {
+        "operationId": "confirm_account_api_v1_account_confirm_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__account__AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/email/codes": {
+      "post": {
+        "operationId": "request_email_code_api_v1_account_email_codes_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailCodeSentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Email Code",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/email/verify": {
+      "post": {
+        "operationId": "verify_email_code_api_v1_account_email_verify_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/app__schemas__account__AccountOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SignInOut"
+                    }
+                  ],
+                  "title": "Response Verify Email Code Api V1 Account Email Verify Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Email Code",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/me": {
+      "get": {
+        "operationId": "get_account_api_v1_account_me_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__account__AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/methods/{method}": {
+      "delete": {
+        "operationId": "remove_sign_in_method_api_v1_account_methods__method__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "method",
+            "required": true,
+            "schema": {
+              "enum": [
+                "recovery_code",
+                "email"
+              ],
+              "title": "Method",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__account__AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Sign In Method",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/participations/link": {
+      "post": {
+        "operationId": "link_participations_api_v1_account_participations_link_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__account__AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Participations",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/recovery": {
+      "post": {
+        "operationId": "create_recovery_account_api_v1_account_recovery_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryAccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Recovery Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/sign-in/recovery": {
+      "post": {
+        "operationId": "sign_in_with_recovery_api_v1_account_sign_in_recovery_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoverySignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign In With Recovery",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts": {
+      "get": {
+        "description": "FR-41: every researcher and administrator account.",
+        "operationId": "list_accounts_api_v1_admin_accounts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/app__schemas__admin__AccountOut"
+                  },
+                  "title": "Response List Accounts Api V1 Admin Accounts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Accounts",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "description": "FR-41: create an account and return its temporary password once.",
+        "operationId": "create_account_api_v1_admin_accounts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountCreatedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts/{user_id}": {
+      "delete": {
+        "description": "FR-41: remove an account.",
+        "operationId": "delete_account_api_v1_admin_accounts__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Account",
+        "tags": [
+          "admin"
+        ]
+      },
+      "patch": {
+        "description": "FR-41: change an account between researcher and administrator.",
+        "operationId": "change_account_role_api_v1_admin_accounts__user_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountRoleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__admin__AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Account Role",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts/{user_id}/lock": {
+      "post": {
+        "description": "FR-41 and UC14: deactivate an account and revoke its refresh tokens.",
+        "operationId": "lock_account_api_v1_admin_accounts__user_id__lock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__admin__AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lock Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts/{user_id}/unlock": {
+      "post": {
+        "description": "FR-41: reactivate an account.",
+        "operationId": "unlock_account_api_v1_admin_accounts__user_id__unlock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__admin__AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unlock Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/audit-log": {
+      "get": {
+        "description": "FR-43 and UC16: read-only audit log with filters and cursor pagination.",
+        "operationId": "list_audit_log_api_v1_admin_audit_log_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actor_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AuditActorType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "study_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Study Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Audit Log",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/erasures": {
+      "get": {
+        "description": "FR-44, FR-85: erasures scheduled from the app (read only) and those already run.",
+        "operationId": "list_erasures_api_v1_admin_erasures_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErasureListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Erasures",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/participants/{participant_id}/erasure": {
+      "post": {
+        "description": "FR-44 and UC17: erase one participant from the live system, immediately.",
+        "operationId": "erase_participant_api_v1_admin_participants__participant_id__erasure_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErasureResultOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Erase Participant",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/studies": {
+      "get": {
+        "description": "FR-42 and UC15: every study with its team, owner and counts.",
+        "operationId": "list_all_studies_api_v1_admin_studies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminStudyOut"
+                  },
+                  "title": "Response List All Studies Api V1 Admin Studies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List All Studies",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "login_api_v1_auth_login_post",
@@ -4328,6 +6979,433 @@
         "summary": "Return To Study",
         "tags": [
           "participation"
+        ]
+      }
+    },
+    "/api/v1/pool/invitations": {
+      "get": {
+        "operationId": "list_my_invitations_api_v1_pool_invitations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PoolInvitationOut"
+                  },
+                  "title": "Response List My Invitations Api V1 Pool Invitations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List My Invitations",
+        "tags": [
+          "pool"
+        ]
+      }
+    },
+    "/api/v1/pool/invitations/{invitation_id}": {
+      "get": {
+        "operationId": "get_my_invitation_api_v1_pool_invitations__invitation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolInvitationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get My Invitation",
+        "tags": [
+          "pool"
+        ]
+      }
+    },
+    "/api/v1/pool/invitations/{invitation_id}/accept": {
+      "post": {
+        "operationId": "accept_my_invitation_api_v1_pool_invitations__invitation_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolInvitationAcceptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolInvitationAcceptOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept My Invitation",
+        "tags": [
+          "pool"
+        ]
+      }
+    },
+    "/api/v1/pool/invitations/{invitation_id}/decline": {
+      "post": {
+        "operationId": "decline_my_invitation_api_v1_pool_invitations__invitation_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolInvitationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline My Invitation",
+        "tags": [
+          "pool"
+        ]
+      }
+    },
+    "/api/v1/pool/me": {
+      "delete": {
+        "operationId": "leave_the_pool_api_v1_pool_me_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave The Pool",
+        "tags": [
+          "pool"
+        ]
+      },
+      "get": {
+        "operationId": "get_my_profile_api_v1_pool_me_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolMemberOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get My Profile",
+        "tags": [
+          "pool"
+        ]
+      },
+      "patch": {
+        "operationId": "update_my_profile_api_v1_pool_me_patch",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolMemberOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update My Profile",
+        "tags": [
+          "pool"
+        ]
+      }
+    },
+    "/api/v1/pool/members": {
+      "post": {
+        "operationId": "join_pool_api_v1_pool_members_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolJoinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolJoinOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Pool",
+        "tags": [
+          "pool"
         ]
       }
     },
@@ -6217,6 +9295,122 @@
         "summary": "Remove Participant",
         "tags": [
           "participants"
+        ]
+      }
+    },
+    "/api/v1/studies/{study_id}/pool/count": {
+      "post": {
+        "operationId": "count_pool_members_api_v1_studies__study_id__pool_count_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolCriteria"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolCountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Count Pool Members",
+        "tags": [
+          "pool"
+        ]
+      }
+    },
+    "/api/v1/studies/{study_id}/pool/invitations": {
+      "post": {
+        "operationId": "send_pool_invitations_api_v1_studies__study_id__pool_invitations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PoolCriteria"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolSendOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Pool Invitations",
+        "tags": [
+          "pool"
         ]
       }
     },
