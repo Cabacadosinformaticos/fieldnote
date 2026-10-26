@@ -12,11 +12,13 @@ import { LanguageToggle } from '@/components/join/LanguageToggle';
 import { StepProgress } from '@/components/join/StepProgress';
 import { Screen } from '@/components/Screen';
 import { tj } from '@/i18n/tj';
+import { useJoinSession } from '@/state/join';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
 export default function ConsentScreen() {
   const [accepted, setAccepted] = useState(false);
   const [declineVisible, setDeclineVisible] = useState(false);
+  const { lookup } = useJoinSession();
 
   const leaveStudy = () => {
     setDeclineVisible(false);
@@ -37,7 +39,14 @@ export default function ConsentScreen() {
 
         <View style={styles.intro}>
           <Text style={typography.title}>{tj('consent.title')}</Text>
-          <Text style={styles.subtitle}>{tj('consent.subtitle')}</Text>
+          <Text style={styles.subtitle}>
+            {lookup
+              ? tj('consent.subtitle', {
+                  title: lookup.study.title,
+                  version: lookup.consent_version,
+                })
+              : tj('consent.subtitleEmpty')}
+          </Text>
           <Pressable
             accessibilityRole="link"
             onPress={() => router.push('/join/consent-text')}

@@ -4,6 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { api, deviceClient } from '@/api/client';
+import { getAndroidId } from '@/api/device';
+import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import {
@@ -17,6 +20,12 @@ import { Screen } from '@/components/Screen';
 import type { JoinKey } from '@/i18n/join';
 import { t } from '@/i18n/pt';
 import { tj } from '@/i18n/tj';
+import { useJoinSession, type AvailabilityInput } from '@/state/join';
+import {
+  getDeviceToken,
+  saveDeviceToken,
+  saveParticipation,
+} from '@/state/participations';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
 const WEEKDAY_DAYS = [true, true, true, true, true, false, false];
@@ -47,13 +56,22 @@ function rangeLabel(from: number, to: number): string {
   });
 }
 
+function slotToTime(index: number): string {
+  const hours = String(Math.floor(index / 2)).padStart(2, '0');
+  const minutes = index % 2 === 0 ? '00' : '30';
+  return `${hours}:${minutes}:00`;
+}
+
 export default function AvailabilityScreen() {
+  const { answers, code, lookup } = useJoinSession();
   const [anyTime, setAnyTime] = useState(false);
   const [intervals, setIntervals] = useState<Interval[]>([
     { id: 1, from: 18, to: 22, days: [...WEEKDAY_DAYS] },
     { id: 2, from: 37, to: 43, days: [...WEEKDAY_DAYS] },
   ]);
   const [sheet, setSheet] = useState<SheetState | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const nextId = useRef(3);
 
   const addInterval = (from: number, to: number, days: boolean[]) => {
@@ -101,6 +119,117 @@ export default function AvailabilityScreen() {
         days: [...interval.days],
       },
     });
+  };
+
+  const submit = async () => {
+    if (!lookup) {
+      router.replace('/join/code');
+      return;
+    }
+
+    if (!anyTime) {
+      if (intervals.length === 0) {
+        setSubmitError(tj('availability.emptyError'));
+        return;
+      }
+      if (intervals.some((interval) => interval.from >= interval.to)) {
+        setSubmitError(tj('availability.invalidInterval'));
+        return;
+      }
+      if (intervals.some((interval) => !interval.days.some(Boolean))) {
+        setSubmitError(tj('availability.noDays'));
+        return;
+      }
+    }
+
+    const availability: AvailabilityInput = anyTime
+      ? { any_time: true, intervals: [] }
+      : {
+          any_time: false,
+          intervals: intervals.map((interval) => ({
+            start_time: slotToTime(interval.from),
+            end_time: slotToTime(interval.to),
+            weekdays: interval.days.flatMap((enabled, index) =>
+              enabled ? [index + 1] : [],
+            ),
+          })),
+        };
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const storedToken = await getDeviceToken(lookup.study.id);
+      const client = storedToken ? deviceClient(storedToken) : api;
+      const accepted = await client.POST(
+        '/api/v1/participation/invitations/accept',
+        {
+          body: {
+            code: code ?? '',
+            android_id: getAndroidId(),
+            locale: 'pt',
+            consent_version: lookup.consent_version,
+            answers,
+          },
+        },
+      );
+
+      if (!accepted.data) {
+        setSubmitError(apiErrorMessage(accepted.error));
+        return;
+      }
+
+      if (accepted.data.device_token) {
+        await saveDeviceToken(lookup.study.id, accepted.data.device_token);
+      }
+
+      const deviceToken = accepted.data.device_token ?? storedToken;
+      if (!deviceToken) {
+        setSubmitError(tj('error.generic'));
+        return;
+      }
+
+      await saveParticipation({
+        studyId: lookup.study.id,
+        title: lookup.study.title,
+        status: accepted.data.participant.status,
+        alias: accepted.data.participant.alias,
+        startsOn: lookup.study.starts_on,
+        endsOn: lookup.study.ends_on,
+        timezone: lookup.study.timezone,
+      });
+
+      const saved = await deviceClient(deviceToken).PUT(
+        '/api/v1/participation/me/availability',
+        { body: availability },
+      );
+
+      if (!saved.data) {
+        setSubmitError(apiErrorMessage(saved.error));
+        return;
+      }
+
+      const status = accepted.data.participant.status;
+      if (status !== 'pending_approval' && status !== 'active') {
+        setSubmitError(tj('error.generic'));
+        return;
+      }
+
+      const studyId = lookup.study.id;
+      // Unmount the join stack before leaving, so its screens stop reacting to
+      // the session while we navigate to the study.
+      router.dismissAll();
+
+      if (status === 'pending_approval') {
+        router.replace({ pathname: '/join/waiting', params: { studyId } });
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch {
+      setSubmitError(networkErrorMessage());
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -224,9 +353,19 @@ export default function AvailabilityScreen() {
 
       <View style={styles.spacer} />
 
+      {submitError ? (
+        <View style={styles.errorCard}>
+          <Ionicons name="alert-circle-outline" size={20} color={colors.primaryDark} />
+          <Text style={styles.errorText}>{submitError}</Text>
+        </View>
+      ) : null}
+
       <Button
-        label={t('common.continue')}
-        onPress={() => router.push('/join/waiting')}
+        disabled={submitting}
+        label={submitting ? tj('availability.saving') : t('common.continue')}
+        onPress={() => {
+          void submit();
+        }}
       />
 
       {sheet ? (
@@ -444,5 +583,23 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flexGrow: 1,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radii.xl,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textBody,
   },
 });

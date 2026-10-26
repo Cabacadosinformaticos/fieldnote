@@ -1,16 +1,64 @@
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Linking, StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Pill } from '@/components/Pill';
 import { Screen } from '@/components/Screen';
 import { t } from '@/i18n/pt';
+import { tj } from '@/i18n/tj';
+import { useJoinSession } from '@/state/join';
 import { colors, fonts, spacing, typography } from '@/theme';
 
+function parseInviteCode(data: string): string | null {
+  let candidate = data.trim();
+
+  if (!candidate) {
+    return null;
+  }
+
+  try {
+    const url = new URL(candidate);
+    candidate =
+      url.searchParams.get('code') ??
+      url.pathname.split('/').filter(Boolean).pop() ??
+      '';
+  } catch {
+    // Not a URL: the poster QR holds the code itself.
+  }
+
+  const characters = candidate.replace(/[^a-z0-9]/gi, '').toUpperCase();
+  return characters.length > 0 ? characters : null;
+}
+
 export default function ScanScreen() {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [error, setError] = useState<string | null>(null);
+  const { startJoin } = useJoinSession();
+  const handled = useRef(false);
+
+  const handleBarcode = (result: BarcodeScanningResult) => {
+    if (handled.current) {
+      return;
+    }
+
+    const code = parseInviteCode(result.data);
+    if (!code) {
+      setError(tj('scan.invalid'));
+      return;
+    }
+
+    handled.current = true;
+    startJoin(code);
+    router.replace('/join/invitation');
+  };
+
+  const showCamera = permission?.granted === true;
+
   return (
     <Screen
       backgroundColor={colors.scanBackgroundDeep}
@@ -41,21 +89,63 @@ export default function ScanScreen() {
           <View style={[styles.corner, styles.cornerTopRight]} />
           <View style={[styles.corner, styles.cornerBottomLeft]} />
           <View style={[styles.corner, styles.cornerBottomRight]} />
-          <View style={styles.cameraPlaceholder}>
-            <Ionicons name="camera-outline" size={40} color={colors.textMuted} />
-            <Text style={styles.cameraLabel}>{t('scan.cameraPlaceholder')}</Text>
-          </View>
+
+          {showCamera ? (
+            <View style={styles.cameraClip}>
+              <CameraView
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                facing="back"
+                onBarcodeScanned={handleBarcode}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
+          ) : (
+            <View style={styles.cameraPlaceholder}>
+              {permission === null ? (
+                <>
+                  <ActivityIndicator color={colors.primary} size="small" />
+                  <Text style={styles.cameraLabel}>{t('scan.reading')}</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="camera-outline" size={40} color={colors.textMuted} />
+                  <Text style={styles.cameraLabel}>
+                    {permission.canAskAgain
+                      ? tj('scan.permissionBody')
+                      : tj('scan.permissionDenied')}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
         </View>
 
-        <Pill
-          tone="onDark"
-          icon={<ActivityIndicator color={colors.white} size="small" />}
-        >
-          {t('scan.reading')}
-        </Pill>
+        {showCamera ? (
+          <Pill tone="onDark" icon={<ActivityIndicator color={colors.white} size="small" />}>
+            {t('scan.reading')}
+          </Pill>
+        ) : null}
+
+        {permission !== null && !permission.granted ? (
+          <Button
+            label={
+              permission.canAskAgain ? tj('scan.enableCamera') : tj('scan.openSettings')
+            }
+            onDark
+            onPress={() => {
+              if (permission.canAskAgain) {
+                void requestPermission();
+              } else {
+                void Linking.openSettings();
+              }
+            }}
+          />
+        ) : null}
       </View>
 
       <View style={styles.spacer} />
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.footer}>
         <Text style={styles.note}>{t('scan.note')}</Text>
@@ -161,6 +251,7 @@ const styles = StyleSheet.create({
   },
   corner: {
     position: 'absolute',
+    zIndex: 1,
     width: 48,
     height: 48,
     borderColor: colors.white,
@@ -193,6 +284,13 @@ const styles = StyleSheet.create({
     borderRightWidth: 5,
     borderBottomRightRadius: 20,
   },
+  cameraClip: {
+    width: 200,
+    height: 200,
+    overflow: 'hidden',
+    borderRadius: 6,
+    backgroundColor: colors.scanBackground,
+  },
   cameraPlaceholder: {
     width: 200,
     height: 200,
@@ -212,6 +310,13 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flexGrow: 1,
+  },
+  error: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    color: colors.white,
   },
   footer: {
     gap: spacing.md,

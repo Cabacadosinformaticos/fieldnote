@@ -3,7 +3,8 @@ const join = {
 
   'consent.step': 'Passo 2 de 4 · Consentimento',
   'consent.title': 'Consentimento informado',
-  'consent.subtitle': 'Viver o Jardim da Estrela · versão 2 · Português',
+  'consent.subtitle': '{title} · versão {version} · Português',
+  'consent.subtitleEmpty': 'Consentimento informado · Português',
   'consent.readFull': 'Ler o texto completo',
   'consent.scrollLabel': 'Texto do consentimento, deslize para ler tudo',
   'consent.checkbox': 'Li e compreendi o texto do consentimento.',
@@ -86,27 +87,18 @@ const join = {
 
   'questions.step': 'Passo 2 de 4 · Perguntas do estudo',
   'questions.title': 'Algumas perguntas da equipa',
-  'questions.study': 'Viver o Jardim da Estrela',
+  'questions.study': '{title}',
   'questions.body':
     'Ajudam a equipa a perceber as respostas. Ficam ligadas ao seu pseudónimo, não ao seu nome.',
   'questions.count': '{answered} de {total} respondidas',
   'questions.optionalNote': 'Pode deixar perguntas por responder.',
-  'questions.q1.title': 'Com que frequência vai ao Jardim da Estrela?',
-  'questions.q1.hint': 'Escolha uma resposta.',
-  'questions.q1.daily': 'Todos os dias',
-  'questions.q1.weekly': 'Algumas vezes por semana',
-  'questions.q1.monthly': 'Algumas vezes por mês',
-  'questions.q1.rarely': 'Quase nunca',
-  'questions.q2.title': 'Como costuma chegar ao jardim?',
-  'questions.q2.hint': 'Pode escolher mais do que uma.',
-  'questions.q2.walk': 'A pé',
-  'questions.q2.transit': 'Transportes',
-  'questions.q2.bike': 'Bicicleta',
-  'questions.q2.car': 'Carro',
-  'questions.q3.title': 'Mora ou trabalha perto do jardim?',
-  'questions.q3.hint': 'Escolha uma resposta.',
-  'questions.q3.yes': 'Sim',
-  'questions.q3.no': 'Não',
+  'questions.hintSingle': 'Escolha uma resposta.',
+  'questions.hintMultiple': 'Pode escolher mais do que uma.',
+  'questions.hintYesNo': 'Escolha uma resposta.',
+  'questions.hintShort': 'Resposta curta, até 300 caracteres.',
+  'questions.shortPlaceholder': 'Escreva a sua resposta',
+  'questions.yes': 'Sim',
+  'questions.no': 'Não',
 
   'availability.step': 'Passo 3 de 4 · As suas horas',
   'availability.title': 'Em que horas pode receber pedidos?',
@@ -136,6 +128,11 @@ const join = {
   'availability.end': 'Fim',
   'availability.weekdays': 'Dias da semana',
   'availability.save': 'Guardar intervalo',
+  'availability.saving': 'A guardar…',
+  'availability.invalidInterval': 'O início tem de ser antes do fim.',
+  'availability.emptyError':
+    'Adicione pelo menos um intervalo ou escolha «Qualquer altura».',
+  'availability.noDays': 'Escolha pelo menos um dia em cada intervalo.',
   'availability.daysEvery': 'Todos os dias',
   'availability.daysWeekdays': 'De segunda a sexta',
   'availability.daysWeekend': 'Sábado e domingo',
@@ -159,8 +156,17 @@ const join = {
   'waiting.body':
     'A equipa do estudo vai confirmar a sua entrada. Receberá um aviso.',
   'waiting.studyLabel': 'Estudo',
-  'waiting.studyTitle': 'Viver o Jardim da Estrela',
-  'waiting.entryNote': 'Entrada por cartaz pedida a 9 out., 11:08',
+  'waiting.studyTitle': '{title}',
+  'waiting.entryNote': 'Entrada {kind} pedida a {date}',
+  'waiting.entryNoteDate': 'Entrada pedida a {date}',
+  'waiting.kindStudy': 'pelo cartaz do estudo',
+  'waiting.kindPersonal': 'por código pessoal',
+  'waiting.offline': 'Sem ligação. Voltamos a tentar.',
+  'waiting.noToken':
+    'Este telemóvel não guardou a chave desta participação. Peça à equipa do estudo para confirmar a entrada.',
+  'waiting.declinedTitle': 'A equipa não aceitou a sua entrada',
+  'waiting.declinedBody':
+    'Não fica nenhum registo seu neste estudo. Pode fechar a app.',
   'waiting.nextTitle': 'O que acontece a seguir',
   'waiting.acceptTitle': 'Se a equipa aceitar',
   'waiting.acceptBody':
@@ -174,25 +180,78 @@ const join = {
     'Já fez o que lhe cabia: o consentimento, as horas e os avisos ficam guardados neste telemóvel. Pode fechar a app.',
   'waiting.openStudies': 'Ver os meus estudos',
 
-  'study.title': 'Ir às compras no bairro',
-  'study.period': 'Em curso, de 1 a 31 out. 2026',
+  'study.title': '{title}',
+  'study.period': '{period}',
   'study.teamLabel': 'Equipa',
-  'study.team': 'Rita Ferraz, UNIDCOM/IADE',
+  'study.team': '{team}',
   'code.note': 'O código que leu não foi usado e continua válido.',
 
   'already.title': 'Já participa neste estudo',
   'already.body':
     'Este telemóvel já está neste estudo, por isso não precisa de entrar outra vez.',
   'already.enteredLabel': 'Entrou neste estudo',
-  'already.entered': '30 set. 2026',
+  'already.entered': '{date}',
+  'already.enteredUnknown': 'Data não disponível',
   'already.open': 'Abrir o estudo',
   'already.backHome': 'Voltar ao início',
 
-  'return.title': 'Saiu deste estudo a 5 out. Quer voltar?',
+  'return.title': 'Saiu deste estudo a {date}. Quer voltar?',
+  'return.titleUnknown': 'Saiu deste estudo. Quer voltar?',
   'return.info':
     'Volta com o mesmo pseudónimo e os registos que já tinha. Os pedidos recomeçam a partir do plano da noite.',
   'return.confirm': 'Voltar ao estudo',
+  'return.confirming': 'A voltar…',
   'return.decline': 'Agora não',
+
+  'invitation.teamEmpty': 'Equipa do estudo',
+  'invitation.requestsValue': 'Até {count} pedidos por dia, cerca de {minutes} min por dia',
+  'invitation.locationValue': 'Só em algumas atividades, que o indicam',
+  'invitation.locationNone': 'Não é recolhida',
+  'invitation.studyCodeNote': 'Entrada pelo cartaz do estudo.',
+  'invitation.loading': 'A ler o convite…',
+  'invitation.loadErrorTitle': 'Não foi possível abrir o convite',
+  'invitation.retry': 'Tentar outra vez',
+
+  'entryType.text': 'texto',
+  'entryType.photo': 'fotos',
+  'entryType.video': 'vídeo',
+  'entryType.audio': 'áudio',
+  'entryType.scale': 'uma escala de 1 a 7',
+  'entryType.choice': 'escolhas',
+  'entryType.empty': 'Ainda não definido',
+
+  'date.unknown': 'Datas a anunciar',
+  'date.periodSameMonth': '{from} a {to} {month} {year} ({days} dias)',
+  'date.periodSameYear': '{fromDay} {fromMonth} a {toDay} {toMonth} {year} ({days} dias)',
+  'date.periodFull': '{from} a {to} ({days} dias)',
+
+  'scan.permissionTitle': 'Precisamos da câmara para ler o código',
+  'scan.permissionBody':
+    'A câmara só serve para ler o código QR do convite. Não guardamos nenhuma imagem.',
+  'scan.enableCamera': 'Ativar câmara',
+  'scan.permissionDenied':
+    'Sem acesso à câmara não conseguimos ler o código. Pode escrevê-lo ou abrir as definições.',
+  'scan.openSettings': 'Abrir definições',
+  'scan.cameraUnavailable':
+    'Não foi possível abrir a câmara neste telemóvel. Escreva o código.',
+  'scan.invalid':
+    'Não reconhecemos um código de convite neste QR. Tente outra vez ou escreva o código.',
+
+  'error.network':
+    'Não foi possível ligar-nos. Verifique a ligação à internet e tente outra vez.',
+  'error.generic': 'Não foi possível concluir o pedido. Tente outra vez.',
+  'error.invalidCode': 'O código não é válido ou já não está disponível.',
+  'error.invalidStudyAnswer':
+    'Uma das respostas não é válida. Volte às perguntas e confirme.',
+  'error.invalidAvailability':
+    'Diga pelo menos um intervalo válido ou escolha «Qualquer altura».',
+  'error.accountRequired':
+    'Este código exige uma conta Fieldnote, que ainda não está disponível.',
+  'error.participationRemoved':
+    'A equipa removeu esta participação. Fale com a equipa do estudo.',
+  'error.erasureScheduled':
+    'Os seus dados deste estudo estão a ser apagados e não é possível voltar a entrar.',
+  'error.entryDeclined': 'A equipa não aceitou a entrada neste estudo.',
 } as const;
 
 export type JoinKey = keyof typeof join;

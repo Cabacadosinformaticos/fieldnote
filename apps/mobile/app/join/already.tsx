@@ -1,16 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { formatDate, formatPeriod, formatTeam } from '@/components/join/format';
 import { Screen } from '@/components/Screen';
 import { tj } from '@/i18n/tj';
+import { useJoinSession } from '@/state/join';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
 export default function AlreadyScreen() {
+  const { lookup } = useJoinSession();
+  const study = lookup?.study;
+  const existing = lookup?.existing_participation;
+
+  useEffect(() => {
+    if (!lookup) {
+      router.replace('/');
+    }
+  }, [lookup]);
+
   return (
     <Screen contentStyle={styles.content}>
       <StatusBar style="dark" />
@@ -24,8 +37,14 @@ export default function AlreadyScreen() {
 
       <Card style={styles.studyCard}>
         <View style={styles.studyIntro}>
-          <Text style={styles.studyTitle}>{tj('study.title')}</Text>
-          <Text style={styles.studyPeriod}>{tj('study.period')}</Text>
+          <Text style={styles.studyTitle}>
+            {tj('study.title', { title: study?.title ?? '' })}
+          </Text>
+          <Text style={styles.studyPeriod}>
+            {tj('study.period', {
+              period: formatPeriod(study?.starts_on, study?.ends_on),
+            })}
+          </Text>
         </View>
 
         <View style={styles.divider} />
@@ -37,7 +56,9 @@ export default function AlreadyScreen() {
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>{tj('study.teamLabel')}</Text>
-              <Text style={styles.rowValue}>{tj('study.team')}</Text>
+              <Text style={styles.rowValue}>
+                {tj('study.team', { team: formatTeam(study?.team ?? []) })}
+              </Text>
             </View>
           </View>
           <View style={styles.row}>
@@ -46,7 +67,13 @@ export default function AlreadyScreen() {
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>{tj('already.enteredLabel')}</Text>
-              <Text style={styles.rowValue}>{tj('already.entered')}</Text>
+              <Text style={styles.rowValue}>
+                {existing?.decided_at
+                  ? tj('already.entered', {
+                      date: formatDate(existing.decided_at),
+                    })
+                  : tj('already.enteredUnknown')}
+              </Text>
             </View>
           </View>
         </View>
@@ -62,7 +89,7 @@ export default function AlreadyScreen() {
       <View style={styles.actions}>
         <Button
           label={tj('already.open')}
-          onPress={() => router.replace('/')}
+          onPress={() => router.replace('/(tabs)')}
         />
         <Pressable
           accessibilityRole="link"

@@ -9,6 +9,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { t } from '@/i18n/pt';
+import { useJoinSession } from '@/state/join';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
 const CODE_LENGTH = 12;
@@ -25,6 +26,7 @@ function formatCode(value: string): string {
 
 export default function CodeScreen() {
   const [code, setCode] = useState('');
+  const { startJoin } = useJoinSession();
   const isComplete = code.replace(/-/g, '').length === CODE_LENGTH;
 
   return (
@@ -61,7 +63,10 @@ export default function CodeScreen() {
       <Button
         disabled={!isComplete}
         label={t('common.continue')}
-        onPress={() => router.push('/join/invitation')}
+        onPress={() => {
+          startJoin(code.replace(/-/g, ''));
+          router.push('/join/invitation');
+        }}
       />
 
       <Card style={styles.infoCard}>
