@@ -1,19 +1,54 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { StudyCode } from '../../fake/participants'
-import { t } from '../../i18n/participants'
+import {
+  ParticipantsApiError,
+  useRegenerateStudyCode,
+  useUpdateStudyCode,
+  type StudyCodeOut,
+} from '../../api/participants'
+import { errorKey, t, type ParticipantsKey } from '../../i18n/participants'
+import { formatDate, formatDateTime } from './format'
 import { CheckIcon, CopyIcon, PrinterIcon } from './icons'
 import QrCode from './QrCode'
+
+function stateLabel(code: StudyCodeOut): { key: ParticipantsKey; tone: string; off: boolean } {
+  if (!code.active || code.state === 'off') {
+    return { key: 'codes.off', tone: 'ne', off: true }
+  }
+  if (code.state === 'ended') {
+    return { key: 'codes.stateEnded', tone: 'ne', off: true }
+  }
+  if (code.state === 'limit_reached') {
+    return { key: 'codes.stateLimit', tone: 'ne', off: true }
+  }
+  return { key: 'codes.active', tone: 'ok', off: false }
+}
+
+function usesLabel(code: StudyCodeOut): ParticipantsKey {
+  if (code.uses === 1) return 'codes.usesOne'
+  if (code.uses === 0) return 'codes.usesNone'
+  return 'codes.usesCount'
+}
 
 export default function StudyCodeCard({
   studyId,
   code,
+  onEdit,
 }: {
   studyId: string
-  code: StudyCode
+  code: StudyCodeOut
+  onEdit: (code: StudyCodeOut) => void
 }) {
-  const [off, setOff] = useState(code.state === 'off')
   const [copied, setCopied] = useState(false)
+  const update = useUpdateStudyCode(studyId)
+  const regenerate = useRegenerateStudyCode(studyId)
+  const state = stateLabel(code)
+  const error =
+    update.error instanceof ParticipantsApiError
+      ? update.error.code
+      : regenerate.error instanceof ParticipantsApiError
+        ? regenerate.error.code
+        : null
 
   const copy = () => {
     if (!navigator.clipboard) return
@@ -23,8 +58,20 @@ export default function StudyCodeCard({
       .catch(() => setCopied(false))
   }
 
+  const toggle = () => {
+    update.mutate({
+      codeId: code.id,
+      payload: { active: !code.active },
+    })
+  }
+
+  const regenerateCode = () => {
+    if (!window.confirm(t('codes.regenerateConfirm'))) return
+    regenerate.mutate(code.id)
+  }
+
   return (
-    <article className={off ? 'card pts-code-card is-off' : 'card pts-code-card'}>
+    <article className={state.off ? 'card pts-code-card is-off' : 'card pts-code-card'}>
       <header className="pts-code-head">
         <div>
           <h3>{code.name}</h3>
@@ -36,71 +83,101 @@ export default function StudyCodeCard({
             </button>
           </div>
         </div>
-        <span className={off ? 'pill ne' : 'pill ok'}>
-          {off ? t('codes.off') : t('codes.active')}
-        </span>
+        <span className={`pill ${state.tone}`}>{t(state.key)}</span>
       </header>
 
       <div className="pts-code-body">
         <div className="pts-code-qr">
-          <QrCode seed={code.qrSeed} label={code.code} />
+          <QrCode value={code.code} label={code.code} />
         </div>
         <dl className="pts-code-facts">
           <div>
             <dt>{t('codes.uses')}</dt>
             <dd>
-              <strong>{off ? t('codes.off') : code.uses}</strong>
-              <small>{code.usesNote}</small>
+              <strong>
+                {t(usesLabel(code), { count: code.uses })}
+              </strong>
+              <small>
+                {t('codes.usesCounts', {
+                  approved: code.approved_count,
+                  declined: code.declined_count,
+                  waiting: code.waiting_count,
+                })}
+              </small>
             </dd>
           </div>
           <div>
             <dt>{t('codes.until')}</dt>
             <dd>
-              <strong>{code.until}</strong>
-              <small>{code.created}</small>
+              <strong>{formatDate(code.expires_at)}</strong>
+              <small>{t('codes.createdAt', { date: formatDateTime(code.created_at) })}</small>
             </dd>
           </div>
           <div>
             <dt>{t('codes.approval')}</dt>
             <dd>
-              <strong>{code.approval}</strong>
-              <small>{code.approvalNote}</small>
+              <strong>
+                {code.requires_approval ? t('codes.approvalOn') : t('codes.approvalOff')}
+              </strong>
             </dd>
           </div>
           <div>
             <dt>{t('codes.limit')}</dt>
             <dd>
-              <strong>{code.limit}</strong>
-              <small>{code.limitNote}</small>
+              <strong>
+                {code.max_uses === null
+                  ? t('codes.noMaximum')
+                  : t('codes.limitCount', { count: code.max_uses })}
+              </strong>
             </dd>
           </div>
           <div>
             <dt>{t('codes.hourly')}</dt>
             <dd>
-              <strong>{code.hourly}</strong>
+              <strong>
+                {code.max_per_hour === null
+                  ? t('codes.noMaximum')
+                  : t('codes.hourlyCount', { count: code.max_per_hour })}
+              </strong>
             </dd>
           </div>
           <div>
             <dt>{t('codes.account')}</dt>
             <dd>
-              <strong>{code.account}</strong>
+              <strong>
+                {code.requires_account ? t('codes.accountYes') : t('codes.accountNo')}
+              </strong>
             </dd>
           </div>
         </dl>
       </div>
 
+      {error ? <p className="pts-error">{t(errorKey(error))}</p> : null}
+
       <footer className="pts-code-foot">
         <button
           type="button"
-          className={off ? 'btn btn-sm' : 'btn btn-sm btn-d'}
-          onClick={() => setOff(!off)}
+          className={code.active ? 'btn btn-sm btn-d' : 'btn btn-sm'}
+          disabled={update.isPending}
+          onClick={toggle}
         >
-          {off ? t('action.turnOn') : t('action.turnOff')}
+          {code.active ? t('action.turnOff') : t('action.turnOn')}
         </button>
-        <Link className="btn btn-sm" to={`/estudos/${studyId}/participantes/codigos/novo`}>
+        <button type="button" className="btn btn-sm" onClick={() => onEdit(code)}>
+          {t('codes.edit')}
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={regenerate.isPending}
+          onClick={regenerateCode}
+        >
           {t('action.newCode')}
-        </Link>
-        <Link className="btn btn-sm btn-dk" to={`/estudos/${studyId}/participantes/codigos/cartaz`}>
+        </button>
+        <Link
+          className="btn btn-sm btn-dk"
+          to={`/estudos/${studyId}/participantes/codigos/cartaz?code=${code.id}`}
+        >
           <PrinterIcon />
           {t('action.seePrintPoster')}
         </Link>

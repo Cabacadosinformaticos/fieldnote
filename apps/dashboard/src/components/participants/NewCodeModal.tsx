@@ -1,18 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { newStudyCodeDefaults } from '../../fake/participants'
-import { t } from '../../i18n/participants'
+import { ParticipantsApiError, useCreateStudyCode } from '../../api/participants'
+import { errorKey, t } from '../../i18n/participants'
 import { CloseIcon } from './icons'
 import Switch from './Switch'
 
+function defaultEndDate(): string {
+  const date = new Date()
+  date.setDate(date.getDate() + 14)
+  return date.toISOString().slice(0, 10)
+}
+
 export default function NewCodeModal({ studyId }: { studyId: string }) {
   const navigate = useNavigate()
-  const [name, setName] = useState(newStudyCodeDefaults.name)
-  const [end, setEnd] = useState('2026-10-16')
-  const [limitOn, setLimitOn] = useState(newStudyCodeDefaults.limitOn)
-  const [hourlyOn, setHourlyOn] = useState(newStudyCodeDefaults.hourlyOn)
-  const [approvalOn, setApprovalOn] = useState(newStudyCodeDefaults.approvalOn)
-  const [accountOn, setAccountOn] = useState(newStudyCodeDefaults.accountOn)
+  const createCode = useCreateStudyCode(studyId)
+  const [name, setName] = useState('')
+  const [end, setEnd] = useState(defaultEndDate)
+  const [limitOn, setLimitOn] = useState(false)
+  const [limit, setLimit] = useState('10')
+  const [hourlyOn, setHourlyOn] = useState(false)
+  const [hourly, setHourly] = useState('20')
+  const [approvalOn, setApprovalOn] = useState(true)
+  const [accountOn, setAccountOn] = useState(false)
   const close = () => navigate(`/estudos/${studyId}/participantes/codigos`)
 
   useEffect(() => {
@@ -22,6 +31,22 @@ export default function NewCodeModal({ studyId }: { studyId: string }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
+
+  const submit = () => {
+    createCode.mutate(
+      {
+        name: name.trim(),
+        end_date: end,
+        max_uses: limitOn ? Number(limit) || null : null,
+        max_per_hour: hourlyOn ? Number(hourly) || null : null,
+        requires_approval: approvalOn,
+        requires_account: accountOn,
+      },
+      { onSuccess: close },
+    )
+  }
+
+  const error = createCode.error instanceof ParticipantsApiError ? createCode.error.code : null
 
   return (
     <div className="pts-modal-backdrop">
@@ -69,7 +94,8 @@ export default function NewCodeModal({ studyId }: { studyId: string }) {
                     className="pts-input pts-input-inline"
                     type="number"
                     min={1}
-                    defaultValue={10}
+                    value={limit}
+                    onChange={(event) => setLimit(event.target.value)}
                     aria-label={t('newCode.limit')}
                   />
                 ) : null}
@@ -86,7 +112,8 @@ export default function NewCodeModal({ studyId }: { studyId: string }) {
                     className="pts-input pts-input-inline"
                     type="number"
                     min={1}
-                    defaultValue={20}
+                    value={hourly}
+                    onChange={(event) => setHourly(event.target.value)}
                     aria-label={t('newCode.hourly')}
                   />
                 ) : null}
@@ -112,6 +139,7 @@ export default function NewCodeModal({ studyId }: { studyId: string }) {
           </div>
 
           <p className="pts-note">{t('newCode.note')}</p>
+          {error ? <p className="pts-error">{t(errorKey(error))}</p> : null}
         </div>
 
         <footer className="pts-modal-foot">
@@ -121,10 +149,10 @@ export default function NewCodeModal({ studyId }: { studyId: string }) {
           <button
             type="button"
             className="btn btn-p"
-            disabled={!name.trim() || !end}
-            onClick={close}
+            disabled={!name.trim() || !end || createCode.isPending}
+            onClick={submit}
           >
-            {t('newCode.create')}
+            {createCode.isPending ? t('newCode.creating') : t('newCode.create')}
           </button>
         </footer>
       </div>

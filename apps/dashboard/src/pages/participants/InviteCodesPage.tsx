@@ -1,30 +1,49 @@
 import { useState } from 'react'
 import '../../styles/participants.css'
 import { Link, useParams } from 'react-router-dom'
+import {
+  ParticipantsApiError,
+  useApprovals,
+  useApproveEntry,
+  useDeclineEntry,
+  useStudyCodes,
+  type StudyCodeOut,
+} from '../../api/participants'
+import EditStudyCodeModal from '../../components/participants/EditStudyCodeModal'
 import ParticipantsTabs from '../../components/participants/ParticipantsTabs'
 import StudyCodeCard from '../../components/participants/StudyCodeCard'
+import { formatDate, formatDateTime } from '../../components/participants/format'
 import {
   CalendarIcon,
   CheckIcon,
-  CloseIcon,
   PlusIcon,
   ShieldCheckIcon,
   TicketIcon,
 } from '../../components/participants/icons'
-import { studyCodes, waitingCode, waitingEntries } from '../../fake/participants'
-import { t } from '../../i18n/participants'
-
-type Decision = 'approved' | 'declined'
+import { errorKey, t } from '../../i18n/participants'
 
 export default function InviteCodesPage() {
-  const { studyId = 'jardim-da-estrela' } = useParams<{ studyId: string }>()
-  const [decisions, setDecisions] = useState<Record<string, Decision>>({})
-  const pending = waitingEntries.filter((entry) => !decisions[entry.id]).length
+  const { studyId = '' } = useParams<{ studyId: string }>()
+  const approvals = useApprovals(studyId)
+  const codes = useStudyCodes(studyId)
+  const approve = useApproveEntry(studyId)
+  const decline = useDeclineEntry(studyId)
+  const [editing, setEditing] = useState<StudyCodeOut | null>(null)
+
+  const waiting = approvals.data ?? []
   const base = `/estudos/${studyId}/participantes`
 
-  const decide = (id: string, decision: Decision) => {
-    setDecisions((current) => ({ ...current, [id]: decision }))
-  }
+  const actionError =
+    approve.error instanceof ParticipantsApiError
+      ? approve.error.code
+      : decline.error instanceof ParticipantsApiError
+        ? decline.error.code
+        : null
+
+  const waitingCode = waiting.find((entry) => entry.code)?.code ?? null
+  const matchingCode = waitingCode
+    ? codes.data?.find((code) => code.code === waitingCode)
+    : undefined
 
   return (
     <div className="pts-page">
@@ -39,59 +58,64 @@ export default function InviteCodesPage() {
         </Link>
       </header>
 
-      <ParticipantsTabs studyId={studyId} waitingCount={pending} />
+      <ParticipantsTabs studyId={studyId} waitingCount={waiting.length} />
 
       <section className="card pts-waiting-card" aria-labelledby="pts-waiting-title">
         <div className="pts-waiting-head">
           <div>
             <h2 className="h2" id="pts-waiting-title">
-              {t('codes.waitingTitle', { count: pending })}
+              {t('codes.waitingTitle', { count: waiting.length })}
             </h2>
-            <p className="sub">{t('codes.waitingSub', { code: waitingCode })}</p>
+            <p className="sub">
+              {waitingCode
+                ? t('codes.waitingSub', { code: waitingCode })
+                : t('codes.waitingSubCount')}
+            </p>
           </div>
-          <span className="pill wa">{t('codes.waitingPill', { count: pending })}</span>
+          <span className="pill wa">{t('codes.waitingPill', { count: waiting.length })}</span>
         </div>
 
-        {waitingEntries.length > 0 ? (
+        {approvals.isLoading ? (
+          <p className="pts-empty">{t('codes.loading')}</p>
+        ) : approvals.isError ? (
+          <div className="pts-state-inline">
+            <p>{t('codes.error')}</p>
+            <button type="button" className="btn btn-sm" onClick={() => approvals.refetch()}>
+              {t('codes.retry')}
+            </button>
+          </div>
+        ) : waiting.length > 0 ? (
           <ul className="pts-waiting-list">
-            {waitingEntries.map((entry, index) => {
-              const decision = decisions[entry.id]
+            {waiting.map((entry) => {
+              const approving = approve.isPending && approve.variables === entry.participant_id
+              const declining = decline.isPending && decline.variables === entry.participant_id
               return (
-                <li key={entry.id}>
-                  <span className="pts-waiting-number">{index + 1}</span>
+                <li key={entry.participant_id}>
+                  <span className="pts-waiting-number">{entry.order}</span>
                   <div className="pts-waiting-who">
-                    <strong>{entry.label}</strong>
+                    <strong>{t('codes.waitingPerson', { order: entry.order })}</strong>
                     <span>
-                      {t('codes.enteredPrefix', { when: entry.when })} <code>{waitingCode}</code>
+                      {t('codes.enteredAt', { when: formatDateTime(entry.entered_at) })}{' '}
+                      {entry.code ? t('codes.enteredWith', { code: entry.code }) : null}
                     </span>
                   </div>
                   <div className="pts-waiting-actions">
-                    {decision === 'approved' ? (
-                      <span className="pill ok">
-                        <CheckIcon /> {t('codes.approved')}
-                      </span>
-                    ) : decision === 'declined' ? (
-                      <span className="pill ne">
-                        <CloseIcon /> {t('codes.declined')}
-                      </span>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-d"
-                          onClick={() => decide(entry.id, 'declined')}
-                        >
-                          {t('action.decline')}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-p"
-                          onClick={() => decide(entry.id, 'approved')}
-                        >
-                          {t('action.approve')}
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-d"
+                      disabled={declining || approving}
+                      onClick={() => decline.mutate(entry.participant_id)}
+                    >
+                      {t('action.decline')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-p"
+                      disabled={declining || approving}
+                      onClick={() => approve.mutate(entry.participant_id)}
+                    >
+                      <CheckIcon /> {t('action.approve')}
+                    </button>
                   </div>
                 </li>
               )
@@ -101,18 +125,28 @@ export default function InviteCodesPage() {
           <p className="pts-empty">{t('codes.waitingEmpty')}</p>
         )}
 
+        {actionError ? <p className="pts-error">{t(errorKey(actionError))}</p> : null}
+
         <p className="pts-help pts-waiting-privacy">
           <ShieldCheckIcon />
           {t('codes.waitingPrivacy')}
         </p>
 
-        <div className="pts-deadline">
-          <CalendarIcon />
-          <div>
-            <strong>{t('codes.waitingDeadlineTitle')}</strong>
-            <p>{t('codes.waitingDeadlineBody')}</p>
+        {waiting.length > 0 ? (
+          <div className="pts-deadline">
+            <CalendarIcon />
+            <div>
+              <strong>
+                {matchingCode
+                  ? t('codes.waitingDeadlineTitleCode', {
+                      date: formatDate(matchingCode.expires_at),
+                    })
+                  : t('codes.waitingDeadlineTitle')}
+              </strong>
+              <p>{t('codes.waitingDeadlineBodyPlain')}</p>
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
       <section className="pts-codes-section" aria-labelledby="pts-codes-title">
@@ -124,11 +158,29 @@ export default function InviteCodesPage() {
             <p className="sub">{t('codes.sub')}</p>
           </div>
         </div>
-        <div className="pts-code-grid">
-          {studyCodes.map((code) => (
-            <StudyCodeCard key={code.id} studyId={studyId} code={code} />
-          ))}
-        </div>
+
+        {codes.isLoading ? (
+          <div className="card pts-state">
+            <p>{t('codes.loading')}</p>
+          </div>
+        ) : codes.isError ? (
+          <div className="card pts-state">
+            <p>{t('codes.error')}</p>
+            <button type="button" className="btn btn-sm" onClick={() => codes.refetch()}>
+              {t('codes.retry')}
+            </button>
+          </div>
+        ) : codes.data && codes.data.length > 0 ? (
+          <div className="pts-code-grid">
+            {codes.data.map((code) => (
+              <StudyCodeCard key={code.id} studyId={studyId} code={code} onEdit={setEditing} />
+            ))}
+          </div>
+        ) : (
+          <div className="card pts-state">
+            <p>{t('codes.empty')}</p>
+          </div>
+        )}
       </section>
 
       <div className="pts-info-grid">
@@ -182,6 +234,14 @@ export default function InviteCodesPage() {
           </ul>
         </section>
       </div>
+
+      {editing ? (
+        <EditStudyCodeModal
+          studyId={studyId}
+          code={editing}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
     </div>
   )
 }

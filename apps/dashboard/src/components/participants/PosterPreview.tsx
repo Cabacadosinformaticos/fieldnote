@@ -1,22 +1,35 @@
-import {
-  studyName,
-  waitingCode,
-  type PosterContent,
-  type PosterStyle,
-} from '../../fake/participants'
 import { t } from '../../i18n/participants'
 import { LogoMark } from '../icons'
+import { formatDate } from './format'
 import QrCode from './QrCode'
+
+export type PosterStyle = 'info' | 'solid' | 'circle' | 'band' | 'minimal'
+
+export type PosterContent = 'code' | 'qr' | 'both'
 
 export default function PosterPreview({
   style,
   content,
+  studyTitle,
+  startsOn,
+  endsOn,
+  code,
+  expiresAt,
 }: {
   style: PosterStyle
   content: PosterContent
+  studyTitle: string
+  startsOn: string | null
+  endsOn: string | null
+  code: string
+  expiresAt: string
 }) {
   const showQr = content === 'qr' || content === 'both'
   const showCode = content === 'code' || content === 'both'
+  const dateRange = t('poster.dateRange', {
+    start: formatDate(startsOn),
+    end: formatDate(endsOn),
+  })
 
   return (
     <article className={`poster-sheet poster-style-${style} poster-content-${content}`}>
@@ -37,15 +50,15 @@ export default function PosterPreview({
             <small>{t('poster.studyKind')}</small>
           </span>
         </div>
-        <span className="poster-dates">{t('poster.pillDates')}</span>
+        <span className="poster-dates">{t('poster.signupsUntil', { date: formatDate(expiresAt) })}</span>
       </header>
 
       <div className="poster-main">
-        <h1>{studyName}</h1>
+        <h1>{studyTitle}</h1>
         <p className="poster-tagline">{t('poster.tagline')}</p>
         <div className="poster-pills">
           <span>{t('poster.pillMinutes')}</span>
-          <span>{t('poster.pillDates')}</span>
+          <span>{dateRange}</span>
         </div>
 
         <div className="poster-entry">
@@ -59,13 +72,13 @@ export default function PosterPreview({
           <div className="poster-entry-grid">
             {showQr ? (
               <div className="poster-qr-card">
-                <QrCode seed={7} className="poster-qr" label={waitingCode} />
+                <QrCode value={code} className="poster-qr" label={code} />
               </div>
             ) : null}
             {showCode ? (
               <div className="poster-code-card">
                 <span>{t('poster.codeEntry')}</span>
-                <strong className="mono">{waitingCode}</strong>
+                <strong className="mono">{code}</strong>
                 {content === 'both' ? <small>{t('poster.codeOr')}</small> : null}
               </div>
             ) : null}
@@ -88,11 +101,11 @@ export default function PosterPreview({
           </div>
           <div>
             <span>{t('poster.signups')}</span>
-            <strong>{t('poster.signupsValue')}</strong>
+            <strong>{t('poster.signupsUntil', { date: formatDate(expiresAt) })}</strong>
           </div>
           <div>
             <span>{t('poster.dates')}</span>
-            <strong>{t('poster.pillDates')}</strong>
+            <strong>{dateRange}</strong>
           </div>
         </div>
         <p className="poster-privacy">{t('poster.privacyValue')}</p>
