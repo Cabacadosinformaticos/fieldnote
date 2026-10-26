@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: Fieldnote
+    orgId: 1
+    folder: Fieldnote
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 15
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -1,0 +1,70 @@
+# Prometheus for the three-node cluster profile. It runs on node 3 and is not replicated: losing
+# it only hides the metrics during a demonstration (fault-model.md).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: fieldnote-api
+    metrics_path: /api/v1/metrics
+    static_configs:
+      - targets: ["api1:8000"]
+        labels:
+          replica: api1
+      - targets: ["api2:8000"]
+        labels:
+          replica: api2
+      - targets: ["api3:8000"]
+        labels:
+          replica: api3
+
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik1:8081"]
+        labels:
+          replica: traefik1
+      - targets: ["traefik2:8081"]
+        labels:
+          replica: traefik2
+
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ["rabbitmq1:15692"]
+        labels:
+          replica: rabbitmq1
+      - targets: ["rabbitmq2:15692"]
+        labels:
+          replica: rabbitmq2
+      - targets: ["rabbitmq3:15692"]
+        labels:
+          replica: rabbitmq3
+
+  - job_name: garage
+    authorization:
+      type: Bearer
+      credentials_file: /tmp/prometheus-secrets/garage_metrics_token
+    static_configs:
+      - targets: ["garage1:3903"]
+        labels:
+          replica: garage1
+      - targets: ["garage2:3903"]
+        labels:
+          replica: garage2
+      - targets: ["garage3:3903"]
+        labels:
+          replica: garage3
+
+  # Patroni serves the PostgreSQL metrics on the REST API port. The endpoint is open; no
+  # credentials are needed for /metrics.
+  - job_name: patroni
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["pg1:8008"]
+        labels:
+          replica: pg1
+      - targets: ["pg2:8008"]
+        labels:
+          replica: pg2
+      - targets: ["pg3:8008"]
+        labels:
+          replica: pg3

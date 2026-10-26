@@ -1,5 +1,13 @@
 http:
   routers:
+    # Prometheus metrics stay internal: a more specific router sends the path to Traefik's
+    # built-in noop service, which answers 404, before the API router can match it.
+    metrics:
+      rule: "Path(`/api/v1/metrics`)"
+      entryPoints:
+        - web
+      priority: 1000
+      service: noop@internal
     api:
       rule: "PathPrefix(`/api`)"
       entryPoints:
