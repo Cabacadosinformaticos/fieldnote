@@ -1,4 +1,4 @@
-import type { StudyStatus } from '../../fake/studies'
+import type { StudyStatus } from '../../api/studies'
 import { t } from '../../i18n/studies'
 
 export default function StudyStatusPill({ status }: { status: StudyStatus }) {

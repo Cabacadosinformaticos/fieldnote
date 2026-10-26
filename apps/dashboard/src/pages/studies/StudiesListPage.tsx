@@ -2,7 +2,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import StudyStatusPill from '../../components/studies/StudyStatusPill'
 import { PlusIcon } from '../../components/studies/StudyIcons'
-import { myStudies, type StudyMetricKind, type StudyStatus } from '../../fake/studies'
+import {
+  studiesErrorMessage,
+  useStudies,
+  useStudyCard,
+  type Study,
+  type StudyMetricKind,
+  type StudyStatus,
+} from '../../api/studies'
 import { t, type StudiesKey } from '../../i18n/studies'
 import '../../styles/studies.css'
 
@@ -18,21 +25,94 @@ const filters: { id: Filter; labelKey: StudiesKey }[] = [
 const metricLabel: Record<StudyMetricKind, StudiesKey> = {
   participants: 'list.metric.participants',
   entries: 'list.metric.entries',
-  adherence: 'list.metric.adherence',
-  adherenceFinal: 'list.metric.adherenceFinal',
+  activities: 'list.metric.activities',
+}
+
+function StudyCard({ study }: { study: Study }) {
+  const summary = useStudyCard(study)
+
+  return (
+    <article className="st-study-card">
+      <div className="st-study-main">
+        <div className="st-pill-row">
+          <StudyStatusPill status={summary.status} />
+          {summary.role ? (
+            <span className="st-tag">{t(`role.${summary.role}`)}</span>
+          ) : null}
+        </div>
+        <h2 className="st-study-title">{summary.title}</h2>
+        <p className="st-study-description">{summary.description}</p>
+        <div className="st-study-meta">
+          <span>{summary.period}</span>
+          <span>{summary.schedule}</span>
+        </div>
+      </div>
+
+      <div className="st-study-metrics">
+        {summary.metrics.map((metric) => (
+          <div className="st-study-metric" key={metric.kind}>
+            <span className="st-metric-label">{t(metricLabel[metric.kind])}</span>
+            <span className="st-metric-value">{metric.value}</span>
+            <span className="st-metric-note">{metric.note}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="st-study-actions">
+        {summary.status === 'ongoing' ? (
+          <>
+            <Link className="st-btn st-btn-primary" to={`/estudos/${summary.id}/visao-geral`}>
+              {t('list.openOverview')}
+            </Link>
+            <Link className="st-btn st-btn-ghost" to={`/estudos/${summary.id}/registos`}>
+              {t('list.viewEntries')}
+            </Link>
+          </>
+        ) : null}
+
+        {summary.status === 'draft' ? (
+          <Link className="st-btn st-btn-ghost" to={`/estudos/${summary.id}/visao-geral`}>
+            {t('list.openOverview')}
+          </Link>
+        ) : null}
+
+        {summary.status === 'finished' ? (
+          <>
+            <Link className="st-btn st-btn-ghost" to={`/estudos/${summary.id}/visao-geral`}>
+              {t('list.viewResults')}
+            </Link>
+            <Link className="st-btn st-btn-ghost" to={`/estudos/${summary.id}/exportar`}>
+              {t('list.exportData')}
+            </Link>
+          </>
+        ) : null}
+      </div>
+    </article>
+  )
 }
 
 export default function StudiesListPage() {
   const [filter, setFilter] = useState<Filter>('all')
+  const studiesQuery = useStudies()
+  const studies = studiesQuery.data ?? []
 
   const counts = {
-    all: myStudies.length,
-    ongoing: myStudies.filter((study) => study.status === 'ongoing').length,
-    draft: myStudies.filter((study) => study.status === 'draft').length,
-    finished: myStudies.filter((study) => study.status === 'finished').length,
+    all: studies.length,
+    ongoing: studies.filter((study) => study.status === 'running').length,
+    draft: studies.filter((study) => study.status === 'draft').length,
+    finished: studies.filter((study) => study.status === 'closed').length,
   }
 
-  const visible = filter === 'all' ? myStudies : myStudies.filter((study) => study.status === filter)
+  const visible =
+    filter === 'all'
+      ? studies
+      : studies.filter((study) =>
+          filter === 'ongoing'
+            ? study.status === 'running'
+            : filter === 'draft'
+              ? study.status === 'draft'
+              : study.status === 'closed',
+        )
 
   return (
     <div className="st-page">
@@ -73,71 +153,27 @@ export default function StudiesListPage() {
         })}
       </div>
 
+      {studiesQuery.error ? (
+        <div className="st-note st-note-error" role="alert">
+          <span>{studiesErrorMessage(studiesQuery.error)}</span>
+          <button
+            type="button"
+            className="st-btn st-btn-ghost st-btn-xs"
+            onClick={() => void studiesQuery.refetch()}
+          >
+            {t('state.retry')}
+          </button>
+        </div>
+      ) : null}
+
       <div className="st-study-list">
+        {studiesQuery.isLoading ? <p className="st-empty">{t('state.loading')}</p> : null}
         {visible.map((study) => (
-          <article className="st-study-card" key={study.id}>
-            <div className="st-study-main">
-              <div className="st-pill-row">
-                <StudyStatusPill status={study.status} />
-                <span className="st-tag">{t(`role.${study.role}`)}</span>
-              </div>
-              <h2 className="st-study-title">{study.title}</h2>
-              <p className="st-study-description">{study.description}</p>
-              <div className="st-study-meta">
-                <span>{study.period}</span>
-                <span>{study.schedule}</span>
-              </div>
-            </div>
-
-            <div className="st-study-metrics">
-              {study.metrics.map((metric) => (
-                <div className="st-study-metric" key={metric.kind}>
-                  <span className="st-metric-label">{t(metricLabel[metric.kind])}</span>
-                  <span className="st-metric-value">{metric.value}</span>
-                  <span className="st-metric-note">{metric.note}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="st-study-actions">
-              {study.status === 'ongoing' ? (
-                <>
-                  <Link
-                    className="st-btn st-btn-primary"
-                    to={`/estudos/${study.id}/visao-geral`}
-                  >
-                    {t('list.openOverview')}
-                  </Link>
-                  <Link className="st-btn st-btn-ghost" to={`/estudos/${study.id}/registos`}>
-                    {t('list.viewEntries')}
-                  </Link>
-                </>
-              ) : null}
-
-              {study.status === 'draft' ? (
-                <Link className="st-btn st-btn-ghost" to="/estudos/novo">
-                  {t('list.continueEditing')}
-                </Link>
-              ) : null}
-
-              {study.status === 'finished' ? (
-                <>
-                  <Link
-                    className="st-btn st-btn-ghost"
-                    to={`/estudos/${study.id}/visao-geral`}
-                  >
-                    {t('list.viewResults')}
-                  </Link>
-                  <Link className="st-btn st-btn-ghost" to={`/estudos/${study.id}/exportar`}>
-                    {t('list.exportData')}
-                  </Link>
-                </>
-              ) : null}
-            </div>
-          </article>
+          <StudyCard study={study} key={study.id} />
         ))}
-
-        {visible.length === 0 ? <p className="st-empty">{t('list.empty')}</p> : null}
+        {!studiesQuery.isLoading && !studiesQuery.error && visible.length === 0 ? (
+          <p className="st-empty">{t('list.empty')}</p>
+        ) : null}
       </div>
     </div>
   )

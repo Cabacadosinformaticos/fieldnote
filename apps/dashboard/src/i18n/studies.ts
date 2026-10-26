@@ -109,6 +109,19 @@ const pt = {
   'new.checklist.consent': 'Texto de consentimento em português',
   'new.checklist.consentMissing': 'Ainda sem texto.',
   'new.saveDraft': 'Guardar rascunho',
+  'new.saving': 'A guardar…',
+  'new.starting': 'A iniciar…',
+  'new.startReady': 'O rascunho está criado. Pode iniciar o estudo agora ou acrescentar atividades primeiro.',
+  'new.addActivities': 'Adicionar atividades',
+  'new.openCreated': 'Abrir o estudo',
+  'new.error.title': 'O título é obrigatório.',
+  'new.error.dates': 'As datas de início e fim têm de ser válidas e o fim não pode ser anterior ao início.',
+  'new.fallback.consent':
+    'A API ainda não guarda o texto de consentimento. O conteúdo deste ecrã não é enviado.',
+  'new.fallback.recruitment':
+    'A API ainda não guarda a opção de convite da bolsa de voluntários. A escolha fica apenas neste ecrã.',
+  'new.fallback.team':
+    'A equipa ainda não é enviada ao criar o estudo. Adicione membros depois de o estudo existir.',
   'new.saved': 'Rascunho guardado. Pode continuar a editar; os dados são apenas de demonstração.',
   'new.start': 'Iniciar estudo',
   'new.startNote':
@@ -303,6 +316,72 @@ const pt = {
   'plan.schedule.footnote':
     'P-04 e P-11 só indicaram as 16:00 às 22:00, por isso A2 não coube e têm 3 pedidos em vez de 4.',
   'plan.date.today': 'hoje',
+  'plan.date.tomorrow': 'amanhã',
+
+  'role.principal_investigator': 'Investigadora principal',
+  'role.co_investigator': 'Co-investigadora',
+  'role.member': 'Membro',
+
+  'list.noDescription': 'Sem descrição.',
+  'list.schedule': 'Até {max} pedidos por dia · {style}',
+  'list.metric.activities': 'Atividades',
+  'list.metric.participantsNote': '{active} ativos',
+  'list.metric.entriesNote': '{today} hoje',
+  'list.metric.activitiesNote': '{prompts} pedidos por dia',
+
+  'state.loading': 'A carregar…',
+  'state.retry': 'Tentar novamente',
+
+  'error.network': 'Não foi possível contactar a API. Verifique a ligação e tente novamente.',
+  'error.study_not_found': 'Este estudo não existe ou já não tem acesso a ele.',
+  'error.forbidden': 'O seu papel neste estudo não permite esta ação.',
+  'error.study_closed': 'O estudo está terminado e já não aceita alterações.',
+  'error.invalid_status_transition': 'O estado atual do estudo não permite esta ação.',
+  'error.validation': 'Os dados enviados não são válidos. Reveja os campos.',
+  'error.not_authenticated': 'A sessão expirou. Volte a entrar.',
+  'error.generic': 'Não foi possível concluir o pedido. Tente novamente.',
+
+  'overview.entryType.photo': 'Foto',
+  'overview.entryType.text': 'Texto',
+  'overview.entryType.video': 'Vídeo',
+  'overview.entryType.audio': 'Áudio',
+  'overview.entryType.scale': 'Escala',
+  'overview.entryType.choice': 'Escolha',
+
+  'overview.attention.approvalsTitle': '{count} entradas por aprovar',
+  'overview.attention.approvalsDetail':
+    'Há pessoas à espera de aprovação para entrarem no estudo.',
+  'overview.attention.inactiveTitle': '{alias} sem registos recentes',
+  'overview.attention.inactiveNoEntries': 'Ainda não enviou qualquer registo.',
+  'overview.attention.inactiveDetail': 'Último registo em {last}.',
+  'overview.attention.empty': 'Nada a assinalar neste momento.',
+
+  'overview.adherence.inactive': 'sem registos recentes',
+  'overview.adherence.empty': 'Ainda não há participantes com pedidos enviados.',
+
+  'overview.trend.today': 'Hoje',
+  'overview.trend.day': 'Dia {day}',
+  'overview.funnel.note': '{value} de {total}',
+  'overview.types.activityNote': '{requested} pedidos · {free} livres',
+  'overview.types.empty': 'Ainda não há atividades neste estudo.',
+  'overview.feed.noActivity': 'Registo livre',
+  'overview.feed.empty': 'Ainda não chegou nenhum registo.',
+  'overview.effortNone': 'Sem atividades definidas.',
+  'overview.unplannedUnavailable': 'A API não expõe pedidos não planeados.',
+  'overview.fallback.unplanned':
+    'Os pedidos não planeados e os respetivos motivos ainda não estão disponíveis na API; o valor mostrado é 0.',
+  'overview.endDialog.pending': 'A terminar…',
+
+  'plan.summary.fromApi': 'A partir dos pedidos reais',
+  'plan.schedule.noParticipants': 'Ainda não há participantes neste estudo.',
+  'plan.fallback.noPrompts':
+    'Ainda não há pedidos planeados para hoje nem para amanhã. O plano aparece quando o agendador criar pedidos.',
+  'plan.fallback.unplanned':
+    'A API não expõe pedidos não planeados nem os motivos, por isso esta lista fica vazia.',
+  'plan.fallback.windows':
+    'A API não expõe as horas indicadas por participante; cada linha mostra o dia completo.',
+  'plan.fallback.otherDay': 'Outro dia disponível: {date}.',
+  'plan.fallback.generated': 'Valores calculados a partir da adesão real. Hora do cálculo: {time} · {style}.',
 } as const
 
 export type StudiesKey = keyof typeof pt

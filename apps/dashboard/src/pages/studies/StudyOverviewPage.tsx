@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { CheckIcon, ExportIcon } from '../../components/icons'
 import EntryThumb from '../../components/studies/EntryThumb'
 import StudyStatusPill from '../../components/studies/StudyStatusPill'
@@ -14,11 +14,14 @@ import {
   UsersIcon,
 } from '../../components/studies/StudyIcons'
 import {
-  overviewStudy,
+  studiesErrorMessage,
+  useCloseStudy,
+  useStudyOverview,
+  useStudyRole,
   type AdherenceCell,
   type AttentionActionKind,
   type AttentionIcon,
-} from '../../fake/studies'
+} from '../../api/studies'
 import { t, type StudiesKey } from '../../i18n/studies'
 import '../../styles/studies.css'
 
@@ -62,18 +65,43 @@ function adherenceTier(cell: AdherenceCell | null) {
 }
 
 export default function StudyOverviewPage() {
-  const study = overviewStudy
-  const [ended, setEnded] = useState(false)
+  const { studyId = '' } = useParams<{ studyId: string }>()
+  const overview = useStudyOverview(studyId)
+  const access = useStudyRole(studyId)
+  const closeStudy = useCloseStudy(studyId)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [retrying, setRetrying] = useState(false)
+  const study = overview.data
 
-  const status = ended ? 'finished' : 'ongoing'
-  const trendAria = study.trend.map((point) => `${point.label}, ${point.value}`).join('; ')
-
-  function endStudy() {
-    setEnded(true)
-    setDialogOpen(false)
+  if (overview.isLoading && !study) {
+    return (
+      <div className="st-page">
+        <p className="st-empty">{t('state.loading')}</p>
+      </div>
+    )
   }
+
+  if (!study) {
+    return (
+      <div className="st-page">
+        <div className="st-note st-note-error" role="alert">
+          <span>{studiesErrorMessage(overview.error)}</span>
+          <button
+            type="button"
+            className="st-btn st-btn-ghost st-btn-xs"
+            onClick={() => void overview.refetch()}
+          >
+            {t('state.retry')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const status = study.status
+  const canClose = access.canManage && status === 'ongoing'
+  const trendAria = study.trend.map((point) => `${point.label}, ${point.value}`).join('; ')
+  const typeTotal = Math.max(1, study.entriesTotal)
 
   return (
     <div className="st-page">
@@ -126,7 +154,7 @@ export default function StudyOverviewPage() {
             <ExportIcon width={18} height={18} />
             {t('overview.export')}
           </Link>
-          {ended ? null : (
+          {canClose ? (
             <button
               type="button"
               className="st-btn st-btn-danger"
@@ -136,14 +164,27 @@ export default function StudyOverviewPage() {
               <StopIcon />
               {t('overview.endStudy')}
             </button>
-          )}
+          ) : null}
         </div>
       </header>
 
-      {ended ? (
+      {status === 'finished' ? (
         <div className="st-note st-note-success" role="status">
           <CheckIcon width={18} height={18} />
           <span>{t('overview.ended')}</span>
+        </div>
+      ) : null}
+
+      {overview.error ? (
+        <div className="st-note st-note-error" role="alert">
+          <span>{studiesErrorMessage(overview.error)}</span>
+          <button
+            type="button"
+            className="st-btn st-btn-ghost st-btn-xs"
+            onClick={() => void overview.refetch()}
+          >
+            {t('state.retry')}
+          </button>
         </div>
       ) : null}
 
@@ -262,6 +303,9 @@ export default function StudyOverviewPage() {
                 </div>
               )
             })}
+            {study.attention.length === 0 ? (
+              <p className="st-empty">{t('overview.attention.empty')}</p>
+            ) : null}
           </div>
         </section>
 
@@ -353,15 +397,10 @@ export default function StudyOverviewPage() {
                   {t('overview.viewPlan')}
                 </Link>
               </span>
-              <span className="st-mini-stat-note">
-                {t('overview.unplannedMath', {
-                  planned: study.pending.planned,
-                  unplanned: study.pending.unplanned,
-                  expected: study.pending.expected,
-                })}
-              </span>
+              <span className="st-mini-stat-note">{t('overview.unplannedUnavailable')}</span>
             </div>
           </div>
+          <span className="st-fine-print">{t('overview.fallback.unplanned')}</span>
         </section>
       </div>
 
@@ -382,8 +421,8 @@ export default function StudyOverviewPage() {
           <div className="st-adherence-table" role="table" aria-label={t('overview.adherence.title')}>
             <div className="st-adherence-row st-adherence-head" role="row">
               <span role="columnheader">{t('overview.adherence.participant')}</span>
-              {study.dayHeads.map((head) => (
-                <span role="columnheader" className="st-adherence-day" key={head.label}>
+              {study.dayHeads.map((head, index) => (
+                <span role="columnheader" className="st-adherence-day" key={index}>
                   <span className="st-adherence-day-label">{head.label}</span>
                   <span className="st-adherence-day-sub">{head.sub}</span>
                 </span>
@@ -391,11 +430,11 @@ export default function StudyOverviewPage() {
               <span role="columnheader">{t('overview.adherence.lastEntry')}</span>
             </div>
 
-            {study.adherenceRows.map((row) => (
+            {study.adherenceRows.map((row, rowIndex) => (
               <div
                 className={row.warn ? 'st-adherence-row st-adherence-warn' : 'st-adherence-row'}
                 role="row"
-                key={row.alias}
+                key={`${row.alias}-${rowIndex}`}
               >
                 <div className="st-adherence-participant" role="cell">
                   <span className="mono">{row.alias}</span>
@@ -419,6 +458,10 @@ export default function StudyOverviewPage() {
                 </span>
               </div>
             ))}
+
+            {study.adherenceRows.length === 0 ? (
+              <p className="st-empty">{t('overview.adherence.empty')}</p>
+            ) : null}
 
             <div className="st-adherence-row st-adherence-total" role="row">
               <span className="st-adherence-total-label" role="cell">
@@ -478,8 +521,8 @@ export default function StudyOverviewPage() {
           </div>
 
           <div className="st-feed-list">
-            {study.feed.map((item) => (
-              <div className="st-feed-row" key={`${item.alias}-${item.recorded}`}>
+            {study.feed.map((item, index) => (
+              <div className="st-feed-row" key={`${item.alias}-${item.recorded}-${index}`}>
                 <EntryThumb item={item} />
                 <div className="st-feed-copy">
                   <span className="st-feed-title">
@@ -494,12 +537,15 @@ export default function StudyOverviewPage() {
                   </span>
                   {item.late ? (
                     <span className="st-feed-late">
-                      {t('overview.feed.late', { delay: '2 h 13 min' })}
+                      {t('overview.feed.late', { delay: item.delay })}
                     </span>
                   ) : null}
                 </div>
               </div>
             ))}
+            {study.feed.length === 0 ? (
+              <p className="st-empty">{t('overview.feed.empty')}</p>
+            ) : null}
           </div>
 
           <Link className="st-link st-link-sm" to={`/estudos/${study.id}/registos`}>
@@ -525,9 +571,9 @@ export default function StudyOverviewPage() {
 
           <div className="st-hour-chart">
             <div className="st-hour-axis" aria-hidden="true">
-              <span>12</span>
-              <span>8</span>
-              <span>4</span>
+              <span>{study.hourLimit}</span>
+              <span>{Math.round(study.hourLimit / 3)}</span>
+              <span>{Math.round(study.hourLimit / 6)}</span>
               <span>0</span>
             </div>
             <div className="st-hour-plot">
@@ -535,7 +581,7 @@ export default function StudyOverviewPage() {
               <span className="st-hour-gridline" style={{ bottom: '152px' }} />
               <span className="st-hour-baseline" />
               <span className="st-hour-limit" aria-hidden="true">
-                {t('overview.hours.limit', { limit: 12 })}
+                {t('overview.hours.limit', { limit: study.hourLimit })}
               </span>
               <div
                 className="st-hour-bars"
@@ -577,7 +623,7 @@ export default function StudyOverviewPage() {
               <span className="st-hour-label" key={hour.hour}>
                 <span className="mono">{String(hour.hour).padStart(2, '0')}</span>
                 <span className="st-hour-now">
-                  {hour.hour === 14 ? t('overview.hours.now') : ''}
+                  {hour.hour === study.nowHour ? t('overview.hours.now') : ''}
                 </span>
               </span>
             ))}
@@ -600,11 +646,11 @@ export default function StudyOverviewPage() {
 
           <div className="st-summary-box">
             {t('overview.hours.summary', {
-              slot: 3,
-              hour: 12,
-              peak: 10,
-              from: '14:00',
-              to: '15:00',
+              slot: study.maxPerSlot,
+              hour: study.hourLimit,
+              peak: study.hourPeak,
+              from: study.hourPeakFrom,
+              to: study.hourPeakTo,
               unplanned: study.pending.unplanned,
             })}
           </div>
@@ -637,7 +683,7 @@ export default function StudyOverviewPage() {
                   <span className="st-type-name">{type.name}</span>
                   <span className="st-type-value">{type.value}</span>
                   <span className="st-type-pct">
-                    {Math.round((type.value / 268) * 100)} %
+                    {Math.round((type.value / typeTotal) * 100)} %
                   </span>
                 </div>
               ))}
@@ -655,11 +701,11 @@ export default function StudyOverviewPage() {
                   <div className="st-activity-bar">
                     <span
                       className="st-activity-requested"
-                      style={{ width: `${(activity.requested / 181) * 100}%` }}
+                      style={{ width: `${(activity.requested / study.activityMax) * 100}%` }}
                     />
                     <span
                       className="st-activity-free"
-                      style={{ width: `${(activity.free / 181) * 100}%` }}
+                      style={{ width: `${(activity.free / study.activityMax) * 100}%` }}
                     />
                   </div>
                   <span className="st-activity-note">{activity.note}</span>
@@ -667,6 +713,9 @@ export default function StudyOverviewPage() {
                 <span className="st-activity-value">{activity.value}</span>
               </div>
             ))}
+            {study.activities.length === 0 ? (
+              <p className="st-empty">{t('overview.types.empty')}</p>
+            ) : null}
             <div className="st-legend-row st-activity-legend">
               <span className="st-legend-item">
                 <span className="st-swatch st-swatch-requested" />
@@ -709,16 +758,33 @@ export default function StudyOverviewPage() {
               {t('overview.endDialog.title')}
             </h2>
             <p className="sub">{t('overview.endDialog.body')}</p>
+            {closeStudy.error ? (
+              <p className="st-note st-note-error" role="alert">
+                {studiesErrorMessage(closeStudy.error)}
+              </p>
+            ) : null}
             <div className="st-modal-actions">
               <button
                 type="button"
                 className="st-btn st-btn-ghost"
                 onClick={() => setDialogOpen(false)}
+                disabled={closeStudy.isPending}
               >
                 {t('overview.endDialog.cancel')}
               </button>
-              <button type="button" className="st-btn st-btn-danger-solid" onClick={endStudy}>
-                {t('overview.endDialog.confirm')}
+              <button
+                type="button"
+                className="st-btn st-btn-danger-solid"
+                disabled={closeStudy.isPending}
+                onClick={() =>
+                  closeStudy.mutate(undefined, {
+                    onSuccess: () => setDialogOpen(false),
+                  })
+                }
+              >
+                {closeStudy.isPending
+                  ? t('overview.endDialog.pending')
+                  : t('overview.endDialog.confirm')}
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { CheckIcon, ChevronRightIcon } from '../../components/icons'
 import {
   AlertTriangleIcon,
@@ -8,19 +8,17 @@ import {
   ChevronLeftIcon,
 } from '../../components/studies/StudyIcons'
 import {
-  demoStudyId,
-  planActivities,
   planAxisEnd,
   planAxisStart,
-  planDays,
-  planPeakAllAtOnce,
   planReasonOrder,
-  type ActivityCode,
+  studiesErrorMessage,
+  useStudyPlan,
+  type PlanActivity,
   type PlanDay,
   type PlanParticipant,
   type PlanReasonId,
   type PlanRequestStatus,
-} from '../../fake/studies'
+} from '../../api/studies'
 import { t, type StudiesKey } from '../../i18n/studies'
 import '../../styles/studies.css'
 
@@ -61,16 +59,18 @@ function formatMinutes(minutes: number) {
   return `${hours}:${String(rest).padStart(2, '0')}`
 }
 
-function activityLabel(code: ActivityCode) {
-  return planActivities.find((activity) => activity.code === code)?.name ?? code
+function activityLabel(code: string, activities: PlanActivity[]) {
+  return activities.find((activity) => activity.code === code)?.name ?? code
 }
 
 function TimelineRow({
   participant,
   nowPercent,
+  activities,
 }: {
   participant: PlanParticipant
   nowPercent: number | null
+  activities: PlanActivity[]
 }) {
   const windowLeft = percentOf(participant.windowStart)
   const windowWidth = percentOf(participant.windowEnd) - windowLeft
@@ -93,12 +93,12 @@ function TimelineRow({
         {nowPercent !== null ? (
           <span className="st-plan-now" style={{ left: `${nowPercent}%` }} />
         ) : null}
-        {participant.requests.map((request) => (
+        {participant.requests.map((request, index) => (
           <span
-            key={`${request.activity}-${request.minutes}`}
+            key={`${request.activity}-${request.minutes}-${index}`}
             className={`st-req st-req-${request.status} st-req-${request.activity.toLowerCase()}`}
             style={{ left: `${percentOf(request.minutes)}%` }}
-            title={`${request.activity} ${activityLabel(request.activity)} · ${formatMinutes(request.minutes)} · ${t(statusLabels[request.status])}`}
+            title={`${request.activity} ${activityLabel(request.activity, activities)} · ${formatMinutes(request.minutes)} · ${t(statusLabels[request.status])}`}
           >
             <b>{request.activity}</b> {formatMinutes(request.minutes)}
           </span>
@@ -118,7 +118,7 @@ function TimelineRow({
   )
 }
 
-function PlanSummary({ day }: { day: PlanDay }) {
+function PlanSummary({ day, peak }: { day: PlanDay; peak: number }) {
   return (
     <section
       className="card st-plan-summary"
@@ -133,7 +133,7 @@ function PlanSummary({ day }: { day: PlanDay }) {
           </h2>
           <span className="st-complete-pill">
             <CheckIcon width={14} height={14} />
-            {t('plan.summary.complete')}
+            {t('plan.summary.fromApi')}
           </span>
         </div>
         <span className="st-plan-style">
@@ -182,7 +182,7 @@ function PlanSummary({ day }: { day: PlanDay }) {
             </span>
           </span>
           <span className="st-plan-stat-note">
-            {t('plan.summary.maxIntervalNote', { count: planPeakAllAtOnce })}
+            {t('plan.summary.maxIntervalNote', { count: Math.max(1, peak) })}
           </span>
         </div>
       </div>
@@ -218,17 +218,48 @@ const steps: { title: StudiesKey; body: StudiesKey }[] = [
 ]
 
 export default function StudyPlanPage() {
+  const { studyId = '' } = useParams<{ studyId: string }>()
   const [dayKey, setDayKey] = useState<DayKey>('today')
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  const plan = useStudyPlan(studyId)
 
-  const day = planDays[dayKey]
-  const participants = showAll ? day.participants : day.participants.slice(0, 12)
+  const day = dayKey === 'today' ? plan.today : plan.tomorrow
+  const otherDay = dayKey === 'today' ? plan.tomorrow : plan.today
   const isToday = dayKey === 'today'
-  const maxIntervalLoad = Math.max(
-    4,
-    ...day.intervalSent.map((sent, index) => sent + day.intervalPlanned[index]),
+
+  if (plan.isLoading && !day) {
+    return (
+      <div className="st-page">
+        <p className="st-empty">{t('state.loading')}</p>
+      </div>
+    )
+  }
+
+  if (!day) {
+    return (
+      <div className="st-page">
+        <div className="st-note st-note-error" role="alert">
+          <span>{studiesErrorMessage(plan.error)}</span>
+          <button
+            type="button"
+            className="st-btn st-btn-ghost st-btn-xs"
+            onClick={() => void plan.refetch()}
+          >
+            {t('state.retry')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const participants = showAll ? day.participants : day.participants.slice(0, 12)
+  const peak = Math.max(
+    0,
+    ...day.intervalSent.map((sent, index) => sent + (day.intervalPlanned[index] ?? 0)),
   )
+  const maxIntervalLoad = Math.max(4, peak)
+  const calculatedAt = day.calculatedAt
 
   function selectDay(next: DayKey) {
     setDayKey(next)
@@ -273,7 +304,7 @@ export default function StudyPlanPage() {
                     aria-checked={dayKey === 'today'}
                     onClick={() => selectDay('today')}
                   >
-                    {planDays.today.dateLabel}
+                    {plan.today?.dateLabel ?? t('plan.date.today')}
                   </button>
                   <button
                     type="button"
@@ -281,7 +312,7 @@ export default function StudyPlanPage() {
                     aria-checked={dayKey === 'tomorrow'}
                     onClick={() => selectDay('tomorrow')}
                   >
-                    {planDays.tomorrow.dateLabel}
+                    {plan.tomorrow?.dateLabel ?? t('plan.date.tomorrow')}
                   </button>
                 </div>
               ) : null}
@@ -306,7 +337,26 @@ export default function StudyPlanPage() {
         </div>
       </header>
 
-      <PlanSummary day={day} />
+      {plan.error ? (
+        <div className="st-note st-note-error" role="alert">
+          <span>{studiesErrorMessage(plan.error)}</span>
+          <button
+            type="button"
+            className="st-btn st-btn-ghost st-btn-xs"
+            onClick={() => void plan.refetch()}
+          >
+            {t('state.retry')}
+          </button>
+        </div>
+      ) : null}
+
+      {!plan.hasPromptData ? (
+        <div className="st-note st-note-info" role="status">
+          <span>{t('plan.fallback.noPrompts')}</span>
+        </div>
+      ) : null}
+
+      <PlanSummary day={day} peak={peak} />
 
       <section className="card st-plan-how" aria-label={t('plan.how.title')}>
         <h2 className="h2">{t('plan.how.title')}</h2>
@@ -341,6 +391,9 @@ export default function StudyPlanPage() {
 
         <div className="st-unplanned-layout">
           <div className="st-unplanned-list">
+            {day.unplannedItems.length === 0 ? (
+              <p className="st-empty">{t('plan.fallback.unplanned')}</p>
+            ) : null}
             {day.unplannedItems.map((item) => (
               <div className="st-unplanned-row" key={item.id}>
                 <div className="st-unplanned-alias">
@@ -348,7 +401,9 @@ export default function StudyPlanPage() {
                   <span className="st-tag st-tag-sm">{item.activity}</span>
                 </div>
                 <div className="st-unplanned-copy">
-                  <span className="st-unplanned-activity">{activityLabel(item.activity)}</span>
+                  <span className="st-unplanned-activity">
+                    {activityLabel(item.activity, plan.planActivities)}
+                  </span>
                   <span className="st-reason-pill">{t(reasonLabels[item.reason])}</span>
                   <p className="st-unplanned-detail">{item.detail}</p>
                 </div>
@@ -358,14 +413,14 @@ export default function StudyPlanPage() {
                     <>
                       <Link
                         className="st-btn st-btn-ghost st-btn-sm st-btn-left"
-                        to={`/estudos/${demoStudyId}/atividades`}
+                        to={`/estudos/${studyId}/atividades`}
                       >
                         <ChevronRightIcon width={16} height={16} />
                         {t('plan.unplanned.extend', { activity: item.activity })}
                       </Link>
                       <Link
                         className="st-btn st-btn-ghost st-btn-sm st-btn-left"
-                        to={`/estudos/${demoStudyId}/participantes`}
+                        to={`/estudos/${studyId}/participantes`}
                       >
                         <ChevronRightIcon width={16} height={16} />
                         {t('plan.unplanned.talk')}
@@ -375,7 +430,7 @@ export default function StudyPlanPage() {
                   {item.reason === 'slotFull' ? (
                     <Link
                       className="st-btn st-btn-ghost st-btn-sm st-btn-left"
-                      to={`/estudos/${demoStudyId}/definicoes`}
+                      to={`/estudos/${studyId}/definicoes`}
                     >
                       <ChevronRightIcon width={16} height={16} />
                       {t('plan.unplanned.raise')}
@@ -384,7 +439,7 @@ export default function StudyPlanPage() {
                   {item.reason !== 'interval' && item.reason !== 'slotFull' ? (
                     <Link
                       className="st-btn st-btn-ghost st-btn-sm st-btn-left"
-                      to={`/estudos/${demoStudyId}/participantes`}
+                      to={`/estudos/${studyId}/participantes`}
                     >
                       <ChevronRightIcon width={16} height={16} />
                       {t('plan.unplanned.talk')}
@@ -430,9 +485,9 @@ export default function StudyPlanPage() {
           <div className="st-interval-chart">
             <div className="st-interval-axis" aria-hidden="true">
               <span style={{ bottom: '160px' }}>{maxIntervalLoad}</span>
-              <span style={{ bottom: '120px' }}>3</span>
-              <span style={{ bottom: '80px' }}>2</span>
-              <span style={{ bottom: '40px' }}>1</span>
+              <span style={{ bottom: '120px' }}>{Math.round(maxIntervalLoad * 0.75)}</span>
+              <span style={{ bottom: '80px' }}>{Math.round(maxIntervalLoad / 2)}</span>
+              <span style={{ bottom: '40px' }}>{Math.round(maxIntervalLoad / 4)}</span>
               <span style={{ bottom: '0' }}>0</span>
             </div>
             <div className="st-interval-plot">
@@ -514,7 +569,7 @@ export default function StudyPlanPage() {
 
           <div className="st-compare-chart">
             <div className="st-compare-axis" aria-hidden="true">
-              <span>{planPeakAllAtOnce}</span>
+              <span>{Math.max(1, day.expected)}</span>
               <span>0</span>
             </div>
             <div className="st-compare-plot">
@@ -525,7 +580,12 @@ export default function StudyPlanPage() {
                   <span
                     key={index}
                     className="st-compare-bar"
-                    style={{ height: index % 16 === 0 ? '88px' : '0' }}
+                    style={{
+                      height:
+                        index % 16 === 0
+                          ? `${Math.min(88, (day.expected / Math.max(1, peak)) * 88)}px`
+                          : '0',
+                    }}
                   />
                 ))}
               </div>
@@ -543,14 +603,14 @@ export default function StudyPlanPage() {
             <div className="st-compare-stat">
               <span className="st-compare-stat-label">{t('plan.compare.sameHours')}</span>
               <span className="st-compare-stat-value">
-                {planPeakAllAtOnce}{' '}
+                {Math.max(1, day.expected)}{' '}
                 <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
               </span>
             </div>
             <div className="st-compare-stat st-compare-stat-primary">
               <span className="st-compare-stat-label">{t('plan.compare.fieldnote')}</span>
               <span className="st-compare-stat-value">
-                3 <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
+                {Math.max(1, peak)} <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
               </span>
             </div>
           </div>
@@ -580,7 +640,7 @@ export default function StudyPlanPage() {
         </div>
 
         <div className="st-activity-legend">
-          {planActivities.map((activity) => (
+          {plan.planActivities.map((activity) => (
             <span className="st-activity-legend-item" key={activity.code}>
               <span
                 className="st-activity-chip"
@@ -634,13 +694,17 @@ export default function StudyPlanPage() {
           </div>
 
           <div className="st-schedule-body">
-            {participants.map((participant) => (
+            {participants.map((participant, index) => (
               <TimelineRow
                 participant={participant}
                 nowPercent={day.nowPercent}
-                key={participant.alias}
+                activities={plan.planActivities}
+                key={`${participant.alias}-${index}`}
               />
             ))}
+            {participants.length === 0 ? (
+              <p className="st-empty">{t('plan.schedule.noParticipants')}</p>
+            ) : null}
           </div>
         </div>
 
@@ -648,8 +712,14 @@ export default function StudyPlanPage() {
           {t('plan.schedule.showing', {
             shown: participants.length,
             total: day.participants.length,
-            note: isToday ? t('plan.schedule.footnote') : '',
+            note: t('plan.fallback.windows'),
           })}
+        </p>
+        {otherDay ? (
+          <p className="st-fine-print">{t('plan.fallback.otherDay', { date: otherDay.dateLabel })}</p>
+        ) : null}
+        <p className="st-fine-print">
+          {t('plan.fallback.generated', { time: calculatedAt, style: day.styleName })}
         </p>
       </section>
     </div>

@@ -1,4 +1,6 @@
 import { useState, type ChangeEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
 import { CheckIcon } from '../../components/icons'
 import {
   InfoIcon,
@@ -7,14 +9,12 @@ import {
   UploadIcon,
 } from '../../components/studies/StudyIcons'
 import {
-  calendarStyles,
-  newStudyDefaults,
-  studyOwner,
-  timezones,
-  type CalendarStyle,
-  type CalendarStyleId,
-  type TeamMember,
-} from '../../fake/studies'
+  formatDate,
+  studiesErrorMessage,
+  useCreateStudy,
+  useStartStudy,
+  type Study,
+} from '../../api/studies'
 import { t } from '../../i18n/studies'
 import '../../styles/studies.css'
 
@@ -24,7 +24,34 @@ type ConsentState = {
   editing: boolean
 }
 
+type CalendarStyleId = 'fixed' | 'balanced' | 'varied'
+type CalendarStyle = { id: CalendarStyleId; dots: { x: number; y: number }[] }
+
 const emptyConsent: ConsentState = { text: '', fileName: '', editing: false }
+
+const calendarStyles: CalendarStyle[] = [
+  {
+    id: 'fixed',
+    dots: [22, 60, 98].flatMap((x) => [9, 20, 31].map((y) => ({ x, y }))),
+  },
+  {
+    id: 'balanced',
+    dots: [
+      ...[22, 60, 98].map((x) => ({ x, y: 9 })),
+      ...[28, 66, 94].map((x) => ({ x, y: 20 })),
+    ],
+  },
+  {
+    id: 'varied',
+    dots: [
+      ...[22, 60, 98].map((x) => ({ x, y: 9 })),
+      ...[40, 84, 112].map((x) => ({ x, y: 20 })),
+      ...[16, 52, 104].map((x) => ({ x, y: 31 })),
+    ],
+  },
+]
+
+const timezones = ['Europe/Lisbon']
 
 const styleKeys: Record<
   CalendarStyleId,
@@ -33,6 +60,17 @@ const styleKeys: Record<
   fixed: { name: 'new.style.fixed.name', description: 'new.style.fixed.description' },
   balanced: { name: 'new.style.balanced.name', description: 'new.style.balanced.description' },
   varied: { name: 'new.style.varied.name', description: 'new.style.varied.description' },
+}
+
+function todayIso() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function addDaysIso(iso: string, days: number) {
+  const date = new Date(`${iso}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
 }
 
 function SectionHeading({
@@ -244,31 +282,40 @@ function ChecklistItem({
 }
 
 export default function StudyNewPage() {
-  const [title, setTitle] = useState(newStudyDefaults.title)
-  const [description, setDescription] = useState(newStudyDefaults.description)
-  const [start, setStart] = useState(newStudyDefaults.start)
-  const [end, setEnd] = useState(newStudyDefaults.end)
-  const [timezone, setTimezone] = useState(newStudyDefaults.timezone)
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [start, setStart] = useState(todayIso())
+  const [end, setEnd] = useState(addDaysIso(todayIso(), 13))
+  const [timezone, setTimezone] = useState('Europe/Lisbon')
   const [calendarStyle, setCalendarStyle] = useState<CalendarStyleId>('varied')
-  const [maxPerDay, setMaxPerDay] = useState(newStudyDefaults.maxPerDay)
-  const [maxPerSlot, setMaxPerSlot] = useState(newStudyDefaults.maxPerSlot)
+  const [maxPerDay, setMaxPerDay] = useState(3)
+  const [maxPerSlot, setMaxPerSlot] = useState(2)
   const [consentPt, setConsentPt] = useState<ConsentState>(emptyConsent)
   const [consentEn, setConsentEn] = useState<ConsentState>(emptyConsent)
-  const [poolInvite, setPoolInvite] = useState(newStudyDefaults.poolInvite)
+  const [poolInvite, setPoolInvite] = useState(true)
   const [collaboratorEmail, setCollaboratorEmail] = useState('')
-  const [collaborators, setCollaborators] = useState<TeamMember[]>([])
-  const [saved, setSaved] = useState(false)
+  const [collaborators, setCollaborators] = useState<string[]>([])
+  const [formError, setFormError] = useState('')
   const [teamError, setTeamError] = useState('')
+  const [created, setCreated] = useState<Study | null>(null)
+  const createStudy = useCreateStudy()
+  const startStudy = useStartStudy(created?.id ?? '')
 
+  const ownerEmail = user?.email ?? ''
+  const ownerInitials = ownerEmail.split('@')[0].slice(0, 2).toUpperCase()
   const selectedStyle = styleKeys[calendarStyle]
   const styleName = t(selectedStyle.name)
-  const titleDatesDone = title.trim().length > 0 && start.trim().length > 0 && end.trim().length > 0
+  const titleDatesDone =
+    title.trim().length > 0 && start.trim().length > 0 && end.trim().length > 0
   const consentDone = consentPt.text.trim().length > 0 || consentPt.fileName.length > 0
   const consentDetail = consentDone
     ? consentPt.fileName || consentPt.text
     : t('new.checklist.consentMissing')
-  // Activities are created after saving the draft, so starting is never possible on this screen.
-  const canStart = false
+  const canStart = created !== null && created.status === 'draft'
+  const saving = createStudy.isPending
+  const starting = startStudy.isPending
 
   function addCollaborator() {
     const email = collaboratorEmail.trim()
@@ -276,14 +323,54 @@ export default function StudyNewPage() {
       setTeamError(t('new.team.errorInvalid'))
       return
     }
-    if (collaborators.some((person) => person.email === email) || email === studyOwner.email) {
+    if (collaborators.includes(email) || email === ownerEmail) {
       setTeamError(t('new.team.errorDuplicate'))
       return
     }
-    const initials = email.slice(0, 2).toUpperCase()
-    setCollaborators((current) => [...current, { initials, name: email, email }])
+    setCollaborators((current) => [...current, email])
     setCollaboratorEmail('')
     setTeamError('')
+  }
+
+  function saveDraft() {
+    setFormError('')
+    if (!title.trim()) {
+      setFormError(t('new.error.title'))
+      return
+    }
+    if (!start || !end || end < start) {
+      setFormError(t('new.error.dates'))
+      return
+    }
+    createStudy.mutate(
+      {
+        title: title.trim(),
+        description: description.trim() || null,
+        starts_on: start,
+        ends_on: end,
+        timezone,
+        max_prompts_per_day: maxPerDay,
+        max_prompts_per_slot: maxPerSlot,
+        schedule_style: calendarStyle,
+      },
+      {
+        onSuccess: (study) => {
+          setCreated(study)
+        },
+      },
+    )
+  }
+
+  function startCreatedStudy() {
+    if (!created) {
+      return
+    }
+    startStudy.mutate(undefined, {
+      onSuccess: (study) => {
+        setCreated(study)
+        navigate(`/estudos/${study.id}/visao-geral`)
+      },
+    })
   }
 
   return (
@@ -324,6 +411,7 @@ export default function StudyNewPage() {
                 <input
                   id="study-start"
                   className="st-input"
+                  type="date"
                   value={start}
                   onChange={(event) => setStart(event.target.value)}
                 />
@@ -333,6 +421,7 @@ export default function StudyNewPage() {
                 <input
                   id="study-end"
                   className="st-input"
+                  type="date"
                   value={end}
                   onChange={(event) => setEnd(event.target.value)}
                 />
@@ -346,7 +435,9 @@ export default function StudyNewPage() {
                   onChange={(event) => setTimezone(event.target.value)}
                 >
                   {timezones.map((zone) => (
-                    <option key={zone}>{zone}</option>
+                    <option key={zone} value={zone}>
+                      {zone}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -441,6 +532,10 @@ export default function StudyNewPage() {
                 onChange={setConsentEn}
               />
             </div>
+            <div className="st-note st-note-info">
+              <InfoIcon />
+              <span>{t('new.fallback.consent')}</span>
+            </div>
           </section>
 
           <section className="card st-section" aria-labelledby="new-recruitment">
@@ -492,6 +587,10 @@ export default function StudyNewPage() {
                 {t('new.recruitment.criteriaAfter')}
               </span>
             </div>
+            <div className="st-note st-note-info">
+              <InfoIcon />
+              <span>{t('new.fallback.recruitment')}</span>
+            </div>
           </section>
 
           <section className="card st-section" aria-labelledby="new-team">
@@ -503,19 +602,21 @@ export default function StudyNewPage() {
             />
             <div className="st-team-list">
               <div className="st-team-row">
-                <span className="st-team-avatar">{studyOwner.initials}</span>
+                <span className="st-team-avatar">{ownerInitials}</span>
                 <span className="st-team-copy">
-                  <span className="st-team-name">{studyOwner.name}</span>
-                  <span className="st-team-email">{studyOwner.email}</span>
+                  <span className="st-team-name">{ownerEmail}</span>
+                  <span className="st-team-email">{ownerEmail}</span>
                 </span>
                 <span className="st-mini-tag">{t('new.team.owner')}</span>
               </div>
-              {collaborators.map((person) => (
-                <div className="st-team-row" key={person.email}>
-                  <span className="st-team-avatar st-team-avatar-alt">{person.initials}</span>
+              {collaborators.map((email) => (
+                <div className="st-team-row" key={email}>
+                  <span className="st-team-avatar st-team-avatar-alt">
+                    {email.slice(0, 2).toUpperCase()}
+                  </span>
                   <span className="st-team-copy">
-                    <span className="st-team-name">{person.name}</span>
-                    <span className="st-team-email">{person.email}</span>
+                    <span className="st-team-name">{email}</span>
+                    <span className="st-team-email">{email}</span>
                   </span>
                   <span className="st-mini-tag">{t('new.team.collaborator')}</span>
                 </div>
@@ -553,6 +654,10 @@ export default function StudyNewPage() {
               </button>
             </div>
             <span className="st-field-help">{t('new.team.note')}</span>
+            <div className="st-note st-note-info">
+              <InfoIcon />
+              <span>{t('new.fallback.team')}</span>
+            </div>
           </section>
         </div>
 
@@ -563,7 +668,10 @@ export default function StudyNewPage() {
               <ChecklistItem
                 done={titleDatesDone}
                 title={t('new.checklist.titleDates')}
-                detail={t('new.checklist.titleDatesDetail', { start, end })}
+                detail={t('new.checklist.titleDatesDetail', {
+                  start: formatDate(start),
+                  end: formatDate(end),
+                })}
               />
               <ChecklistItem
                 done
@@ -584,27 +692,54 @@ export default function StudyNewPage() {
           </section>
 
           <section className="card st-save-card">
+            {formError ? (
+              <span className="st-field-error" role="alert">
+                {formError}
+              </span>
+            ) : null}
+            {createStudy.error ? (
+              <span className="st-field-error" role="alert">
+                {studiesErrorMessage(createStudy.error)}
+              </span>
+            ) : null}
+            {startStudy.error ? (
+              <span className="st-field-error" role="alert">
+                {studiesErrorMessage(startStudy.error)}
+              </span>
+            ) : null}
             <button
               type="button"
               className="st-btn st-btn-outline st-btn-lg"
-              onClick={() => setSaved(true)}
+              onClick={saveDraft}
+              disabled={saving || created !== null}
             >
-              {t('new.saveDraft')}
+              {saving ? t('new.saving') : t('new.saveDraft')}
             </button>
             <button
               type="button"
-              className="st-btn st-btn-off st-btn-lg"
-              disabled={!canStart}
+              className={canStart ? 'st-btn st-btn-primary st-btn-lg' : 'st-btn st-btn-off st-btn-lg'}
+              disabled={!canStart || starting}
               aria-describedby="start-study-note"
+              onClick={startCreatedStudy}
             >
-              {t('new.start')}
+              {starting ? t('new.starting') : t('new.start')}
             </button>
             <span id="start-study-note" className="st-field-help">
-              {t('new.startNote')}
+              {canStart ? t('new.startReady') : t('new.startNote')}
             </span>
             <span className="st-saved" role="status" aria-live="polite">
-              {saved ? t('new.saved') : ''}
+              {created ? t('new.saved') : ''}
             </span>
+            {created ? (
+              <div className="st-saved-links">
+                <Link className="st-link" to={`/estudos/${created.id}/atividades`}>
+                  {t('new.addActivities')}
+                </Link>
+                <Link className="st-link" to={`/estudos/${created.id}/visao-geral`}>
+                  {t('new.openCreated')}
+                </Link>
+              </div>
+            ) : null}
           </section>
         </aside>
       </div>

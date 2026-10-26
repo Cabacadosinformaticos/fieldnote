@@ -769,6 +769,19 @@
   color: var(--fn-color-success-text);
 }
 
+.st-note-error {
+  align-items: center;
+  justify-content: space-between;
+  background: #fdecea;
+  color: #9b2c2c;
+}
+
+.st-saved-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fn-space-6);
+}
+
 .st-consent-card {
   display: flex;
   flex-direction: column;

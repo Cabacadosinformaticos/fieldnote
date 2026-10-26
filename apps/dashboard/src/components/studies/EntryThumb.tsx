@@ -1,4 +1,4 @@
-import type { FeedItem } from '../../fake/studies'
+import type { FeedItem } from '../../api/studies'
 
 export default function EntryThumb({ item }: { item: FeedItem }) {
   if (item.kind === 'photo') {
