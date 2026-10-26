@@ -1,29 +1,75 @@
 import { useMemo, useState } from 'react'
 import '../../styles/participants.css'
+import { useQueries } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import ParticipantsTable from '../../components/participants/ParticipantsTable'
-import ParticipantsTabs from '../../components/participants/ParticipantsTabs'
-import { SearchIcon, TicketIcon, UserPlusIcon } from '../../components/participants/icons'
 import {
-  filterLabelOverrides,
+  dayStat,
+  getAdherence,
   participantFilterCount,
   participantFilters,
-  participantsForFilter,
+  participantsKeys,
   searchParticipants,
+  useApprovals,
+  useCanReadIdentity,
+  useParticipants,
   type FilterKey,
-} from '../../fake/participants'
+} from '../../api/participants'
+import ParticipantsTable, {
+  type ParticipantRow,
+} from '../../components/participants/ParticipantsTable'
+import ParticipantsTabs from '../../components/participants/ParticipantsTabs'
+import { SearchIcon, TicketIcon, UserPlusIcon } from '../../components/participants/icons'
 import { t } from '../../i18n/participants'
 
+const EMPTY_DAYS = [null, null, null, null]
+
 export default function ParticipantsPage() {
-  const { studyId = 'jardim-da-estrela' } = useParams<{ studyId: string }>()
+  const { studyId = '' } = useParams<{ studyId: string }>()
   const [filter, setFilter] = useState<FilterKey>('all')
   const [query, setQuery] = useState('')
 
-  const rows = useMemo(
-    () => searchParticipants(participantsForFilter(filter), query),
-    [filter, query],
+  const participants = useParticipants(studyId)
+  const approvals = useApprovals(studyId)
+  const canReadIdentity = useCanReadIdentity(studyId)
+  const list = participants.data
+
+  const filtered = useMemo(
+    () =>
+      searchParticipants(
+        filter === 'all' ? list ?? [] : (list ?? []).filter((item) => item.status === filter),
+        query,
+      ),
+    [list, filter, query],
   )
+
+  const adherence = useQueries({
+    queries: filtered.map((participant) => ({
+      queryKey: participantsKeys.adherence(studyId, participant.id),
+      queryFn: () => getAdherence(studyId, participant.id),
+      retry: false,
+      staleTime: 30_000,
+    })),
+  })
+
+  const dayColumns = useMemo(() => {
+    const days = adherence.find((item) => item.data)?.data?.days ?? []
+    return days.slice(-4).map((day) => day.date)
+  }, [adherence])
+
+  const rows: ParticipantRow[] = filtered.map((participant, index) => {
+    const data = adherence[index]?.data
+    const days =
+      dayColumns.length === 0
+        ? EMPTY_DAYS
+        : dayColumns.map((date) => {
+            const day = data?.days.find((item) => item.date === date)
+            return day ? dayStat(day) : null
+          })
+    return { ...participant, days }
+  })
+
   const base = `/estudos/${studyId}/participantes`
+  const waiting = approvals.data?.length ?? 0
 
   return (
     <div className="pts-page">
@@ -38,96 +84,122 @@ export default function ParticipantsPage() {
         </Link>
       </header>
 
-      <ParticipantsTabs studyId={studyId} />
+      <ParticipantsTabs studyId={studyId} waitingCount={waiting} />
 
-      <div className="pts-waiting">
-        <span className="pts-waiting-icon">
-          <TicketIcon />
-        </span>
-        <p>
-          <strong>{t('list.waitingBanner')}</strong>
-          <span>{t('list.waitingBannerNote')}</span>
-        </p>
-        <Link className="btn btn-sm" to={`${base}/codigos`}>
-          {t('list.review')}
-        </Link>
-      </div>
+      {waiting > 0 ? (
+        <div className="pts-waiting">
+          <span className="pts-waiting-icon">
+            <TicketIcon />
+          </span>
+          <p>
+            <strong>{t('list.waitingBanner', { count: waiting })}</strong>
+            <span>{t('list.waitingBannerNote')}</span>
+          </p>
+          <Link className="btn btn-sm" to={`${base}/codigos`}>
+            {t('list.review')}
+          </Link>
+        </div>
+      ) : null}
 
       <section className="pts-list">
-        <div className="pts-list-toolbar">
-          <div className="pts-filters" role="group" aria-label={t('list.filterLabel')}>
-            {participantFilters.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={filter === item.key ? 'pts-filter is-active' : 'pts-filter'}
-                aria-pressed={filter === item.key}
-                onClick={() => setFilter(item.key)}
-              >
-                {filterLabelOverrides[item.key] ?? t(item.labelKey)}
-                <span className="pts-filter-count">{participantFilterCount(item.key)}</span>
-              </button>
-            ))}
+        {participants.isError ? (
+          <div className="card pts-state">
+            <p>{t('list.error')}</p>
+            <button type="button" className="btn btn-sm" onClick={() => participants.refetch()}>
+              {t('list.retry')}
+            </button>
           </div>
-          <label className="pts-search">
-            <SearchIcon />
-            <span className="sr-only">{t('list.searchLabel')}</span>
-            <input
-              type="search"
-              value={query}
-              placeholder={t('list.searchPlaceholder')}
-              onChange={(event) => setQuery(event.target.value)}
+        ) : participants.isLoading ? (
+          <div className="card pts-state">
+            <p>{t('list.loading')}</p>
+          </div>
+        ) : !list || list.length === 0 ? (
+          <div className="card pts-state">
+            <p>{t('list.emptyAll')}</p>
+          </div>
+        ) : (
+          <>
+            <div className="pts-list-toolbar">
+              <div className="pts-filters" role="group" aria-label={t('list.filterLabel')}>
+                {participantFilters.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={filter === item.key ? 'pts-filter is-active' : 'pts-filter'}
+                    aria-pressed={filter === item.key}
+                    onClick={() => setFilter(item.key)}
+                  >
+                    {t(item.labelKey)}
+                    <span className="pts-filter-count">
+                      {participantFilterCount(list, item.key)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <label className="pts-search">
+                <SearchIcon />
+                <span className="sr-only">{t('list.searchLabel')}</span>
+                <input
+                  type="search"
+                  value={query}
+                  placeholder={t('list.searchPlaceholder')}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </label>
+            </div>
+
+            <ParticipantsTable
+              studyId={studyId}
+              rows={rows}
+              dayColumns={dayColumns}
+              canReadIdentity={canReadIdentity}
             />
-          </label>
-        </div>
 
-        <ParticipantsTable studyId={studyId} rows={rows} />
-
-        <div className="pts-list-notes">
-          <div className="pts-legend">
-            <span className="pts-legend-title">{t('list.legendTitle')}</span>
-            <span>
-              <i className="pts-key is-answered" /> {t('list.legend75')}
-            </span>
-            <span>
-              <i className="pts-key is-pending" /> {t('list.legend50')}
-            </span>
-            <span>
-              <i className="pts-key is-expired" /> {t('list.legendBelow')}
-            </span>
-            <span className="pts-legend-today">{t('list.legendToday')}</span>
-          </div>
-          <p className="pts-list-summary">{t('list.footerA')}</p>
-          <p className="pts-list-footnote">{t('list.footerB')}</p>
-          <div className="pts-list-details">
-            <details className="pts-states">
-              <summary>
-                {t('list.newStates')}
-                <span aria-hidden="true">+</span>
-              </summary>
-              <div>
-                <p>
-                  <strong>{t('status.left')}</strong> {t('list.newStatesLeft')}
-                </p>
-                <p>
-                  <strong>{t('status.withdrawn')}</strong> {t('list.newStatesRight')}
-                </p>
-                <p>
-                  <strong>{t('status.deleting')}</strong> {t('list.newStateDeleting')}
-                </p>
+            <div className="pts-list-notes">
+              <div className="pts-legend">
+                <span className="pts-legend-title">{t('list.legendTitle')}</span>
+                <span>
+                  <i className="pts-key is-answered" /> {t('list.legend75')}
+                </span>
+                <span>
+                  <i className="pts-key is-pending" /> {t('list.legend50')}
+                </span>
+                <span>
+                  <i className="pts-key is-expired" /> {t('list.legendBelow')}
+                </span>
               </div>
-            </details>
-            <details className="pts-states">
-              <summary>
-                {t('list.entry')}
-                <span aria-hidden="true">+</span>
-              </summary>
-              <div>
-                <p>{t('list.entryNote')}</p>
+              <p className="pts-list-summary">{t('list.footerCount', { count: list?.length ?? 0 })}</p>
+              <div className="pts-list-details">
+                <details className="pts-states">
+                  <summary>
+                    {t('list.newStates')}
+                    <span aria-hidden="true">+</span>
+                  </summary>
+                  <div>
+                    <p>
+                      <strong>{t('status.left')}</strong> {t('list.newStatesLeft')}
+                    </p>
+                    <p>
+                      <strong>{t('status.withdrawn')}</strong> {t('list.newStatesRight')}
+                    </p>
+                    <p>
+                      <strong>{t('status.deleting')}</strong> {t('list.newStateDeleting')}
+                    </p>
+                  </div>
+                </details>
+                <details className="pts-states">
+                  <summary>
+                    {t('list.entry')}
+                    <span aria-hidden="true">+</span>
+                  </summary>
+                  <div>
+                    <p>{t('list.entryNote')}</p>
+                  </div>
+                </details>
               </div>
-            </details>
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </section>
     </div>
   )

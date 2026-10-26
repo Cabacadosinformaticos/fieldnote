@@ -3,11 +3,18 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import {
   adherenceTone,
+  entryRouteKey,
   participantStatusMeta,
-  type Participant,
-} from '../../fake/participants'
+  type DayStat,
+  type ParticipantOut,
+} from '../../api/participants'
 import { t } from '../../i18n/participants'
-import { EllipsisIcon, LockIcon, TrashIcon, UserMinusIcon } from './icons'
+import { formatDate } from './format'
+import { EllipsisIcon, LockIcon, UserMinusIcon } from './icons'
+
+export interface ParticipantRow extends ParticipantOut {
+  days: (DayStat | null)[]
+}
 
 interface MenuState {
   id: string
@@ -17,8 +24,7 @@ interface MenuState {
 
 const MENU_WIDTH = 300
 
-function rowTone(item: Participant, index: number): string {
-  const stats = item.days[index]
+function rowTone(stats: DayStat | null): string {
   if (!stats) return 'is-dash'
   return `is-${adherenceTone(stats.answered, stats.sent)}`
 }
@@ -26,9 +32,13 @@ function rowTone(item: Participant, index: number): string {
 export default function ParticipantsTable({
   studyId,
   rows,
+  dayColumns,
+  canReadIdentity,
 }: {
   studyId: string
-  rows: Participant[]
+  rows: ParticipantRow[]
+  dayColumns: string[]
+  canReadIdentity: boolean
 }) {
   const [menu, setMenu] = useState<MenuState | null>(null)
 
@@ -56,6 +66,8 @@ export default function ParticipantsTable({
     )
   }
 
+  const columns = dayColumns.length > 0 ? dayColumns : ['', '', '', '']
+
   return (
     <>
       <div className="card pts-table-card">
@@ -65,26 +77,17 @@ export default function ParticipantsTable({
               <th scope="col">{t('table.participant')}</th>
               <th scope="col">{t('table.status')}</th>
               <th scope="col">{t('table.entry')}</th>
-              <th scope="col">{t('table.consent')}</th>
-              <th scope="col">{t('table.language')}</th>
-              <th scope="col">{t('table.hours')}</th>
-              <th scope="col" className="pts-day-head">
-                {t('table.day', { n: 1 })}
-                <small>6 out.</small>
-              </th>
-              <th scope="col" className="pts-day-head">
-                {t('table.day', { n: 2 })}
-                <small>7 out.</small>
-              </th>
-              <th scope="col" className="pts-day-head">
-                {t('table.day', { n: 3 })}
-                <small>8 out.</small>
-              </th>
-              <th scope="col" className="pts-day-head is-today">
-                {t('table.today')}
-                <small>até 14:32</small>
-              </th>
-              <th scope="col">{t('table.lastEntry')}</th>
+              <th scope="col">{t('table.registered')}</th>
+              {columns.map((date, index) => (
+                <th
+                  scope="col"
+                  key={`head-${index}`}
+                  className={index === columns.length - 1 ? 'pts-day-head is-today' : 'pts-day-head'}
+                >
+                  {t('table.day', { n: index + 1 })}
+                  <small>{date ? formatDate(date) : t('table.dash')}</small>
+                </th>
+              ))}
               <th scope="col" className="pts-actions-head">
                 <span className="sr-only">{t('table.actions')}</span>
               </th>
@@ -100,59 +103,41 @@ export default function ParticipantsTable({
                 <tr key={item.id}>
                   <td>
                     <Link className="pts-id-link mono" to={detailsTo}>
-                      {item.id}
+                      {item.alias ?? item.id.slice(0, 8)}
                     </Link>
                   </td>
                   <td>
                     <span className={`pill ${status.pill}`}>{t(status.labelKey)}</span>
                   </td>
-                  <td>{item.entry ? t(item.entry === 'qr' ? 'entry.qr' : 'entry.written') : '–'}</td>
-                  <td className="mono pts-consent">{item.consent}</td>
-                  <td>{item.language}</td>
-                  <td className="mono pts-hours">{item.hours}</td>
-                  {item.noteKey ? (
-                    <td className="pts-row-note" colSpan={4}>
-                      {t(item.noteKey)}
+                  <td>{t(entryRouteKey(item.entry_route))}</td>
+                  <td className="mono pts-consent">{formatDate(item.entered_at)}</td>
+                  {item.days.map((stats, index) => (
+                    <td
+                      key={`${item.id}-day-${index}`}
+                      className={index === item.days.length - 1 ? 'pts-day is-today' : 'pts-day'}
+                    >
+                      {stats ? (
+                        <span
+                          className={`pts-ratio ${rowTone(stats)}`}
+                          title={t('table.adherenceTitle', {
+                            answered: stats.answered,
+                            sent: stats.sent,
+                          })}
+                        >
+                          {stats.answered}/{stats.sent}
+                        </span>
+                      ) : (
+                        <span className="pts-ratio is-dash">{t('table.dash')}</span>
+                      )}
                     </td>
-                  ) : (
-                    item.days.map((stats, index) => (
-                      <td
-                        key={`${item.id}-day-${index}`}
-                        className={index === 3 ? 'pts-day is-today' : 'pts-day'}
-                      >
-                        {stats ? (
-                          <span
-                            className={`pts-ratio ${rowTone(item, index)}`}
-                            title={
-                              index === 3
-                                ? t('table.adherenceTodayTitle', {
-                                    answered: stats.answered,
-                                    sent: stats.sent,
-                                  })
-                                : t('table.adherenceTitle', {
-                                    answered: stats.answered,
-                                    sent: stats.sent,
-                                  })
-                            }
-                          >
-                            {stats.answered}/{stats.sent}
-                          </span>
-                        ) : (
-                          <span className="pts-ratio is-dash">{t('table.dash')}</span>
-                        )}
-                      </td>
-                    ))
-                  )}
-                  <td className={item.lastEntryAlert ? 'mono pts-last is-alert' : 'mono pts-last'}>
-                    {item.lastEntry}
-                  </td>
+                  ))}
                   <td className="pts-actions-cell">
                     <button
                       type="button"
                       className="pts-row-menu-button"
                       aria-haspopup="menu"
                       aria-expanded={menuOpen}
-                      aria-label={t('list.menuAria', { id: item.id })}
+                      aria-label={t('list.menuAria', { id: item.alias ?? item.id })}
                       onClick={(event) => {
                         if (menuOpen) {
                           setMenu(null)
@@ -165,7 +150,7 @@ export default function ParticipantsTable({
                         )
                         const top = Math.max(
                           12,
-                          Math.min(rect.bottom + 6, window.innerHeight - 228),
+                          Math.min(rect.bottom + 6, window.innerHeight - 168),
                         )
                         setMenu({ id: item.id, top, left })
                       }}
@@ -189,45 +174,40 @@ export default function ParticipantsTable({
                 role="menu"
                 style={{ top: menu.top, left: menu.left, width: MENU_WIDTH }}
               >
-                <Link
-                  className="pts-menu-item is-danger"
-                  role="menuitem"
-                  to={`/estudos/${studyId}/participantes/${menu.id}`}
-                  state={{ withdraw: true }}
-                  onClick={() => setMenu(null)}
-                >
-                  <UserMinusIcon />
-                  <span>
-                    {t('action.withdraw')}
-                    <small>{t('list.menuRemoveHint')}</small>
-                  </span>
-                </Link>
-                <span className="pts-menu-sep" />
-                <Link
-                  className="pts-menu-item"
-                  role="menuitem"
-                  to={`/estudos/${studyId}/participantes/${menu.id}`}
-                  onClick={() => setMenu(null)}
-                >
-                  <LockIcon />
-                  <span>
-                    {t('action.seeIdentity')}
-                    <small>{t('list.menuIdentityHint')}</small>
-                  </span>
-                </Link>
-                <Link
-                  className="pts-menu-item"
-                  role="menuitem"
-                  to={`/estudos/${studyId}/participantes/${menu.id}`}
-                  state={{ erasure: true }}
-                  onClick={() => setMenu(null)}
-                >
-                  <TrashIcon />
-                  <span>
-                    {t('action.requestErasure')}
-                    <small>{t('list.menuErasureHint')}</small>
-                  </span>
-                </Link>
+                {rows.find((row) => row.id === menu.id)?.status === 'active' ||
+                rows.find((row) => row.id === menu.id)?.status === 'pending_approval' ? (
+                  <Link
+                    className="pts-menu-item is-danger"
+                    role="menuitem"
+                    to={`/estudos/${studyId}/participantes/${menu.id}`}
+                    state={{ withdraw: true }}
+                    onClick={() => setMenu(null)}
+                  >
+                    <UserMinusIcon />
+                    <span>
+                      {t('action.withdraw')}
+                      <small>{t('list.menuRemoveHint')}</small>
+                    </span>
+                  </Link>
+                ) : null}
+                {canReadIdentity ? (
+                  <>
+                    <span className="pts-menu-sep" />
+                    <Link
+                      className="pts-menu-item"
+                      role="menuitem"
+                      to={`/estudos/${studyId}/participantes/${menu.id}`}
+                      state={{ identity: true }}
+                      onClick={() => setMenu(null)}
+                    >
+                      <LockIcon />
+                      <span>
+                        {t('action.seeIdentity')}
+                        <small>{t('list.menuIdentityHint')}</small>
+                      </span>
+                    </Link>
+                  </>
+                ) : null}
               </div>
             </>,
             document.body,

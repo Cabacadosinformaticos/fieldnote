@@ -38,6 +38,8 @@ export const pt = {
   'action.backToCodes': 'Códigos de convite',
 
   'status.active': 'Ativo',
+  'status.pendingApproval': 'Por aprovar',
+  'status.removed': 'Removido pela equipa',
   'status.inviteUnused': 'Convite por usar',
   'status.inviteExpired': 'Convite expirado',
   'status.consentPending': 'Por aceitar consentimento',
@@ -50,11 +52,17 @@ export const pt = {
 
   'entry.qr': 'Código QR',
   'entry.written': 'Código escrito',
+  'entry.personalCode': 'Código pessoal',
+  'entry.studyCode': 'Código do estudo',
+  'entry.pool': 'Bolsa de voluntários',
+  'entry.none': '–',
 
-  'list.waitingBanner': '2 pessoas à espera de aprovação',
-  'list.waitingBannerNote': ' · entraram pelo código do cartaz e ainda não são participantes',
+  'list.waitingBanner': '{count} à espera de aprovação',
+  'list.waitingBannerPlural': '{count} pessoas à espera de aprovação',
+  'list.waitingBannerNote': ' · entraram por um código de estudo e ainda não são participantes',
   'list.review': 'Rever',
   'list.filterLabel': 'Filtrar por estado',
+  'list.filterAll': 'Todos',
   'list.searchLabel': 'Procurar participante',
   'list.searchPlaceholder': 'Procurar pseudónimo',
   'list.legendTitle': 'Adesão por dia: respondidos / enviados',
@@ -72,6 +80,11 @@ export const pt = {
   'list.entryNote':
     'Código QR e Código escrito: o mesmo código pessoal, lido ou digitado. Cartaz: código reutilizável do estudo (ainda ninguém entrou assim). Bolsa: convite automático da bolsa de voluntários (este estudo não a usa).',
   'list.empty': 'Nenhum participante corresponde a este filtro.',
+  'list.emptyAll': 'Ainda não há participantes neste estudo.',
+  'list.footerCount': '{count} participantes neste estudo.',
+  'list.loading': 'A carregar participantes…',
+  'list.error': 'Não foi possível carregar os participantes.',
+  'list.retry': 'Tentar de novo',
   'list.footerA': '24 de 24 participantes. P-07 e P-19 não têm registos há 2 dias.',
   'list.footerB':
     'P-14 mudou de telemóvel a 8 out.: o acesso do telemóvel antigo foi revogado e o histórico mantém-se.',
@@ -80,6 +93,7 @@ export const pt = {
     'Deixa de receber pedidos. Os registos ficam com o pseudónimo e a pessoa ainda pode apagar os dados na app.',
   'list.menuIdentityHint': 'Só a proprietária do estudo',
   'list.menuErasureHint': 'Segue para a administração',
+  'list.menuNewCodeHint': 'Gera um novo convite de uso único',
   'list.inviteUnusedNote': 'Ainda sem pedidos: a pessoa ainda não usou o convite',
   'list.declinedNote': 'Não participa, sem pedidos',
 
@@ -94,6 +108,7 @@ export const pt = {
   'table.dayTitle': 'Dia {n}, {date}',
   'table.todayTitle': 'Dia {n}, hoje',
   'table.lastEntry': 'Último registo',
+  'table.registered': 'Inscrito',
   'table.actions': 'Ações',
   'table.adherenceTitle': '{answered} respondidos de {sent} enviados',
   'table.adherenceTodayTitle':
@@ -101,9 +116,22 @@ export const pt = {
   'table.dash': '–',
 
   'detail.subtitle': 'Participante do estudo {study} · {language}',
+  'detail.subtitleNoLanguage': 'Participante do estudo {study}',
+  'detail.enteredAt': 'Entrou a {date}',
+  'detail.adherenceUnavailable': 'A matriz de adesão não está disponível para este participante.',
+  'detail.removedNote': 'Este participante foi removido do estudo pela equipa.',
   'detail.language.pt': 'português',
   'detail.language.en': 'inglês',
   'detail.notFound': 'Participante não encontrado.',
+  'detail.loading': 'A carregar participante…',
+  'detail.error': 'Não foi possível carregar o participante.',
+  'detail.retry': 'Tentar de novo',
+  'detail.notAvailable': 'A API não expõe este dado.',
+  'detail.noIdentity': 'Sem nome nem e-mail registados.',
+  'detail.identityLoading': 'A ler a identidade…',
+  'detail.identityError': 'Não foi possível ler a identidade.',
+  'detail.erasureUnavailable':
+    'A API ainda não tem um pedido de apagamento feito pela equipa. O pedido é feito pela pessoa, na app.',
   'detail.gapTitle': 'Sem registos há 2 dias.',
   'detail.gapBody':
     'O último foi a {last}. Hoje já foram enviados {sent} pedidos e nenhum foi respondido. Pode contactar o participante ou emitir um novo convite se mudou de telemóvel.',
@@ -179,6 +207,22 @@ export const pt = {
   'add.seeCodes': 'Ver códigos de convite',
   'add.another': 'Adicionar outro participante',
   'add.generate': 'Gerar convite',
+  'add.generating': 'A gerar convite…',
+  'add.aliasHelp': 'Atribuído automaticamente. Pode alterar antes de gerar.',
+  'add.error': 'Não foi possível adicionar o participante.',
+
+  'personalCode.title': 'Novo convite para {id}',
+  'personalCode.sub': 'Um código de uso único, válido 7 dias.',
+  'personalCode.label': 'Código de convite de {id}',
+  'personalCode.warningTitle': 'Guarde ou imprima o código agora.',
+  'personalCode.warningBody':
+    'Por segurança, o código só é mostrado esta vez. Se se perder ou expirar, emita outro convite.',
+  'personalCode.delivery':
+    'Entregue o código ao participante fora da plataforma. Quem o usar primeiro fica ligado a {id}.',
+  'personalCode.qrNote': 'O participante pode ler o código QR na aplicação.',
+  'personalCode.issue': 'Gerar novo convite',
+  'personalCode.issuing': 'A gerar convite…',
+  'personalCode.error': 'Não foi possível gerar o convite.',
 
   'codes.subtitle':
     'Um código de estudo serve para um cartaz ou um folheto: muitas pessoas podem usá-lo, até ao limite, se o definir. Cada pessoa aprovada recebe um pseudónimo novo (logo à entrada, se a aprovação estiver desligada) e só começa a receber pedidos depois de aprovada.',
@@ -193,7 +237,16 @@ export const pt = {
     'As entradas por decidir são recusadas automaticamente quando o código terminar (12 out.).',
   'codes.waitingDeadlineBody':
     'A equipa recebe um lembrete 24 h antes, a 11 out., se ainda houver entradas à espera. As recusadas não contam para o limite de entradas.',
+  'codes.waitingPerson': 'Pessoa {order}',
   'codes.waitingEmpty': 'Nenhuma entrada à espera de aprovação.',
+  'codes.waitingSubCount':
+    'Entraram por códigos do estudo. Ainda não são participantes: não recebem pedidos nem entram nos números do estudo.',
+  'codes.enteredAt': 'Entrou a {when}',
+  'codes.enteredWith': 'com o código {code}',
+  'codes.loading': 'A carregar códigos…',
+  'codes.error': 'Não foi possível carregar os códigos.',
+  'codes.retry': 'Tentar de novo',
+  'codes.empty': 'Ainda não há códigos de estudo neste estudo.',
   'codes.approved': 'Aprovada',
   'codes.declined': 'Recusada',
   'codes.title': 'Códigos do estudo',
@@ -208,6 +261,30 @@ export const pt = {
   'codes.noAccount': 'Entra sem conta',
   'codes.active': 'Ativo',
   'codes.off': 'Desligado',
+  'codes.stateEnded': 'Terminado',
+  'codes.stateLimit': 'Limite atingido',
+  'codes.usesCount': '{count} entradas',
+  'codes.usesOne': '1 entrada',
+  'codes.usesNone': '0 entradas',
+  'codes.usesCounts': '{approved} aprovadas, {declined} recusadas, {waiting} à espera',
+  'codes.createdAt': 'criado a {date}',
+  'codes.limitCount': '{count} entradas',
+  'codes.hourlyCount': '{count} por hora',
+  'codes.approvalOn': 'Ligada',
+  'codes.approvalOff': 'Desligada',
+  'codes.accountYes': 'Sim',
+  'codes.accountNo': 'Não',
+  'codes.edit': 'Editar',
+  'codes.editTitle': 'Editar código',
+  'codes.editSub': 'Altere o nome, a data de fim ou os limites. O código em si não muda.',
+  'codes.save': 'Guardar',
+  'codes.saving': 'A guardar…',
+  'codes.regenerateConfirm':
+    'Gerar um código novo? O código atual deixa de funcionar imediatamente.',
+  'codes.waitingDeadlineTitleCode':
+    'As entradas por decidir são recusadas automaticamente quando o código terminar ({date}).',
+  'codes.waitingDeadlineBodyPlain':
+    'A equipa recebe um lembrete 24 h antes, se ainda houver entradas à espera. As recusadas não contam para o limite de entradas.',
   'codes.twoTypes': 'Dois tipos de código',
   'codes.personal': 'Código pessoal',
   'codes.personalExample': 'XXXX-XXXX-XXXX (exemplo)',
@@ -250,6 +327,8 @@ export const pt = {
   'newCode.note':
     'As entradas por decidir quando o código terminar são recusadas automaticamente, e a equipa recebe um lembrete 24 h antes. As recusadas não contam para o limite.',
   'newCode.create': 'Criar código',
+  'newCode.creating': 'A criar…',
+  'newCode.error': 'Não foi possível criar o código.',
 
   'poster.title': 'Cartaz do estudo',
   'poster.sub':
@@ -273,13 +352,22 @@ export const pt = {
   'poster.contentBothSub': 'recomendado',
   'poster.rules': 'Regras do código',
   'poster.rulesSub':
-    'Código «Cartaz no quiosque do jardim», válido até 12 out. 2026. Valem para o código, não só para o cartaz.',
+    'Código «{name}», válido até {date}. Valem para o código, não só para o cartaz.',
   'poster.limit': 'Limite de entradas',
   'poster.limitHelp': 'Ao atingir o máximo, ninguém mais entra com este código.',
-  'poster.limitValue': '10 entradas',
+  'poster.limitValue': '{count} entradas',
+  'poster.limitValueNone': 'Sem limite',
   'poster.approval': 'Aprovar cada entrada',
   'poster.approvalHelp': 'A equipa decide cada pessoa antes de ela receber pedidos.',
-  'poster.approvalValue': 'Ligado',
+  'poster.approvalValueOn': 'Ligado',
+  'poster.approvalValueOff': 'Desligado',
+  'poster.loading': 'A carregar o cartaz…',
+  'poster.error': 'Não foi possível carregar o cartaz.',
+  'poster.noCode': 'Ainda não há códigos de estudo. Crie um código de cartaz para gerar o cartaz.',
+  'poster.selectCode': 'Código do cartaz',
+  'poster.unknownStudy': 'Estudo sem título',
+  'poster.dateRange': '{start} a {end}',
+  'poster.signupsUntil': 'Até {date}',
   'poster.preview': 'Pré-visualização A4',
   'poster.previewStyle': 'Estilo {name}',
   'poster.previewNote': 'Pré-visualização de impressão. O código QR desta maqueta é ilustrativo.',
@@ -362,15 +450,45 @@ export const pt = {
   'recruit.sendNote':
     'Fica registado na auditoria que enviou convites. A equipa nunca vê quem foi convidado.',
   'recruit.sent': 'Convites enviados. Fica registado na auditoria.',
+  'recruit.sentCount': '{count} convites enviados. Fica registado na auditoria.',
+  'recruit.counting': 'A contar…',
+  'recruit.countError': 'Não foi possível contar as pessoas que cumprem os critérios.',
+  'recruit.sendError': 'Não foi possível enviar os convites.',
+  'recruit.selectOne': '· escolha uma opção',
+  'recruit.anyOption': 'Qualquer',
   'recruit.privacyTitle': 'Ninguém vê perfis',
   'recruit.privacyText':
     'Não há lista, nomes ou perfis da bolsa. Só vê o número de pessoas e, mais tarde, quem aceitou participar.',
   'recruit.byCode': 'Convidar por código',
   'recruit.byCodeText':
     'Para pessoas que já conhece, gere um código de uso único e entregue-o em QR ou por escrito.',
+
+  'error.study_not_found': 'Estudo não encontrado.',
+  'error.participant_not_found': 'Participante não encontrado.',
+  'error.study_code_not_found': 'Código não encontrado.',
+  'error.forbidden': 'Não tem permissão para esta ação.',
+  'error.not_authenticated': 'A sessão terminou. Entre de novo.',
+  'error.token_expired': 'A sessão terminou. Entre de novo.',
+  'error.invalid_token': 'A sessão terminou. Entre de novo.',
+  'error.validation_error': 'Os dados enviados não são válidos.',
+  'error.invalid_end_date': 'A data de fim não pode estar no passado.',
+  'error.code_generation_failed': 'Não foi possível gerar o código. Tente de novo.',
+  'error.pool_group_too_small': 'O grupo tem menos de 5 pessoas.',
+  'error.study_closed': 'Este estudo está fechado.',
+  'error.unknown': 'Ocorreu um erro. Tente de novo.',
 } as const
 
 export type ParticipantsKey = keyof typeof pt
+
+export function errorKey(code: string | null | undefined): ParticipantsKey {
+  if (code) {
+    const key = `error.${code}` as ParticipantsKey
+    if (key in pt) {
+      return key
+    }
+  }
+  return 'error.unknown'
+}
 
 export function t(key: ParticipantsKey, values?: Record<string, string | number>): string {
   const template = pt[key]

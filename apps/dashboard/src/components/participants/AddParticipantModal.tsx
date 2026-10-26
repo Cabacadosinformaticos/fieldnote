@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { addParticipantDefaults, inviteCodeRounds } from '../../fake/participants'
-import { t } from '../../i18n/participants'
+import {
+  ParticipantsApiError,
+  useAddParticipant,
+  useParticipants,
+} from '../../api/participants'
+import { errorKey, t } from '../../i18n/participants'
+import { formatDate, nextAlias } from './format'
 import {
   AlertTriangleIcon,
   CheckIcon,
@@ -16,15 +21,20 @@ type Step = 'data' | 'invite'
 
 export default function AddParticipantModal({ studyId }: { studyId: string }) {
   const navigate = useNavigate()
+  const participants = useParticipants(studyId)
+  const addParticipant = useAddParticipant(studyId)
   const [step, setStep] = useState<Step>('data')
-  const [round, setRound] = useState(0)
-  const [name, setName] = useState(addParticipantDefaults.name)
-  const [email, setEmail] = useState(addParticipantDefaults.email)
-  const [language, setLanguage] = useState(addParticipantDefaults.language)
+  const [aliasOverride, setAliasOverride] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [copied, setCopied] = useState(false)
 
-  const participantId = `P-${25 + round}`
-  const code = inviteCodeRounds[round % inviteCodeRounds.length]
+  const suggestedAlias = nextAlias((participants.data ?? []).map((item) => item.alias))
+  const alias = aliasOverride ?? suggestedAlias
+
+  const created = addParticipant.data
+  const participantLabel = created?.alias ?? alias
+  const invite = created?.invite_code
   const close = () => navigate(`/estudos/${studyId}/participantes`)
 
   useEffect(() => {
@@ -36,12 +46,35 @@ export default function AddParticipantModal({ studyId }: { studyId: string }) {
   })
 
   const copy = () => {
-    if (!navigator.clipboard) return
+    if (!invite || !navigator.clipboard) return
     navigator.clipboard
-      .writeText(code)
+      .writeText(invite.code)
       .then(() => setCopied(true))
       .catch(() => setCopied(false))
   }
+
+  const submit = () => {
+    addParticipant.mutate(
+      {
+        alias: alias.trim(),
+        name: name.trim() ? name.trim() : null,
+        email: email.trim() ? email.trim() : null,
+      },
+      { onSuccess: () => setStep('invite') },
+    )
+  }
+
+  const reset = () => {
+    addParticipant.reset()
+    setStep('data')
+    setAliasOverride(null)
+    setName('')
+    setEmail('')
+    setCopied(false)
+  }
+
+  const error =
+    addParticipant.error instanceof ParticipantsApiError ? addParticipant.error.code : null
 
   return (
     <div className="pts-modal-backdrop">
@@ -79,7 +112,13 @@ export default function AddParticipantModal({ studyId }: { studyId: string }) {
                   <span className="pts-label">
                     {t('add.pseudonym')} <em>{t('add.pseudonymAuto')}</em>
                   </span>
-                  <input className="pts-input mono" value={participantId} readOnly />
+                  <input
+                    className="pts-input mono"
+                    value={alias}
+                    onChange={(event) => setAliasOverride(event.target.value)}
+                    autoComplete="off"
+                  />
+                  <span className="pts-help">{t('add.aliasHelp')}</span>
                 </label>
               </div>
               <div className="pts-field-row">
@@ -103,21 +142,11 @@ export default function AddParticipantModal({ studyId }: { studyId: string }) {
                   />
                 </label>
               </div>
-              <label className="pts-field pts-field-narrow">
-                <span className="pts-label">{t('add.language')}</span>
-                <select
-                  className="pts-input"
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
-                >
-                  <option>{t('add.languagePt')}</option>
-                  <option>English</option>
-                </select>
-              </label>
               <div className="pts-info-box">
                 <LockIcon />
                 <p>{t('add.privacy')}</p>
               </div>
+              {error ? <p className="pts-error">{t(errorKey(error))}</p> : null}
             </div>
             <footer className="pts-modal-foot">
               <button type="button" className="btn" onClick={close}>
@@ -126,10 +155,10 @@ export default function AddParticipantModal({ studyId }: { studyId: string }) {
               <button
                 type="button"
                 className="btn btn-p"
-                disabled={!name.trim() || !email.trim()}
-                onClick={() => setStep('invite')}
+                disabled={!alias.trim() || addParticipant.isPending}
+                onClick={submit}
               >
-                {t('add.generate')}
+                {addParticipant.isPending ? t('add.generating') : t('add.generate')}
               </button>
             </footer>
           </>
@@ -138,25 +167,27 @@ export default function AddParticipantModal({ studyId }: { studyId: string }) {
             <div className="pts-modal-body">
               <div className="pts-invite-grid">
                 <div>
-                  <span className="pts-eyebrow">{t('add.codeLabel', { id: participantId })}</span>
-                  <p className="pts-invite-code mono">{code}</p>
+                  <span className="pts-eyebrow">
+                    {t('add.codeLabel', { id: participantLabel })}
+                  </span>
+                  <p className="pts-invite-code mono">{invite?.code}</p>
                   <div className="pts-invite-meta">
                     <span className="pill ok">{t('add.singleUse')}</span>
                     <span className="pill ne">
-                      {t('add.validUntil', { date: addParticipantDefaults.validUntil })}
+                      {t('add.validUntil', { date: formatDate(invite?.expires_at) })}
                     </span>
                   </div>
                   <div className="pts-warning-box">
                     <AlertTriangleIcon />
                     <div>
                       <strong>{t('add.warningTitle')}</strong>
-                      <p>{t('add.warningBody', { id: participantId })}</p>
+                      <p>{t('add.warningBody', { id: participantLabel })}</p>
                     </div>
                   </div>
-                  <p className="sub">{t('add.delivery', { id: participantId })}</p>
+                  <p className="sub">{t('add.delivery', { id: participantLabel })}</p>
                 </div>
                 <div className="pts-invite-qr">
-                  <QrCode seed={addParticipantDefaults.qrSeed + round} label={code} />
+                  <QrCode value={invite?.code ?? ''} label={invite?.code} />
                   <p className="sub">{t('add.qrNote')}</p>
                   <button type="button" className="btn btn-sm" onClick={copy}>
                     {copied ? <CheckIcon /> : <CopyIcon />}
@@ -173,15 +204,7 @@ export default function AddParticipantModal({ studyId }: { studyId: string }) {
               </div>
             </div>
             <footer className="pts-modal-foot">
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  setRound(round + 1)
-                  setStep('data')
-                  setCopied(false)
-                }}
-              >
+              <button type="button" className="btn" onClick={reset}>
                 {t('add.another')}
               </button>
               <button type="button" className="btn btn-p" onClick={close}>

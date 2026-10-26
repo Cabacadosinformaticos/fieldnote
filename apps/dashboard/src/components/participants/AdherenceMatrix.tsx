@@ -1,7 +1,6 @@
-import type { ParticipantDetail } from '../../fake/participants'
+import type { AdherenceView } from '../../api/participants'
 import { t } from '../../i18n/participants'
-
-const DAYS = 14
+import { formatDate } from './format'
 
 const cellLabels = {
   answered: 'detail.cellAnswered',
@@ -10,16 +9,7 @@ const cellLabels = {
   notSent: 'detail.cellNotSent',
 } as const
 
-export default function AdherenceMatrix({ detail }: { detail: ParticipantDetail }) {
-  const counts = { answered: 0, expired: 0, pending: 0 }
-  detail.matrix.forEach((row) => {
-    row.forEach((cell) => {
-      if (cell === 'answered') counts.answered += 1
-      if (cell === 'expired') counts.expired += 1
-      if (cell === 'pending') counts.pending += 1
-    })
-  })
-
+export default function AdherenceMatrix({ view }: { view: AdherenceView }) {
   return (
     <section className="card pts-matrix-card" aria-labelledby="pts-matrix-title">
       <div className="pts-section-head">
@@ -30,20 +20,20 @@ export default function AdherenceMatrix({ detail }: { detail: ParticipantDetail 
           <p className="sub">{t('detail.adherenceSub')}</p>
         </div>
         <div className="pts-matrix-score">
-          <strong>{t('detail.adherenceValue', { percent: detail.totals.percent })}</strong>
+          <strong>{t('detail.adherenceValue', { percent: view.totals.percent })}</strong>
           <span>
             {t('detail.adherenceOf', {
-              answered: detail.totals.answered,
-              total: detail.totals.sent,
+              answered: view.totals.answered,
+              total: view.totals.sent,
             })}
           </span>
         </div>
       </div>
 
       <div className="pts-matrix-legend">
-        <span className="pill ok">{t('detail.answeredPill', { count: counts.answered })}</span>
-        <span className="pill ne">{t('detail.expiredPill', { count: counts.expired })}</span>
-        <span className="pill wa">{t('detail.pendingPill', { count: counts.pending })}</span>
+        <span className="pill ok">{t('detail.answeredPill', { count: view.counts.answered })}</span>
+        <span className="pill ne">{t('detail.expiredPill', { count: view.counts.expired })}</span>
+        <span className="pill wa">{t('detail.pendingPill', { count: view.counts.pending })}</span>
       </div>
 
       <div className="pts-matrix-scroll">
@@ -51,17 +41,17 @@ export default function AdherenceMatrix({ detail }: { detail: ParticipantDetail 
           <thead>
             <tr>
               <th scope="col" className="pts-matrix-corner" />
-              {Array.from({ length: DAYS }, (_, index) => (
-                <th scope="col" key={`day-${index}`} className="pts-matrix-day">
+              {view.days.map((date, index) => (
+                <th scope="col" key={`day-${date}-${index}`} className="pts-matrix-day">
                   <span>{index + 1}</span>
-                  <small>{index + 6} out.</small>
+                  <small>{formatDate(date)}</small>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {detail.matrix.map((row, requestIndex) => (
-              <tr key={`request-${requestIndex}`}>
+            {view.matrix.map((row, requestIndex) => (
+              <tr key={`request-${view.slots[requestIndex] ?? requestIndex}`}>
                 <th scope="row">{t('detail.request', { n: requestIndex + 1 })}</th>
                 {row.map((cell, dayIndex) => (
                   <td key={`r${requestIndex}-d${dayIndex}`}>
@@ -76,7 +66,7 @@ export default function AdherenceMatrix({ detail }: { detail: ParticipantDetail 
             ))}
             <tr className="pts-matrix-free">
               <th scope="row">{t('detail.free')}</th>
-              {detail.free.map((value, dayIndex) => (
+              {view.free.map((value, dayIndex) => (
                 <td key={`free-${dayIndex}`}>
                   {value === null ? (
                     <span className="pts-free-empty">{t('table.dash')}</span>

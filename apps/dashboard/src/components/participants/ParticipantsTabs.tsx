@@ -3,7 +3,7 @@ import { t } from '../../i18n/participants'
 
 export default function ParticipantsTabs({
   studyId,
-  waitingCount = 2,
+  waitingCount = 0,
 }: {
   studyId: string
   waitingCount?: number
