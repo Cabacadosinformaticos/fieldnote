@@ -1,45 +1,34 @@
-"""Entry point. It plans a generated study as a demonstration of the library."""
+"""Entry point of the scheduler service: ``python -m scheduler.main``."""
 
 from __future__ import annotations
 
 import logging
+import signal
 
-from .generator import generate_study
-from .plan import plan_day
+from .service import SchedulerService
+from .settings import Settings
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
-    logger.info("fieldnote-scheduler started")
-
-    study_day = generate_study(seed=7, participant_count=5, activity_count=3)
-    plan = plan_day(study_day, seed=7)
-    logger.info(
-        "planned=%d unplanned=%d score=%.1f nodes=%d finished=%s",
-        plan.planned_count,
-        plan.unplanned_count,
-        plan.score,
-        plan.nodes_expanded,
-        plan.finished,
+    settings = Settings()
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    for prompt in plan.planned[:5]:
-        logger.info(
-            "%s %s #%d at %s",
-            prompt.participant_id,
-            prompt.activity_id,
-            prompt.occurrence,
-            prompt.scheduled_at.isoformat(),
-        )
-    for prompt in plan.unplanned[:5]:
-        logger.info(
-            "%s %s #%d unplanned: %s",
-            prompt.participant_id,
-            prompt.activity_id,
-            prompt.occurrence,
-            prompt.reason,
-        )
+    service = SchedulerService(settings)
+
+    def _stop(signum: int, _frame: object) -> None:
+        logger.info("signal %s received, stopping", signum)
+        service.stop()
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+    try:
+        service.run_forever()
+    finally:
+        service.close()
 
 
 if __name__ == "__main__":

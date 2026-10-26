@@ -19,4 +19,4 @@ RUN uv sync --locked --no-dev && chown -R fieldnote:fieldnote /app
 
 USER fieldnote
 
-CMD ["fieldnote-scheduler"]
+CMD ["python", "-m", "scheduler.main"]
