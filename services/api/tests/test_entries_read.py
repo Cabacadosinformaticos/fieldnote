@@ -491,17 +491,100 @@ def test_adherence_hides_a_participant_with_a_scheduled_erasure(
     assert response.status_code == 404
 
 
-def test_presign_url_changes_with_the_object_and_never_exposes_the_secret() -> None:
-    from app.services.entries_read import presign_get_url
+def test_presign_get_uses_the_dashboard_gateway_and_path_style() -> None:
+    from app.config import settings
+    from app.services.storage import presign_get
 
-    first, first_expiry = presign_get_url("one/a.jpg")
-    second, _ = presign_get_url("one/b.jpg")
+    first, first_expiry = presign_get("one/a.jpg")
+    second, _ = presign_get("one/b.jpg")
 
     assert first != second
+    assert first.startswith(
+        f"{settings.media_dashboard_endpoint.rstrip('/')}/{settings.s3_bucket}/one/a.jpg?"
+    )
     assert "one/a.jpg" in first
     assert "X-Amz-Signature=" in first
     assert "X-Amz-Credential=" in first
-    from app.config import settings
-
+    assert "X-Amz-Expires=600" in first
     assert settings.s3_secret_key not in first
     assert first_expiry > datetime.now(UTC)
+
+
+def test_put_entry_tags_replaces_the_set_and_audits_it(
+    client: TestClient, session: Session, make_user, make_study, make_participant, bearer_headers
+) -> None:
+    study = make_study()
+    user = make_user()
+    _add_member(session, study, user)
+    participant = make_participant(study)
+    activity = _make_activity(session, study)
+    entry = _make_entry(session, participant, activity, recorded_at=BASE)
+
+    morning = Tag(study_id=study.id, name="morning")
+    evening = Tag(study_id=study.id, name="evening")
+    session.add_all([morning, evening])
+    session.commit()
+    session.add(EntryTag(entry_id=entry.id, tag_id=morning.id))
+    session.commit()
+
+    url = f"/api/v1/studies/{study.id}/entries/{entry.id}/tags"
+    response = client.put(
+        url,
+        json={"tag_ids": [str(evening.id), str(morning.id)]},
+        headers=bearer_headers(user),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["entry_id"] == str(entry.id)
+    assert {tag["name"] for tag in response.json()["tags"]} == {"morning", "evening"}
+
+    replaced = client.put(
+        url,
+        json={"tag_ids": [str(evening.id)]},
+        headers=bearer_headers(user),
+    )
+    assert replaced.status_code == 200
+    assert [tag["name"] for tag in replaced.json()["tags"]] == ["evening"]
+
+    cleared = client.put(url, json={"tag_ids": []}, headers=bearer_headers(user))
+    assert cleared.status_code == 200
+    assert cleared.json()["tags"] == []
+
+    audits = session.scalars(select(AuditLog).where(AuditLog.action == "entry_tags_changed")).all()
+    assert len(audits) == 3
+    audited = {tag_id for audit in audits for tag_id in audit.details["tag_ids"]}
+    assert audited == {str(morning.id), str(evening.id)}
+    assert sorted(audits[0].details["tag_ids"]) == sorted([str(evening.id), str(morning.id)])
+    assert audits[1].details["tag_ids"] == [str(evening.id)]
+    assert audits[2].details["tag_ids"] == []
+
+
+def test_put_entry_tags_rejects_unknown_tags_and_entries_of_other_studies(
+    client: TestClient, session: Session, make_user, make_study, make_participant, bearer_headers
+) -> None:
+    study = make_study(title="One")
+    other = make_study(title="Two")
+    user = make_user()
+    _add_member(session, study, user)
+    _add_member(session, other, user)
+    participant = make_participant(study)
+    activity = _make_activity(session, study)
+    entry = _make_entry(session, participant, activity, recorded_at=BASE)
+    foreign_tag = Tag(study_id=other.id, name="foreign")
+    session.add(foreign_tag)
+    session.commit()
+
+    url = f"/api/v1/studies/{study.id}/entries/{entry.id}/tags"
+    unknown = client.put(url, json={"tag_ids": [str(foreign_tag.id)]}, headers=bearer_headers(user))
+    assert unknown.status_code == 404
+    assert unknown.json()["error"]["code"] == "tag_not_found"
+
+    other_participant = make_participant(other, alias="P02")
+    other_activity = _make_activity(session, other, "Other")
+    other_entry = _make_entry(session, other_participant, other_activity, recorded_at=BASE)
+    wrong_study = client.put(
+        f"/api/v1/studies/{study.id}/entries/{other_entry.id}/tags",
+        json={"tag_ids": []},
+        headers=bearer_headers(user),
+    )
+    assert wrong_study.status_code == 404

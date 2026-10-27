@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     # Origin of the gateway as the phones see it; signed upload URLs are built on it.
     media_public_endpoint: str = "http://127.0.0.1:8080"
+    # Origin of the gateway as the researcher's browser sees it; signed download URLs use it.
+    media_dashboard_endpoint: str = "http://127.0.0.1:8080"
 
     jwt_secret: str | None = None
     jwt_algorithm: str = "HS256"

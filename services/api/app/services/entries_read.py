@@ -6,18 +6,14 @@ participant with an erasure scheduled disappears at once (data model, design not
 """
 
 import base64
-import hashlib
-import hmac
 import uuid
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
-from urllib.parse import quote, urlencode, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.errors import ApiError
 from app.models import (
     Activity,
@@ -35,15 +31,13 @@ from app.models import (
 )
 from app.models.enums import EntryType, MediaStatus, ParticipantStatus, PromptStatus
 from app.security.audit import record
+from app.services import storage
 
 RESEARCHER_VISIBLE_STATUSES = (
     ParticipantStatus.ACTIVE,
     ParticipantStatus.WITHDRAWN,
     ParticipantStatus.REMOVED,
 )
-
-SIGNED_URL_TTL_SECONDS = 600
-"""NFR-40: signed media URLs are valid for 10 minutes and for one object."""
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
@@ -55,72 +49,6 @@ _SCALE_LABEL_KEYS = {
     "middle": ("label_middle", "middle_label"),
     "end": ("label_end", "end_label"),
 }
-
-
-# ---------------------------------------------------------------------------------------------
-# Signed GET URLs
-
-
-def _sign(key: bytes, message: str) -> bytes:
-    return hmac.new(key, message.encode("utf-8"), hashlib.sha256).digest()
-
-
-def presign_get_url(
-    object_key: str, expires_in: int = SIGNED_URL_TTL_SECONDS
-) -> tuple[str, datetime]:
-    """Return an S3 SigV4 GET URL for one object and the moment it stops working.
-
-    AWS Signature Version 4 with query-string credentials, as Garage expects. Only the ``host``
-    header is signed, which is what a browser sends when the dashboard opens the URL.
-    """
-    endpoint = settings.s3_endpoint.rstrip("/")
-    parsed = urlsplit(endpoint)
-    bucket = quote(settings.s3_bucket, safe="-_.~")
-    key = quote(object_key.lstrip("/"), safe="/-_.~")
-    canonical_uri = f"{parsed.path.rstrip('/')}/{bucket}/{key}"
-    host = parsed.netloc
-
-    now = datetime.now(UTC)
-    amz_date = now.strftime("%Y%m%dT%H%M%SZ")
-    date_stamp = now.strftime("%Y%m%d")
-    scope = f"{date_stamp}/{settings.s3_region}/s3/aws4_request"
-    params = {
-        "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
-        "X-Amz-Credential": f"{settings.s3_access_key}/{scope}",
-        "X-Amz-Date": amz_date,
-        "X-Amz-Expires": str(expires_in),
-        "X-Amz-SignedHeaders": "host",
-    }
-    canonical_query = urlencode(sorted(params.items()), quote_via=quote)
-    canonical_request = "\n".join(
-        [
-            "GET",
-            canonical_uri,
-            canonical_query,
-            f"host:{host}\n",
-            "host",
-            "UNSIGNED-PAYLOAD",
-        ]
-    )
-    string_to_sign = "\n".join(
-        [
-            "AWS4-HMAC-SHA256",
-            amz_date,
-            scope,
-            hashlib.sha256(canonical_request.encode("utf-8")).hexdigest(),
-        ]
-    )
-    signing_key = _sign(
-        _sign(
-            _sign(_sign(f"AWS4{settings.s3_secret_key}".encode(), date_stamp), settings.s3_region),
-            "s3",
-        ),
-        "aws4_request",
-    )
-    signature = hmac.new(signing_key, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
-
-    url = f"{parsed.scheme}://{host}{canonical_uri}?{canonical_query}&X-Amz-Signature={signature}"
-    return url, now + timedelta(seconds=expires_in)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -330,7 +258,7 @@ def get_entry(
             # Until processing succeeds the original is not offered for download or export
             # (security.md, Media files).
             continue
-        url, expires_at = presign_get_url(item.object_key)
+        url, expires_at = storage.presign_get(item.object_key)
         urls[item.id] = (url, expires_at)
         record(
             session,
@@ -354,6 +282,53 @@ def get_entry(
         media.get(entry.id, []),
         urls=urls,
     )
+
+
+def set_entry_tags(
+    session: Session,
+    study_id: uuid.UUID,
+    entry_id: uuid.UUID,
+    tag_ids: list[uuid.UUID],
+    user: UserAccount,
+) -> dict[str, object]:
+    """Replace the tags of one entry, as FR-37 allows attaching and detaching."""
+    row = session.execute(_entry_statement(study_id).where(Entry.id == entry_id)).one_or_none()
+    if row is None:
+        raise ApiError(404, "not_found", "The entry was not found.")
+    entry = row[0]
+
+    unique_ids = list(dict.fromkeys(tag_ids))
+    tags = (
+        list(
+            session.scalars(
+                select(Tag).where(Tag.study_id == study_id, Tag.id.in_(unique_ids))
+            ).all()
+        )
+        if unique_ids
+        else []
+    )
+    if len(tags) != len(unique_ids):
+        raise ApiError(404, "tag_not_found", "A tag does not exist in this study.")
+
+    session.execute(delete(EntryTag).where(EntryTag.entry_id == entry.id))
+    session.add_all(EntryTag(entry_id=entry.id, tag_id=tag.id) for tag in tags)
+    record(
+        session,
+        user,
+        "entry_tags_changed",
+        target=str(entry.id),
+        details={
+            "study_id": str(study_id),
+            "tag_ids": sorted(str(tag.id) for tag in tags),
+        },
+    )
+    session.commit()
+
+    ordered = sorted(tags, key=lambda tag: (tag.name, str(tag.id)))
+    return {
+        "entry_id": entry.id,
+        "tags": [{"id": tag.id, "name": tag.name} for tag in ordered],
+    }
 
 
 # ---------------------------------------------------------------------------------------------

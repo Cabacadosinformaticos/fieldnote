@@ -1,7 +1,8 @@
-"""Object storage: signed upload URLs and existence checks.
+"""Object storage: signed upload and download URLs and existence checks.
 
-The API talks to Garage on its internal endpoint to check that an object exists, but the URL
-handed to the phone must point at the public gateway, `settings.media_public_endpoint`.
+The API talks to Garage on its internal endpoint to check that an object exists. URLs handed to a
+client must point at the gateway that client can reach: `settings.media_public_endpoint` for phones
+and `settings.media_dashboard_endpoint` for the researcher's browser.
 """
 
 import uuid
@@ -16,12 +17,17 @@ from botocore.exceptions import ClientError
 from app.config import settings
 
 UPLOAD_URL_TTL_SECONDS = 10 * 60
+DOWNLOAD_URL_TTL_SECONDS = 10 * 60
 OBJECT_KEY_PREFIX = "entries"
 _NOT_FOUND_CODES = frozenset({"404", "NoSuchKey", "NotFound"})
 
 
 def public_endpoint() -> str:
     return settings.media_public_endpoint.rstrip("/")
+
+
+def dashboard_endpoint() -> str:
+    return settings.media_dashboard_endpoint.rstrip("/")
 
 
 def upload_object_key(
@@ -63,6 +69,20 @@ def presign_put(object_key: str, mime_type: str, size_bytes: int) -> tuple[str, 
         ExpiresIn=UPLOAD_URL_TTL_SECONDS,
     )
     return url, datetime.now(UTC) + timedelta(seconds=UPLOAD_URL_TTL_SECONDS)
+
+
+def presign_get(object_key: str) -> tuple[str, datetime]:
+    """Return a GET URL valid for ten minutes and the moment it stops working.
+
+    Researchers open it in a browser, so it is signed on the dashboard gateway, path style, under
+    ``/media/<key>`` exactly like an upload URL.
+    """
+    url = _client(dashboard_endpoint()).generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.s3_bucket, "Key": object_key},
+        ExpiresIn=DOWNLOAD_URL_TTL_SECONDS,
+    )
+    return url, datetime.now(UTC) + timedelta(seconds=DOWNLOAD_URL_TTL_SECONDS)
 
 
 def object_exists(object_key: str) -> bool:

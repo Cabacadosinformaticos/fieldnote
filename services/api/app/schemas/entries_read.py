@@ -48,6 +48,15 @@ class EntryListResponse(BaseModel):
     next_cursor: str | None = None
 
 
+class EntryTagsUpdate(BaseModel):
+    tag_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class EntryTagsOut(BaseModel):
+    entry_id: uuid.UUID
+    tags: list[TagOut] = Field(default_factory=list)
+
+
 class TimelineEntry(BaseModel):
     id: uuid.UUID
     participant_id: uuid.UUID

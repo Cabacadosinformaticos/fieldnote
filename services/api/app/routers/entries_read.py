@@ -13,6 +13,8 @@ from app.schemas.entries_read import (
     AdherenceResponse,
     EntryListResponse,
     EntryOut,
+    EntryTagsOut,
+    EntryTagsUpdate,
     TimelineResponse,
 )
 from app.security.deps import StudyAccess, require_study_role
@@ -61,6 +63,17 @@ def entry_detail(
     access: Annotated[StudyAccess, Depends(study_member)],
 ) -> dict[str, object]:
     return entries_read.get_entry(session, study_id, entry_id, access.user)
+
+
+@router.put("/entries/{entry_id}/tags", response_model=EntryTagsOut)
+def set_entry_tags(
+    study_id: uuid.UUID,
+    entry_id: uuid.UUID,
+    payload: EntryTagsUpdate,
+    session: Annotated[Session, Depends(get_session)],
+    access: Annotated[StudyAccess, Depends(study_member)],
+) -> dict[str, object]:
+    return entries_read.set_entry_tags(session, study_id, entry_id, payload.tag_ids, access.user)
 
 
 @router.get("/timeline", response_model=TimelineResponse)
