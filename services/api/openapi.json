@@ -1762,6 +1762,41 @@
         "title": "EntrySubmitResponse",
         "type": "object"
       },
+      "EntryTagsOut": {
+        "properties": {
+          "entry_id": {
+            "format": "uuid",
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/TagOut"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entry_id"
+        ],
+        "title": "EntryTagsOut",
+        "type": "object"
+      },
+      "EntryTagsUpdate": {
+        "properties": {
+          "tag_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          }
+        },
+        "title": "EntryTagsUpdate",
+        "type": "object"
+      },
       "EntryType": {
         "enum": [
           "text",
@@ -2407,6 +2442,244 @@
         "title": "OpenPromptsOut",
         "type": "object"
       },
+      "OverviewAdherence": {
+        "properties": {
+          "answered": {
+            "default": 0,
+            "title": "Answered",
+            "type": "integer"
+          },
+          "expired": {
+            "default": 0,
+            "title": "Expired",
+            "type": "integer"
+          },
+          "percentage": {
+            "default": 0.0,
+            "title": "Percentage",
+            "type": "number"
+          },
+          "planned": {
+            "default": 0,
+            "title": "Planned",
+            "type": "integer"
+          },
+          "sent": {
+            "default": 0,
+            "title": "Sent",
+            "type": "integer"
+          }
+        },
+        "title": "OverviewAdherence",
+        "type": "object"
+      },
+      "OverviewAlert": {
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "entered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entered At"
+          },
+          "kind": {
+            "enum": [
+              "pending_approval",
+              "no_entries"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_entry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Entry At"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "participant_id",
+          "alias"
+        ],
+        "title": "OverviewAlert",
+        "type": "object"
+      },
+      "OverviewEntry": {
+        "properties": {
+          "activity_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Id"
+          },
+          "activity_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Title"
+          },
+          "entry_type": {
+            "$ref": "#/components/schemas/EntryType"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "participant_alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Alias"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "prompt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Id"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "participant_id",
+          "participant_alias",
+          "activity_id",
+          "activity_title",
+          "prompt_id",
+          "entry_type",
+          "recorded_at",
+          "received_at"
+        ],
+        "title": "OverviewEntry",
+        "type": "object"
+      },
+      "OverviewEntryCounts": {
+        "properties": {
+          "today": {
+            "default": 0,
+            "title": "Today",
+            "type": "integer"
+          },
+          "today_answered": {
+            "default": 0,
+            "title": "Today Answered",
+            "type": "integer"
+          },
+          "today_free": {
+            "default": 0,
+            "title": "Today Free",
+            "type": "integer"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "OverviewEntryCounts",
+        "type": "object"
+      },
+      "OverviewParticipantCounts": {
+        "properties": {
+          "active": {
+            "default": 0,
+            "title": "Active",
+            "type": "integer"
+          },
+          "declined": {
+            "default": 0,
+            "title": "Declined",
+            "type": "integer"
+          },
+          "pending_approval": {
+            "default": 0,
+            "title": "Pending Approval",
+            "type": "integer"
+          },
+          "removed": {
+            "default": 0,
+            "title": "Removed",
+            "type": "integer"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "withdrawn": {
+            "default": 0,
+            "title": "Withdrawn",
+            "type": "integer"
+          }
+        },
+        "title": "OverviewParticipantCounts",
+        "type": "object"
+      },
       "ParticipantAddedOut": {
         "properties": {
           "alias": {
@@ -2757,6 +3030,154 @@
           "expires_at"
         ],
         "title": "PersonalInviteCodeOut",
+        "type": "object"
+      },
+      "PlanAvailabilityInterval": {
+        "properties": {
+          "end_time": {
+            "format": "time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "start_time": {
+            "format": "time",
+            "title": "Start Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_time",
+          "end_time"
+        ],
+        "title": "PlanAvailabilityInterval",
+        "type": "object"
+      },
+      "PlanParticipant": {
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "availability": {
+            "items": {
+              "$ref": "#/components/schemas/PlanAvailabilityInterval"
+            },
+            "title": "Availability",
+            "type": "array"
+          },
+          "availability_any_time": {
+            "title": "Availability Any Time",
+            "type": "boolean"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "alias",
+          "availability_any_time",
+          "availability"
+        ],
+        "title": "PlanParticipant",
+        "type": "object"
+      },
+      "PlanPrompt": {
+        "properties": {
+          "activity_id": {
+            "format": "uuid",
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "activity_title": {
+            "title": "Activity Title",
+            "type": "string"
+          },
+          "occurrence": {
+            "title": "Occurrence",
+            "type": "integer"
+          },
+          "participant_alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Alias"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "prompt_id": {
+            "format": "uuid",
+            "title": "Prompt Id",
+            "type": "string"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PromptStatus"
+          },
+          "unplanned_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnplannedReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "prompt_id",
+          "participant_id",
+          "participant_alias",
+          "activity_id",
+          "activity_title",
+          "occurrence",
+          "scheduled_at",
+          "sent_at",
+          "status",
+          "unplanned_reason"
+        ],
+        "title": "PlanPrompt",
         "type": "object"
       },
       "PoolCountOut": {
@@ -4084,6 +4505,25 @@
         "title": "StudyCodeUpdate",
         "type": "object"
       },
+      "StudyConsentOut": {
+        "description": "The consent version in use and how many active participants accepted it.",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "accepted"
+        ],
+        "title": "StudyConsentOut",
+        "type": "object"
+      },
       "StudyCreate": {
         "properties": {
           "description": {
@@ -4286,6 +4726,96 @@
           "schedule_style"
         ],
         "title": "StudyOut",
+        "type": "object"
+      },
+      "StudyOverviewOut": {
+        "properties": {
+          "adherence_study": {
+            "$ref": "#/components/schemas/OverviewAdherence"
+          },
+          "adherence_today": {
+            "$ref": "#/components/schemas/OverviewAdherence"
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/OverviewAlert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "entries": {
+            "$ref": "#/components/schemas/OverviewEntryCounts"
+          },
+          "last_entries": {
+            "items": {
+              "$ref": "#/components/schemas/OverviewEntry"
+            },
+            "title": "Last Entries",
+            "type": "array"
+          },
+          "participants": {
+            "$ref": "#/components/schemas/OverviewParticipantCounts"
+          },
+          "study_id": {
+            "format": "uuid",
+            "title": "Study Id",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "study_id",
+          "date",
+          "timezone",
+          "participants",
+          "entries",
+          "adherence_today",
+          "adherence_study"
+        ],
+        "title": "StudyOverviewOut",
+        "type": "object"
+      },
+      "StudyPlanOut": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/PlanParticipant"
+            },
+            "title": "Participants",
+            "type": "array"
+          },
+          "prompts": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPrompt"
+            },
+            "title": "Prompts",
+            "type": "array"
+          },
+          "weekday": {
+            "title": "Weekday",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "weekday",
+          "participants",
+          "prompts"
+        ],
+        "title": "StudyPlanOut",
         "type": "object"
       },
       "StudyQuestionCreate": {
@@ -4909,6 +5439,17 @@
           "other"
         ],
         "title": "TransportMode",
+        "type": "string"
+      },
+      "UnplannedReason": {
+        "enum": [
+          "outside_availability",
+          "min_gap_infeasible",
+          "daily_cap",
+          "slot_cap",
+          "search_cut"
+        ],
+        "title": "UnplannedReason",
         "type": "string"
       },
       "UserOut": {
@@ -6310,18 +6851,13 @@
     },
     "/api/v1/health/ready": {
       "get": {
+        "description": "Ready only when this replica reaches the database primary and the broker.\n\nThe gateways route on this check, so a replica cut off from the cluster stops receiving\nrequests, as the fault model expects.",
         "operationId": "ready_api_v1_health_ready_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Ready Api V1 Health Ready Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -8084,6 +8620,54 @@
         ]
       }
     },
+    "/api/v1/studies/{study_id}/consent": {
+      "get": {
+        "operationId": "read_consent_summary_api_v1_studies__study_id__consent_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyConsentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Consent Summary",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
     "/api/v1/studies/{study_id}/entries": {
       "get": {
         "operationId": "list_entries_api_v1_studies__study_id__entries_get",
@@ -8314,6 +8898,74 @@
           }
         ],
         "summary": "Entry Detail",
+        "tags": [
+          "entries"
+        ]
+      }
+    },
+    "/api/v1/studies/{study_id}/entries/{entry_id}/tags": {
+      "put": {
+        "operationId": "set_entry_tags_api_v1_studies__study_id__entries__entry_id__tags_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryTagsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryTagsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Entry Tags",
         "tags": [
           "entries"
         ]
@@ -8907,6 +9559,54 @@
         ]
       }
     },
+    "/api/v1/studies/{study_id}/overview": {
+      "get": {
+        "operationId": "get_study_overview_api_v1_studies__study_id__overview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Study Overview",
+        "tags": [
+          "overview"
+        ]
+      }
+    },
     "/api/v1/studies/{study_id}/participants": {
       "get": {
         "operationId": "list_participants_api_v1_studies__study_id__participants_get",
@@ -9295,6 +9995,64 @@
         "summary": "Remove Participant",
         "tags": [
           "participants"
+        ]
+      }
+    },
+    "/api/v1/studies/{study_id}/plan": {
+      "get": {
+        "operationId": "get_study_plan_api_v1_studies__study_id__plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyPlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Study Plan",
+        "tags": [
+          "plan"
         ]
       }
     },

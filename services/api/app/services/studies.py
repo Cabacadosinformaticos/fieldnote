@@ -8,8 +8,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
-from app.models import Study, StudyMember, StudyQuestion, Tag, UserAccount
-from app.models.enums import StudyRole, StudyStatus, UserRole
+from app.models import Consent, Participant, Study, StudyMember, StudyQuestion, Tag, UserAccount
+from app.models.enums import ParticipantStatus, StudyRole, StudyStatus, UserRole
 from app.schemas.studies import (
     StudyCreate,
     StudyQuestionCreate,
@@ -18,6 +18,7 @@ from app.schemas.studies import (
     validate_question,
 )
 from app.security.audit import record
+from app.services.participation import CONSENT_VERSION
 
 STUDY_NOT_FOUND = "The study does not exist."
 STUDY_CLOSED = "A closed study cannot be changed."
@@ -363,6 +364,20 @@ def reorder_questions(
     )
     session.commit()
     return [by_id[question_id] for question_id in question_ids]
+
+
+def consent_summary(session: Session, study_id: uuid.UUID) -> dict[str, object]:
+    get_study(session, study_id)
+    accepted = session.scalar(
+        select(func.count(func.distinct(Consent.participant_id)))
+        .join(Participant, Participant.id == Consent.participant_id)
+        .where(
+            Participant.study_id == study_id,
+            Participant.status == ParticipantStatus.ACTIVE,
+            Consent.version == CONSENT_VERSION,
+        )
+    )
+    return {"version": CONSENT_VERSION, "accepted": accepted or 0}
 
 
 def list_tags(session: Session, study_id: uuid.UUID) -> list[Tag]:

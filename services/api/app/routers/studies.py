@@ -10,6 +10,7 @@ from app.db import get_session
 from app.models import UserAccount
 from app.models.enums import StudyRole
 from app.schemas.studies import (
+    StudyConsentOut,
     StudyCreate,
     StudyMemberCreate,
     StudyMemberOut,
@@ -192,6 +193,15 @@ def delete_question(
     session: SessionDep,
 ) -> None:
     studies.delete_question(session, access.user, study_id, question_id)
+
+
+@router.get("/{study_id}/consent", response_model=StudyConsentOut)
+def read_consent_summary(
+    study_id: uuid.UUID,
+    access: AnyMember,
+    session: SessionDep,
+) -> StudyConsentOut:
+    return StudyConsentOut(**studies.consent_summary(session, study_id))
 
 
 @router.get("/{study_id}/tags", response_model=list[TagOut])

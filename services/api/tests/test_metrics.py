@@ -35,11 +35,9 @@ def test_requests_are_counted_by_route_and_status() -> None:
 
     body = _scrape()
 
+    assert 'fieldnote_api_requests_total{method="GET",route="/api/v1/health",status="200"}' in body
     assert (
-        'fieldnote_api_requests_total{method="GET",route="/api/v1/health",status="200"}' in body
-    )
-    assert (
-        'fieldnote_api_request_duration_seconds_count'
+        "fieldnote_api_request_duration_seconds_count"
         '{method="GET",route="/api/v1/health",status="200"}' in body
     )
 

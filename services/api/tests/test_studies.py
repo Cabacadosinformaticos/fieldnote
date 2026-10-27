@@ -581,3 +581,42 @@ def test_a_co_investigator_can_design_study_questions(
 
     removed = client.delete(f"{url}/{first.json()['id']}", headers=bearer_headers(co_investigator))
     assert removed.status_code == 204
+
+
+def test_consent_summary_counts_active_participants_on_the_current_version(
+    client: TestClient,
+    session: Session,
+    study: Study,
+    principal: UserAccount,
+    make_participant,
+    make_user,
+    bearer_headers,
+) -> None:
+    from app.models import Consent
+    from app.models.enums import ParticipantStatus
+    from app.services.participation import CONSENT_VERSION
+
+    accepted = make_participant(study, alias="P01")
+    old_version = make_participant(study, alias="P02")
+    declined = make_participant(study, alias="P03")
+    declined.status = ParticipantStatus.DECLINED
+    session.commit()
+    session.add_all(
+        [
+            Consent(participant_id=accepted.id, version=CONSENT_VERSION),
+            Consent(participant_id=accepted.id, version=CONSENT_VERSION),
+            Consent(participant_id=old_version.id, version="0.9"),
+            Consent(participant_id=declined.id, version=CONSENT_VERSION),
+        ]
+    )
+    session.commit()
+
+    url = f"{STUDIES}/{study.id}/consent"
+    response = client.get(url, headers=bearer_headers(principal))
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"version": CONSENT_VERSION, "accepted": 1}
+
+    outsider = make_user(email="outsider@example.org")
+    assert client.get(url, headers=bearer_headers(outsider)).status_code == 403
+    assert client.get(url).status_code == 401

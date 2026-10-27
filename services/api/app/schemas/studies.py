@@ -165,3 +165,10 @@ class TagOut(BaseModel):
 
     id: uuid.UUID
     name: str
+
+
+class StudyConsentOut(BaseModel):
+    """The consent version in use and how many active participants accepted it."""
+
+    version: str
+    accepted: int
