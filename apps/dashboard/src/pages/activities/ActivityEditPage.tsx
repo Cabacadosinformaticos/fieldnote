@@ -14,28 +14,42 @@ import ScalePreview from '../../components/activities/ScalePreview'
 import Toggle from '../../components/activities/Toggle'
 import TypeIcon from '../../components/activities/TypeIcon'
 import {
-  activities,
-  allowedScalePoints,
-  demoStudyId,
-  demoStudyTitle,
-  getActivityDraft,
-  scaleKinds,
-  scalePointChoices,
+  activitiesErrorMessage,
+  draftFromActivity,
+  draftToBody,
+  draftValidationError,
+  newActivityDraft,
+  useActivities,
+  useActivity,
+  useCreateActivity,
+  useDeleteActivity,
+  useUpdateActivity,
   type ActivityDraft,
-  type ActivityTypeId,
+  type CaptureType,
   type ScaleKind,
-} from '../../fake/activities'
+} from '../../api/activities'
+import { studiesErrorMessage, useStudy, useStudyRole } from '../../api/studies'
 import { t, type ActivitiesKey } from '../../i18n/activities'
 import '../../styles/activities.css'
 
-const typeOrder: ActivityTypeId[] = ['photo', 'text', 'video', 'audio', 'scale']
+const typeOrder: CaptureType[] = ['photo', 'text', 'video', 'audio', 'scale']
 
-const typeLabelKeys: Record<ActivityTypeId, ActivitiesKey> = {
+const typeLabelKeys: Record<CaptureType, ActivitiesKey> = {
   photo: 'type.photo',
   text: 'type.text',
   video: 'type.video',
   audio: 'type.audio',
   scale: 'type.scale',
+}
+
+const scaleKinds: ScaleKind[] = ['number', 'faces', 'text', 'bar']
+const scalePointChoices = [3, 5, 7, 10] as const
+
+const allowedScalePoints: Record<ScaleKind, readonly number[]> = {
+  number: [3, 5, 7, 10],
+  faces: [3, 5],
+  text: [3, 5, 7],
+  bar: [],
 }
 
 const scaleKindCopy: Record<ScaleKind, { label: ActivitiesKey; hint: ActivitiesKey }> = {
@@ -56,9 +70,9 @@ function timeToMinutes(value: string): number {
 }
 
 export default function ActivityEditPage() {
-  const { studyId = demoStudyId, activityId } = useParams<{
+  const { studyId = '', activityId } = useParams<{
     studyId: string
-    activityId: string
+    activityId?: string
   }>()
 
   return (
@@ -69,19 +83,71 @@ export default function ActivityEditPage() {
 function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?: string }) {
   const navigate = useNavigate()
   const basePath = `/estudos/${studyId}/atividades`
-  const [draft, setDraft] = useState<ActivityDraft>(() => getActivityDraft(activityId))
-  const [activeType, setActiveType] = useState<ActivityTypeId>('photo')
+  const studyQuery = useStudy(studyId)
+  const activitiesQuery = useActivities(studyId)
+  const activityQuery = useActivity(studyId, activityId)
+  const access = useStudyRole(studyId)
+  const createActivity = useCreateActivity(studyId)
+  const updateActivity = useUpdateActivity(studyId)
+  const deleteActivity = useDeleteActivity(studyId)
+  const [draftState, setDraftState] = useState<ActivityDraft | null>(
+    activityId ? null : newActivityDraft(),
+  )
+  const [activeType, setActiveType] = useState<CaptureType>('photo')
+  const [saveError, setSaveError] = useState('')
+
+  const draft = draftState ?? (activityQuery.data ? draftFromActivity(activityQuery.data) : null)
+  const study = studyQuery.data
+  const activities = activitiesQuery.data ?? []
+  const loading =
+    studyQuery.isLoading || activitiesQuery.isLoading || (activityId && activityQuery.isLoading)
+  const loadError =
+    studyQuery.error ?? activitiesQuery.error ?? activityQuery.error ?? null
+  const canWrite = access.canDesign && study?.status !== 'closed'
+  const mutationError =
+    createActivity.error ?? updateActivity.error ?? deleteActivity.error ?? null
+  const saving = createActivity.isPending || updateActivity.isPending
+  const deleting = deleteActivity.isPending
+
+  if (loading && !draft) {
+    return (
+      <div className="ac-page">
+        <p className="ac-empty">{t('state.loading')}</p>
+      </div>
+    )
+  }
+
+  if (!draft) {
+    return (
+      <div className="ac-page">
+        <div className="ac-warning-box" role="alert">
+          <span>{activitiesErrorMessage(loadError)}</span>
+          <button type="button" className="btn btn-sm" onClick={() => void activityQuery.refetch()}>
+            {t('state.retry')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const draftIndex = activities.findIndex((activity) => activity.id === draft.id)
+  const code = draftIndex >= 0 ? `A${draftIndex + 1}` : `A${activities.length + 1}`
 
   function patch(values: Partial<ActivityDraft>) {
-    setDraft((current) => ({ ...current, ...values }))
+    setDraftState((current) => (current ? { ...current, ...values } : current))
   }
 
   function patchScale(values: Partial<ActivityDraft['scale']>) {
-    setDraft((current) => ({ ...current, scale: { ...current.scale, ...values } }))
+    setDraftState((current) =>
+      current ? { ...current, scale: { ...current.scale, ...values } } : current,
+    )
   }
 
-  function toggleType(type: ActivityTypeId) {
-    setDraft((current) => {
+  function toggleType(type: CaptureType) {
+    setDraftState((current) => {
+      if (!current) {
+        return current
+      }
       const selected = current.types.includes(type)
       return {
         ...current,
@@ -91,7 +157,10 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
   }
 
   function pickScaleKind(kind: ScaleKind) {
-    setDraft((current) => {
+    setDraftState((current) => {
+      if (!current) {
+        return current
+      }
       const allowed = allowedScalePoints[kind]
       let points = current.scale.points
       if (allowed.length > 0 && !allowed.includes(points)) {
@@ -99,6 +168,31 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
       }
       return { ...current, scale: { ...current.scale, kind, points } }
     })
+  }
+
+  function save() {
+    setSaveError('')
+    const validation = draftValidationError(draft)
+    if (validation) {
+      setSaveError(validation)
+      return
+    }
+    const body = draftToBody(draft)
+    if (draft.id) {
+      updateActivity.mutate(
+        { activityId: draft.id, body },
+        { onSuccess: () => navigate(basePath) },
+      )
+    } else {
+      createActivity.mutate(body, { onSuccess: () => navigate(basePath) })
+    }
+  }
+
+  function remove() {
+    if (!draft.id || !window.confirm(t('edit.deleteConfirm'))) {
+      return
+    }
+    deleteActivity.mutate(draft.id, { onSuccess: () => navigate(basePath) })
   }
 
   const selectedTypes = typeOrder.filter((type) => draft.types.includes(type))
@@ -142,33 +236,18 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
     ? String(windowHours)
     : windowHours.toFixed(1)
 
-  const impactRows =
-    draft.id === null
-      ? [
-          ...activities.map((activity) => ({
-            code: activity.code,
-            requests: activity.requestsPerDay,
-            minutes: activity.effortMinutes,
-          })),
-          {
-            code: draft.code,
-            requests: draft.requestsPerDay,
-            minutes: draft.effortMinutes,
-          },
-        ]
-      : activities.map((activity) =>
-          activity.id === draft.id
-            ? {
-                code: activity.code,
-                requests: draft.requestsPerDay,
-                minutes: draft.effortMinutes,
-              }
-            : {
-                code: activity.code,
-                requests: activity.requestsPerDay,
-                minutes: activity.effortMinutes,
-              },
-        )
+  const impactRows = activities.map((activity, index) => ({
+    code: `A${index + 1}`,
+    requests: activity.id === draft.id ? draft.requestsPerDay : activity.prompts_per_day,
+    minutes: activity.id === draft.id ? draft.effortMinutes : activity.expected_minutes,
+  }))
+  if (draft.id === null) {
+    impactRows.push({
+      code,
+      requests: draft.requestsPerDay,
+      minutes: draft.effortMinutes,
+    })
+  }
   const impactTotal = impactRows.reduce(
     (total, row) => total + row.minutes * row.requests,
     0,
@@ -176,33 +255,78 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
 
   const isNew = draft.id === null
   const title = draft.title.trim() || t('edit.newTitle')
+  const studyTitle = study?.title ?? ''
 
   return (
     <div className="ac-page">
       <header className="ac-header">
         <div className="ac-header-copy">
           <h1 className="ac-title">
-            {isNew ? t('edit.newTitle') : t('edit.title', { code: draft.code })}
+            {isNew ? t('edit.newTitle') : t('edit.title', { code })}
           </h1>
           <p className="ac-subtitle">
             {isNew
-              ? t('edit.newSubtitle', { study: demoStudyTitle })
-              : t('edit.subtitle', { title, study: demoStudyTitle })}
+              ? t('edit.newSubtitle', { study: studyTitle })
+              : t('edit.subtitle', { title, study: studyTitle })}
           </p>
         </div>
         <div className="ac-header-actions">
           <Link className="btn" to={basePath}>
             {t('edit.back')}
           </Link>
-          <button
-            type="button"
-            className="btn btn-p"
-            onClick={() => navigate(basePath)}
-          >
-            {t('edit.save')}
-          </button>
+          {canWrite ? (
+            <>
+              {!isNew ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={remove}
+                  disabled={deleting || saving}
+                >
+                  {deleting ? t('edit.deleting') : t('edit.delete')}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-p"
+                onClick={save}
+                disabled={saving || deleting}
+              >
+                {saving ? t('edit.saving') : t('edit.save')}
+              </button>
+            </>
+          ) : null}
         </div>
       </header>
+
+      {!canWrite ? (
+        <div className="ac-warning-box" role="alert">
+          <WarningIcon />
+          <span>{t('edit.noPermission')}</span>
+        </div>
+      ) : null}
+
+      {loadError ? (
+        <div className="ac-warning-box" role="alert">
+          <span>{studiesErrorMessage(loadError)}</span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => {
+              void studyQuery.refetch()
+              void activitiesQuery.refetch()
+            }}
+          >
+            {t('state.retry')}
+          </button>
+        </div>
+      ) : null}
+
+      {saveError || mutationError ? (
+        <div className="ac-warning-box" role="alert">
+          <span>{saveError || activitiesErrorMessage(mutationError)}</span>
+        </div>
+      ) : null}
 
       <div className="ac-edit-grid">
         <div className="ac-column">
@@ -286,7 +410,10 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
                     value={draft.effortMinutes}
                     onChange={(event) =>
                       patch({
-                        effortMinutes: parseNumber(event.target.value, draft.effortMinutes),
+                        effortMinutes: Math.max(
+                          1,
+                          parseNumber(event.target.value, draft.effortMinutes),
+                        ),
                       })
                     }
                   />
@@ -496,9 +623,9 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
                   value={draft.freeEntriesPerDay}
                   onChange={(event) =>
                     patch({
-                      freeEntriesPerDay: parseNumber(
-                        event.target.value,
-                        draft.freeEntriesPerDay,
+                      freeEntriesPerDay: Math.max(
+                        1,
+                        parseNumber(event.target.value, draft.freeEntriesPerDay),
                       ),
                     })
                   }
@@ -519,6 +646,7 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
                 <input
                   id="window-start"
                   className="ac-input mono"
+                  type="time"
                   value={draft.windowStart}
                   onChange={(event) => patch({ windowStart: event.target.value })}
                 />
@@ -530,6 +658,7 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
                 <input
                   id="window-end"
                   className="ac-input mono"
+                  type="time"
                   value={draft.windowEnd}
                   onChange={(event) => patch({ windowEnd: event.target.value })}
                 />
@@ -547,9 +676,9 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
                   value={draft.requestsPerDay}
                   onChange={(event) =>
                     patch({
-                      requestsPerDay: parseNumber(
-                        event.target.value,
-                        draft.requestsPerDay,
+                      requestsPerDay: Math.max(
+                        1,
+                        parseNumber(event.target.value, draft.requestsPerDay),
                       ),
                     })
                   }
@@ -569,9 +698,9 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
                     value={draft.minGapMinutes}
                     onChange={(event) =>
                       patch({
-                        minGapMinutes: parseNumber(
-                          event.target.value,
-                          draft.minGapMinutes,
+                        minGapMinutes: Math.max(
+                          0,
+                          parseNumber(event.target.value, draft.minGapMinutes),
                         ),
                       })
                     }
@@ -582,8 +711,8 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
             </div>
             <p className="ac-sub">
               {t('edit.when.hint', {
-                timezone: 'Europe/Lisboa',
-                code: draft.code,
+                timezone: study?.timezone ?? 'Europe/Lisbon',
+                code,
                 start: draft.windowStart,
                 end: draft.windowEnd,
               })}

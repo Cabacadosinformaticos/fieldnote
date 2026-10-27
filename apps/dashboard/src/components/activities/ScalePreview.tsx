@@ -1,4 +1,4 @@
-import type { ActivityDraft } from '../../fake/activities'
+import type { ActivityScaleDraft } from '../../api/activities'
 import { t } from '../../i18n/activities'
 
 const FACE_MOUTHS = [
@@ -9,7 +9,7 @@ const FACE_MOUTHS = [
   'M7.5 13.5h9c0 2.6-2 4.5-4.5 4.5s-4.5-1.9-4.5-4.5z',
 ]
 
-export default function ScalePreview({ scale }: { scale: ActivityDraft['scale'] }) {
+export default function ScalePreview({ scale }: { scale: ActivityScaleDraft }) {
   const { kind, points } = scale
   const isBar = kind === 'bar'
   const isText = kind === 'text'

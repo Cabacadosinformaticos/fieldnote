@@ -106,6 +106,14 @@
   color: var(--fn-color-warning-text);
 }
 
+.ac-empty {
+  padding: var(--fn-space-32);
+  border: 1px dashed var(--fn-color-border-input);
+  border-radius: var(--fn-radius-card);
+  color: var(--fn-color-text-muted);
+  text-align: center;
+}
+
 .ac-success-box {
   background: var(--fn-color-success-bg);
   color: var(--fn-color-success-text);

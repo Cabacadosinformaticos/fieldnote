@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react'
-import type { ActivityTypeId } from '../../fake/activities'
+import type { CaptureType } from '../../api/activities'
 import {
   AudioIcon,
   CameraIcon,
@@ -8,7 +8,7 @@ import {
   VideoIcon,
 } from './ActivityIcons'
 
-const icons: Record<ActivityTypeId, ComponentType<SVGProps<SVGSVGElement>>> = {
+const icons: Record<CaptureType, ComponentType<SVGProps<SVGSVGElement>>> = {
   photo: CameraIcon,
   text: TextTypeIcon,
   video: VideoIcon,
@@ -16,7 +16,7 @@ const icons: Record<ActivityTypeId, ComponentType<SVGProps<SVGSVGElement>>> = {
   scale: ScaleIcon,
 }
 
-export default function TypeIcon({ type, size = 16 }: { type: ActivityTypeId; size?: number }) {
+export default function TypeIcon({ type, size = 16 }: { type: CaptureType; size?: number }) {
   const Icon = icons[type]
   return <Icon width={size} height={size} />
 }

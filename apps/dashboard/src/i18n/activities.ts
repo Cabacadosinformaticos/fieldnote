@@ -274,6 +274,30 @@ const pt = {
   'settings.end.dialogConfirm': 'Terminar estudo',
   'settings.end.donePill': 'Terminado',
   'settings.end.done': 'Estudo terminado. Os pedidos deixaram de ser planeados.',
+
+  'state.loading': 'A carregar…',
+  'state.retry': 'Tentar novamente',
+
+  'list.empty': 'Ainda não há atividades neste estudo.',
+  'list.noInstructions': 'Sem instruções.',
+
+  'edit.error.title': 'Dê um título à atividade.',
+  'edit.error.types': 'Escolha pelo menos um tipo de registo.',
+  'edit.error.labels': 'Preencha as etiquetas dos dois extremos da escala.',
+  'edit.delete': 'Eliminar atividade',
+  'edit.deleting': 'A eliminar…',
+  'edit.saving': 'A guardar…',
+  'edit.deleteConfirm':
+    'Eliminar esta atividade? Os pedidos e registos existentes deixam de estar associados a ela. Esta ação não se anula.',
+  'edit.noPermission': 'O seu papel neste estudo não permite criar ou alterar atividades.',
+
+  'error.network': 'Não foi possível contactar a API. Verifique a ligação e tente novamente.',
+  'error.study_not_found': 'Este estudo não existe ou já não tem acesso a ele.',
+  'error.activity_not_found': 'Esta atividade não existe ou foi eliminada.',
+  'error.forbidden': 'O seu papel neste estudo não permite esta ação.',
+  'error.study_closed': 'O estudo está terminado e já não aceita alterações.',
+  'error.validation': 'Os dados enviados não são válidos. Reveja os campos.',
+  'error.generic': 'Não foi possível concluir o pedido. Tente novamente.',
 } as const
 
 export type ActivitiesKey = keyof typeof pt
