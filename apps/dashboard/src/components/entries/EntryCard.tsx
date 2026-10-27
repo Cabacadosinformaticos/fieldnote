@@ -1,28 +1,46 @@
 import { useState, type KeyboardEvent } from 'react'
+import { t } from '../../i18n/entries'
 import {
-  activityFullLabel,
+  entryAlias,
   entryKindMeta,
+  entryStatusOf,
   formatReceived,
   formatStamp,
-  type Entry,
-} from '../../fake/entries'
-import { t } from '../../i18n/entries'
+  isFree,
+  isLate,
+  lateMinutes,
+  type EntryOut,
+  type TagOut,
+} from './entryMeta'
 import { EntryTypeIcon, RefreshIcon } from './EntryIcons'
 import EntryArtwork from './EntryArtwork'
 
 type EntryCardProps = {
-  entry: Entry
-  tags: string[]
+  entry: EntryOut
+  tags: TagOut[]
+  timeZone: string
   selected: boolean
   layout: 'grid' | 'rows'
   onSelect: () => void
 }
 
-export default function EntryCard({ entry, tags, selected, layout, onSelect }: EntryCardProps) {
+export default function EntryCard({
+  entry,
+  tags,
+  timeZone,
+  selected,
+  layout,
+  onSelect,
+}: EntryCardProps) {
+  // Local fallback: the API has no endpoint to retry media processing, so the button only
+  // shows the processing state until the entry is reloaded.
   const [retrying, setRetrying] = useState(false)
-  const kind = entryKindMeta[entry.kind]
-  const processing = entry.status === 'processing' || retrying
-  const failed = entry.status === 'failed' && !retrying
+  const kind = entryKindMeta[entry.entry_type]
+  const status = retrying ? 'processing' : entryStatusOf(entry)
+  const failed = status === 'failed'
+  const late = !retrying && isLate(entry)
+  const activity = entry.activity_title ?? t('activity.unknown')
+  const alias = entryAlias(entry)
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -31,10 +49,17 @@ export default function EntryCard({ entry, tags, selected, layout, onSelect }: E
     }
   }
 
-  const statusPill = processing ? (
-    <span className="pill wa">{t('status.processing')}</span>
-  ) : failed ? (
-    <span className="pill da">{t('status.failed')}</span>
+  const statusPill =
+    status === 'processing' ? (
+      <span className="pill wa">{t('status.processing')}</span>
+    ) : failed ? (
+      <span className="pill da">{t('status.failed')}</span>
+    ) : null
+
+  const latePill = late ? (
+    <span className="pill wa en-late-pill">
+      {t('list.lateBy', { minutes: lateMinutes(entry) })}
+    </span>
   ) : null
 
   const retryButton = failed ? (
@@ -64,26 +89,26 @@ export default function EntryCard({ entry, tags, selected, layout, onSelect }: E
         <div className="en-row-art">
           <EntryArtwork entry={entry} retrying={retrying} />
         </div>
-        <span className="en-row-participant mono">{entry.participantId}</span>
+        <span className="en-row-participant mono">{alias}</span>
         <span className="en-row-type">
-          <EntryTypeIcon kind={entry.kind} width={14} height={14} />
+          <EntryTypeIcon kind={entry.entry_type} width={14} height={14} />
           {t(kind.labelKey)}
         </span>
-        <span className="en-row-activity">{activityFullLabel(entry.activityCode, entry.free)}</span>
+        <span className="en-row-activity">{activity}</span>
         <span className="en-row-times mono">
-          {formatStamp(entry.recordedDate, entry.recordedTime)} → {formatReceived(entry)}
+          {formatStamp(entry.recorded_at, timeZone)} → {formatReceived(entry, timeZone)}
         </span>
         <span className="en-row-tags">
-          {entry.free ? <span className="pill ne">{t('list.free')}</span> : null}
+          {isFree(entry) ? <span className="pill ne">{t('list.free')}</span> : null}
           {tags.map((tag) => (
-            <span key={tag} className="en-tag">
-              {tag}
+            <span key={tag.id} className="en-tag">
+              {tag.name}
             </span>
           ))}
         </span>
         <span className="en-row-status">
           {statusPill}
-          {entry.lateLabel ? <span className="pill wa en-late-pill">{entry.lateLabel}</span> : null}
+          {latePill}
         </span>
         {retryButton}
       </article>
@@ -102,29 +127,27 @@ export default function EntryCard({ entry, tags, selected, layout, onSelect }: E
       <EntryArtwork entry={entry} retrying={retrying} />
       <div className="en-card-body">
         <div className="en-card-top">
-          <span className="mono en-card-participant">{entry.participantId}</span>
+          <span className="mono en-card-participant">{alias}</span>
           <span className="en-card-type">
-            <EntryTypeIcon kind={entry.kind} width={14} height={14} />
+            <EntryTypeIcon kind={entry.entry_type} width={14} height={14} />
             {t(kind.labelKey)}
           </span>
         </div>
-        <span className="en-card-activity">
-          {activityFullLabel(entry.activityCode, entry.free)}
-        </span>
+        <span className="en-card-activity">{activity}</span>
         <div className="en-card-times">
           <span>{t('list.recorded')}</span>
-          <span className="mono">{formatStamp(entry.recordedDate, entry.recordedTime)}</span>
+          <span className="mono">{formatStamp(entry.recorded_at, timeZone)}</span>
           <span>{t('list.received')}</span>
-          <span className="mono">{formatReceived(entry)}</span>
+          <span className="mono">{formatReceived(entry, timeZone)}</span>
         </div>
         <div className="en-card-tags">
-          {entry.free ? <span className="pill ne">{t('list.free')}</span> : null}
+          {isFree(entry) ? <span className="pill ne">{t('list.free')}</span> : null}
           {tags.map((tag) => (
-            <span key={tag} className="en-tag">
-              {tag}
+            <span key={tag.id} className="en-tag">
+              {tag.name}
             </span>
           ))}
-          {entry.lateLabel ? <span className="pill wa en-late-pill">{entry.lateLabel}</span> : null}
+          {latePill}
           {statusPill}
         </div>
         {retryButton}

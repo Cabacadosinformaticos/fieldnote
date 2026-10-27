@@ -1,7 +1,25 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import {
+  useActivities,
+  useEntries,
+  useEntry,
+  useParticipants,
+  useStudy,
+  useStudyEvents,
+  useTags,
+  type EntryFilters,
+  type EntryOut,
+  type EntryType,
+  type StudyOut,
+  type TagOut,
+} from '../../api/entries'
 import EntryCard from '../../components/entries/EntryCard'
 import EntryDetailPanel from '../../components/entries/EntryDetailPanel'
+import {
+  EntryErrorState,
+  EntryLoadingState,
+} from '../../components/entries/EntryStates'
 import FilterMenu from '../../components/entries/FilterMenu'
 import {
   GridIcon,
@@ -14,17 +32,16 @@ import {
 } from '../../components/entries/EntryIcons'
 import { ExportIcon } from '../../components/icons'
 import {
-  defaultSelectedEntryId,
-  entries,
-  entriesStudy,
-  entryActivities,
+  addDays,
+  dayStartIso,
+  entryAlias,
   entryKindMeta,
-  entryMatchesSearch,
-  entryParticipants,
-  entryStats,
-  type EntryKind,
-} from '../../fake/entries'
-import { t } from '../../i18n/entries'
+  formatShortDate,
+  isFree,
+  isLate,
+  shortId,
+} from '../../components/entries/entryMeta'
+import { t, type EntriesKey } from '../../i18n/entries'
 import '../../styles/entries.css'
 
 const PAGE_SIZE = 12
@@ -37,26 +54,58 @@ type FilterState = {
   dates: string
 }
 
-const dateFilters: Record<string, string | undefined> = {
-  all: undefined,
-  today: '2026-10-09',
-  day6: '2026-10-06',
-  day7: '2026-10-07',
-  day8: '2026-10-08',
+type DateOption = { value: string; label: string; from?: string; to?: string }
+
+function buildDateOptions(study: StudyOut | undefined, timeZone: string): DateOption[] {
+  const all: DateOption = { value: 'all', label: t('dates.all') }
+  if (!study?.starts_on) {
+    return [all]
+  }
+  const end = study.ends_on ?? study.starts_on
+  const days: DateOption[] = []
+  let cursor = study.starts_on
+  let guard = 0
+  while (cursor <= end && guard < 60) {
+    days.push({
+      value: cursor,
+      label: formatShortDate(cursor),
+      from: dayStartIso(cursor, timeZone),
+      to: dayStartIso(addDays(cursor, 1), timeZone),
+    })
+    cursor = addDays(cursor, 1)
+    guard += 1
+  }
+  return [all, ...days]
 }
 
-const kindCountKeys = {
+function matchesSearch(entry: EntryOut, query: string): boolean {
+  const haystack = [
+    entryAlias(entry),
+    entry.body ?? '',
+    entry.choice ?? '',
+    entry.activity_title ?? '',
+    (entry.tags ?? []).map((tag) => tag.name).join(' '),
+    t(entryKindMeta[entry.entry_type].labelKey),
+  ]
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(query.trim().toLowerCase())
+}
+
+const kindCountKeys: Record<EntryType, EntriesKey> = {
   photo: 'count.photo',
   text: 'count.text',
   audio: 'count.audio',
   video: 'count.video',
   scale: 'count.scale',
-} as const
+  choice: 'count.choice',
+}
 
 export default function EntriesPage() {
   const params = useParams<{ studyId: string }>()
-  const studyId = params.studyId ?? entriesStudy.id
+  const studyId = params.studyId ?? ''
   const base = `/estudos/${studyId}`
+  const [searchParams] = useSearchParams()
 
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'rows'>('grid')
@@ -69,98 +118,121 @@ export default function EntriesPage() {
   })
   const [freeOnly, setFreeOnly] = useState(false)
   const [lateOnly, setLateOnly] = useState(false)
-  const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState(defaultSelectedEntryId)
-  const [tagsByEntry, setTagsByEntry] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(entries.map((entry) => [entry.id, entry.tags])),
+  const [cursorStack, setCursorStack] = useState<(string | null)[]>([null])
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    searchParams.get('registo'),
   )
+  const [tagOverrides, setTagOverrides] = useState<Record<string, TagOut[]>>({})
 
-  function updateFilter(key: keyof FilterState, value: string) {
-    setFilters((current) => ({ ...current, [key]: value }))
-    setPage(1)
+  const studyQuery = useStudy(studyId)
+  const timeZone = studyQuery.data?.timezone ?? 'Europe/Lisbon'
+  const activitiesQuery = useActivities(studyId)
+  const participantsQuery = useParticipants(studyId)
+  const tagsQuery = useTags(studyId)
+  const eventStatus = useStudyEvents(studyId)
+
+  const dateOptions = useMemo(
+    () => buildDateOptions(studyQuery.data, timeZone),
+    [studyQuery.data, timeZone],
+  )
+  const selectedDate = dateOptions.find((option) => option.value === filters.dates)
+  const cursor = cursorStack[cursorStack.length - 1] ?? null
+
+  const apiFilters: EntryFilters = {
+    participantId: filters.participant !== 'all' ? filters.participant : undefined,
+    activityId: filters.activity !== 'all' ? filters.activity : undefined,
+    entryType: filters.kind !== 'all' ? (filters.kind as EntryType) : undefined,
+    tagId: filters.tag !== 'all' ? filters.tag : undefined,
+    dateFrom: selectedDate?.from,
+    dateTo: selectedDate?.to,
+    cursor,
+    limit: PAGE_SIZE,
   }
 
-  const filtered = entries.filter((entry) => {
-    const currentTags = tagsByEntry[entry.id] ?? entry.tags
-    const date = dateFilters[filters.dates]
+  const entriesQuery = useEntries(studyId, apiFilters)
+  const items = entriesQuery.data?.items ?? []
+  const nextCursor = entriesQuery.data?.next_cursor ?? null
 
-    if (filters.participant !== 'all' && entry.participantId !== filters.participant) {
+  // Local fallback: the list endpoint has no search, free-entry or late filter, so these three
+  // narrow the page the API returned instead of changing the server query.
+  const visible = items.filter((entry) => {
+    if (freeOnly && !isFree(entry)) {
       return false
     }
-    if (filters.activity !== 'all' && entry.activityCode !== filters.activity) {
+    if (lateOnly && !isLate(entry)) {
       return false
     }
-    if (filters.kind !== 'all' && entry.kind !== filters.kind) {
-      return false
-    }
-    if (filters.tag !== 'all' && !currentTags.includes(filters.tag)) {
-      return false
-    }
-    if (date && entry.recordedDate !== date) {
-      return false
-    }
-    if (freeOnly && !entry.free) {
-      return false
-    }
-    if (lateOnly && !entry.lateLabel) {
-      return false
-    }
-    if (query.trim() && !entryMatchesSearch(entry, query)) {
+    if (query.trim() && !matchesSearch(entry, query)) {
       return false
     }
     return true
   })
 
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const currentPage = Math.min(page, pages)
-  const pageEntries = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-  const from = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
-  const to = Math.min(currentPage * PAGE_SIZE, filtered.length)
+  const selectedEntryId = selectedId ?? visible[0]?.id ?? items[0]?.id ?? null
+  const detailQuery = useEntry(studyId, selectedEntryId)
+  const selectedEntry =
+    detailQuery.data ?? items.find((entry) => entry.id === selectedEntryId) ?? null
+  const selectedTags = selectedEntry
+    ? (tagOverrides[selectedEntry.id] ?? selectedEntry.tags ?? [])
+    : []
 
-  const kindCounts = filtered.reduce<Record<EntryKind, number>>(
-    (counts, entry) => {
-      counts[entry.kind] += 1
-      return counts
-    },
-    { photo: 0, text: 0, video: 0, audio: 0, scale: 0 },
-  )
+  function resetPagination() {
+    setCursorStack([null])
+  }
 
-  const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? entries[0]
-  const selectedTags = tagsByEntry[selectedEntry.id] ?? selectedEntry.tags
+  function updateFilter(key: keyof FilterState, value: string) {
+    setFilters((current) => ({ ...current, [key]: value }))
+    resetPagination()
+  }
 
-  function addTag(tag: string) {
-    setTagsByEntry((current) => {
-      const existing = current[selectedEntry.id] ?? selectedEntry.tags
+  function addTag(name: string) {
+    if (!selectedEntry) {
+      return
+    }
+    setTagOverrides((current) => {
+      const existing = current[selectedEntry.id] ?? selectedEntry.tags ?? []
+      if (existing.some((tag) => tag.name.toLowerCase() === name.toLowerCase())) {
+        return current
+      }
       return {
         ...current,
-        [selectedEntry.id]: existing.includes(tag) ? existing : [...existing, tag],
+        [selectedEntry.id]: [...existing, { id: `local-${name}`, name }],
       }
     })
   }
 
-  function removeTag(tag: string) {
-    setTagsByEntry((current) => {
-      const existing = current[selectedEntry.id] ?? selectedEntry.tags
-      return { ...current, [selectedEntry.id]: existing.filter((item) => item !== tag) }
+  function removeTag(tagId: string) {
+    if (!selectedEntry) {
+      return
+    }
+    setTagOverrides((current) => {
+      const existing = current[selectedEntry.id] ?? selectedEntry.tags ?? []
+      return {
+        ...current,
+        [selectedEntry.id]: existing.filter((tag) => tag.id !== tagId),
+      }
     })
   }
 
   const participantOptions = [
     { value: 'all', label: t('list.allParticipants') },
-    ...entryParticipants.map((participant) => ({ value: participant, label: participant })),
+    ...(participantsQuery.data ?? []).map((participant) => ({
+      value: participant.id,
+      label: participant.alias ?? shortId(participant.id),
+    })),
   ]
 
   const activityOptions = [
     { value: 'all', label: t('list.allActivities') },
-    ...entryActivities.map((activity) => ({
-      value: activity.code,
-      label: `${activity.code} · ${activity.title}`,
+    ...(activitiesQuery.data ?? []).map((activity) => ({
+      value: activity.id,
+      label: activity.title,
     })),
   ]
 
   const kindOptions = [
     { value: 'all', label: t('list.allTypes') },
-    ...(Object.keys(entryKindMeta) as EntryKind[]).map((kind) => ({
+    ...(Object.keys(entryKindMeta) as EntryType[]).map((kind) => ({
       value: kind,
       label: t(entryKindMeta[kind].labelKey),
     })),
@@ -168,16 +240,36 @@ export default function EntriesPage() {
 
   const tagOptions = [
     { value: 'all', label: t('list.allTags') },
-    ...entryStats.tagCounts.map(({ tag }) => ({ value: tag, label: tag })),
+    ...(tagsQuery.data ?? []).map((tag) => ({ value: tag.id, label: tag.name })),
   ]
 
-  const datesOptions = [
-    { value: 'all', label: t('dates.all') },
-    { value: 'today', label: t('dates.today') },
-    { value: 'day6', label: t('dates.day6') },
-    { value: 'day7', label: t('dates.day7') },
-    { value: 'day8', label: t('dates.day8') },
-  ]
+  const datesOptions = dateOptions.map((option) => ({
+    value: option.value,
+    label: option.label,
+  }))
+
+  const kindCounts = visible.reduce<Record<EntryType, number>>(
+    (counts, entry) => {
+      counts[entry.entry_type] += 1
+      return counts
+    },
+    { photo: 0, text: 0, video: 0, audio: 0, scale: 0, choice: 0 },
+  )
+
+  const tagCounts = (tagsQuery.data ?? [])
+    .map((tag) => ({
+      tag,
+      count: visible.filter((entry) =>
+        (entry.tags ?? []).some((item) => item.id === tag.id),
+      ).length,
+    }))
+    .filter((item) => item.count > 0)
+    .sort((left, right) => right.count - left.count)
+
+  const freeCount = items.filter(isFree).length
+  const lateCount = items.filter(isLate).length
+  const taggedCount = items.filter((entry) => (entry.tags ?? []).length > 0).length
+  const page = cursorStack.length
 
   return (
     <div className="en-page">
@@ -185,7 +277,7 @@ export default function EntriesPage() {
         <div className="en-header-copy">
           <h1 className="en-title">{t('list.title')}</h1>
           <p className="en-subtitle">
-            {t('list.subtitle', { total: entryStats.total, tagged: entryStats.tagged })}
+            {t('list.subtitle', { total: items.length, tagged: taggedCount })}
           </p>
         </div>
         <div className="en-header-actions">
@@ -199,6 +291,9 @@ export default function EntriesPage() {
               {t('list.viewTimeline')}
             </Link>
           </div>
+          <span className={`en-live en-live-${eventStatus}`} aria-live="polite">
+            {eventStatus === 'live' ? t('list.live') : t('list.offline')}
+          </span>
           <Link className="btn" to={`${base}/exportar`}>
             <ExportIcon width={18} height={18} />
             {t('list.export')}
@@ -218,7 +313,7 @@ export default function EntriesPage() {
                   placeholder={t('list.searchPlaceholder')}
                   onChange={(event) => {
                     setQuery(event.target.value)
-                    setPage(1)
+                    resetPagination()
                   }}
                 />
               </label>
@@ -283,11 +378,11 @@ export default function EntriesPage() {
                 aria-label={t('list.freeToggleAria')}
                 onClick={() => {
                   setFreeOnly((value) => !value)
-                  setPage(1)
+                  resetPagination()
                 }}
               >
                 {t('list.freeOnly')}
-                <span className="mono">{entryStats.free}</span>
+                <span className="mono">{freeCount}</span>
               </button>
               <button
                 type="button"
@@ -296,28 +391,30 @@ export default function EntriesPage() {
                 aria-label={t('list.lateToggleAria')}
                 onClick={() => {
                   setLateOnly((value) => !value)
-                  setPage(1)
+                  resetPagination()
                 }}
               >
                 {t('list.lateOnly')}
-                <span className="mono">{entryStats.late}</span>
+                <span className="mono">{lateCount}</span>
               </button>
               <span className="en-hint">{t('list.lateHint')}</span>
             </div>
 
             <div className="en-filter-row en-tag-row">
               <span className="en-tag-label">{t('list.tags')}</span>
-              {entryStats.tagCounts.map(({ tag, count }) => (
+              {tagCounts.map(({ tag, count }) => (
                 <button
-                  key={tag}
+                  key={tag.id}
                   type="button"
-                  className={`en-tag-pill${filters.tag === tag ? ' is-on' : ''}`}
-                  aria-pressed={filters.tag === tag}
-                  aria-label={t('list.tagFilterAria', { tag })}
-                  onClick={() => updateFilter('tag', filters.tag === tag ? 'all' : tag)}
+                  className={`en-tag-pill${filters.tag === tag.id ? ' is-on' : ''}`}
+                  aria-pressed={filters.tag === tag.id}
+                  aria-label={t('list.tagFilterAria', { tag: tag.name })}
+                  onClick={() =>
+                    updateFilter('tag', filters.tag === tag.id ? 'all' : tag.id)
+                  }
                 >
                   <TagIcon width={14} height={14} />
-                  {tag}
+                  {tag.name}
                   <span className="mono">{count}</span>
                 </button>
               ))}
@@ -326,10 +423,12 @@ export default function EntriesPage() {
 
           <div className="en-results-meta">
             <span>
-              {filtered.length === 0 ? t('list.showingNone') : t('list.showing', { from, to, total: filtered.length })}
+              {visible.length === 0
+                ? t('list.showingNone')
+                : t('list.showingPage', { count: visible.length })}
             </span>
             <span className="en-kind-counts">
-              {(Object.keys(kindCounts) as EntryKind[]).map((kind) => (
+              {(Object.keys(kindCounts) as EntryType[]).map((kind) => (
                 <span key={kind}>
                   {t(kindCountKeys[kind])} {kindCounts[kind]}
                 </span>
@@ -337,17 +436,25 @@ export default function EntriesPage() {
             </span>
           </div>
 
-          {pageEntries.length > 0 ? (
+          {entriesQuery.isError ? (
+            <EntryErrorState
+              error={entriesQuery.error}
+              onRetry={() => void entriesQuery.refetch()}
+            />
+          ) : entriesQuery.isLoading ? (
+            <EntryLoadingState />
+          ) : visible.length > 0 ? (
             <section
               className={viewMode === 'grid' ? 'en-grid' : 'en-rows'}
               aria-label={t('list.title')}
             >
-              {pageEntries.map((entry) => (
+              {visible.map((entry) => (
                 <EntryCard
                   key={entry.id}
                   entry={entry}
-                  tags={tagsByEntry[entry.id] ?? entry.tags}
-                  selected={entry.id === selectedEntry.id}
+                  tags={tagOverrides[entry.id] ?? entry.tags ?? []}
+                  timeZone={timeZone}
+                  selected={entry.id === selectedEntry?.id}
                   layout={viewMode}
                   onSelect={() => setSelectedId(entry.id)}
                 />
@@ -362,31 +469,48 @@ export default function EntriesPage() {
               type="button"
               className="btn en-page-button"
               aria-label={t('list.prevPage')}
-              disabled={currentPage <= 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              disabled={cursorStack.length <= 1}
+              onClick={() =>
+                setCursorStack((current) =>
+                  current.length > 1 ? current.slice(0, -1) : current,
+                )
+              }
             >
               <ChevronLeftIcon width={18} height={18} />
             </button>
-            <span>{t('list.page', { page: currentPage, pages })}</span>
+            <span>{t('list.page', { page })}</span>
             <button
               type="button"
               className="btn en-page-button"
               aria-label={t('list.nextPage')}
-              disabled={currentPage >= pages}
-              onClick={() => setPage((value) => Math.min(pages, value + 1))}
+              disabled={!nextCursor}
+              onClick={() => {
+                if (nextCursor) {
+                  setCursorStack((current) => [...current, nextCursor])
+                }
+              }}
             >
               <ChevronRightIcon width={18} height={18} />
             </button>
           </div>
         </div>
 
-        <EntryDetailPanel
-          key={selectedEntry.id}
-          entry={selectedEntry}
-          tags={selectedTags}
-          onAddTag={addTag}
-          onRemoveTag={removeTag}
-        />
+        {selectedEntry ? (
+          <EntryDetailPanel
+            key={selectedEntry.id}
+            entry={selectedEntry}
+            tags={selectedTags}
+            knownTags={tagsQuery.data ?? []}
+            timeZone={timeZone}
+            busy={detailQuery.isLoading && !detailQuery.data}
+            onAddTag={addTag}
+            onRemoveTag={removeTag}
+          />
+        ) : (
+          <aside className="card en-detail" aria-busy="true">
+            <EntryLoadingState />
+          </aside>
+        )}
       </div>
     </div>
   )

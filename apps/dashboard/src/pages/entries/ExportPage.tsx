@@ -1,5 +1,13 @@
 import { useState, type ComponentType } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
+import {
+  downloadStudyExport,
+  useEntries,
+  useStudy,
+  useStudyPermissions,
+  type EntryOut,
+} from '../../api/entries'
 import {
   LayersIcon,
   MapPinIcon,
@@ -7,29 +15,38 @@ import {
   UserIcon,
   type IconProps,
 } from '../../components/entries/EntryIcons'
+import {
+  entriesErrorMessage,
+  EntryErrorState,
+  EntryLoadingState,
+} from '../../components/entries/EntryStates'
 import { CheckIcon, ExportIcon } from '../../components/icons'
 import {
-  activityFullLabel,
-  entriesStudy,
   entryKindMeta,
-  entryStats,
-  exportCurrentUser,
-  exportPreviewRows,
-  previousExports,
-  previewPrompt,
-  previewTimestamp,
-  type Entry,
-  type ExportOptionId,
-  type ExportRecord,
-} from '../../fake/entries'
+  formatRange,
+  formatReceived,
+  formatStamp,
+  isFree,
+  shortId,
+} from '../../components/entries/entryMeta'
 import { t, type EntriesKey } from '../../i18n/entries'
 import '../../styles/entries.css'
 
+type OptionId = 'location' | 'media' | 'identity'
+
 type OptionDefinition = {
-  id: ExportOptionId
+  id: OptionId
   nameKey: EntriesKey
   descriptionKey: EntriesKey
   Icon: ComponentType<IconProps>
+}
+
+type ExportRecord = {
+  id: string
+  who: string
+  when: string
+  count: string
+  options: OptionId[]
 }
 
 const optionDefinitions: OptionDefinition[] = [
@@ -53,7 +70,7 @@ const optionDefinitions: OptionDefinition[] = [
   },
 ]
 
-const previewColumns: { key: EntriesKey; className?: string }[] = [
+const previewColumns: { key: EntriesKey }[] = [
   { key: 'export.column.participant' },
   { key: 'export.column.activity' },
   { key: 'export.column.prompt' },
@@ -64,56 +81,104 @@ const previewColumns: { key: EntriesKey; className?: string }[] = [
   { key: 'export.column.tags' },
 ]
 
-function previewContent(entry: Entry): string {
-  if (entry.kind === 'text') {
-    return entry.text ?? entry.excerpt
+function previewContent(entry: EntryOut): string {
+  if (entry.entry_type === 'text') {
+    return entry.body ?? t('export.preview.noFile')
   }
-  if (entry.kind === 'scale' && entry.scale) {
-    return String(entry.scale.value)
+  if (entry.entry_type === 'choice') {
+    return entry.choice ?? t('export.preview.noFile')
+  }
+  if (entry.entry_type === 'scale') {
+    return entry.value === null ? t('export.preview.noFile') : String(entry.value)
   }
   return t('export.preview.noFile')
 }
 
+function previewPrompt(entry: EntryOut): string {
+  if (isFree(entry)) {
+    return t('list.free')
+  }
+  return entry.prompt_id ? shortId(entry.prompt_id) : '–'
+}
+
 export default function ExportPage() {
   const params = useParams<{ studyId: string }>()
-  const studyId = params.studyId ?? entriesStudy.id
+  const studyId = params.studyId ?? ''
   const base = `/estudos/${studyId}`
+  const { user } = useAuth()
+  const permissions = useStudyPermissions(studyId)
+  const studyQuery = useStudy(studyId)
+  const timeZone = studyQuery.data?.timezone ?? 'Europe/Lisbon'
+  const entriesQuery = useEntries(studyId, { limit: 200 })
+  const entries = entriesQuery.data?.items ?? []
+  const preview = entries.slice(0, 4)
 
-  const [scope, setScope] = useState<'all' | 'filtered'>('all')
-  const [options, setOptions] = useState<Record<ExportOptionId, boolean>>({
+  const [options, setOptions] = useState<Record<OptionId, boolean>>({
     location: false,
     media: false,
     identity: false,
   })
-  const [history, setHistory] = useState<ExportRecord[]>(previousExports)
-  const [success, setSuccess] = useState(false)
+  const [history, setHistory] = useState<ExportRecord[]>([])
+  const [busy, setBusy] = useState(false)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<unknown>(null)
 
-  const count = scope === 'all' ? entryStats.total : 14
-  const selectedIds = optionDefinitions
+  const count = entries.length
+  const capped = Boolean(entriesQuery.data?.next_cursor)
+  const countLabel = capped ? `${count}+` : String(count)
+  const range =
+    studyQuery.data?.starts_on && studyQuery.data.ends_on
+      ? formatRange(studyQuery.data.starts_on, studyQuery.data.ends_on)
+      : '—'
+
+  const selectedIds: OptionId[] = optionDefinitions
     .filter((option) => options[option.id])
     .map((option) => option.id)
+    .filter((id) => id !== 'media')
+    .filter((id) => id !== 'identity' || permissions.canIncludeIdentity)
   const selectedNames = optionDefinitions
-    .filter((option) => options[option.id])
+    .filter((option) => selectedIds.includes(option.id))
     .map((option) => t(option.nameKey))
   const optionsSummary =
     selectedNames.length === 0 ? t('export.summary.none') : selectedNames.join(', ')
 
-  function toggleOption(id: ExportOptionId) {
+  function toggleOption(id: OptionId) {
+    if (id === 'media') {
+      return
+    }
+    if (id === 'identity' && !permissions.canIncludeIdentity) {
+      return
+    }
     setOptions((current) => ({ ...current, [id]: !current[id] }))
-    setSuccess(false)
+    setSuccess(null)
+    setExportError(null)
   }
 
-  function runExport() {
-    const record: ExportRecord = {
-      id: `x-${history.length + 1}`,
-      who: exportCurrentUser,
-      when: `9 out. ${entriesStudy.now}`,
-      count,
-      options: selectedIds,
-      format: 'CSV',
+  async function runExport() {
+    setBusy(true)
+    setSuccess(null)
+    setExportError(null)
+    try {
+      const filename = await downloadStudyExport(studyId, {
+        includeLocation: options.location,
+        includeIdentity: options.identity && permissions.canIncludeIdentity,
+      })
+      setHistory((current) => [
+        {
+          id: `local-${current.length + 1}`,
+          who: user?.email ?? '—',
+          when: formatStamp(new Date().toISOString(), timeZone),
+          count: countLabel,
+          options: selectedIds,
+        },
+        ...current,
+      ])
+      setSuccess(filename)
+    } catch (error) {
+      setExportError(error)
+    } finally {
+      setBusy(false)
     }
-    setHistory((current) => [record, ...current])
-    setSuccess(true)
   }
 
   return (
@@ -134,53 +199,47 @@ export default function ExportPage() {
               <h2 className="h2">{t('export.scope.title')}</h2>
             </div>
             <div className="en-scope-grid" role="radiogroup" aria-label={t('export.scope.aria')}>
-              <label className={`en-scope-card${scope === 'all' ? ' is-selected' : ''}`}>
+              <label className="en-scope-card is-selected">
                 <input
                   className="en-visually-hidden"
                   type="radio"
                   name="export-scope"
-                  checked={scope === 'all'}
-                  onChange={() => {
-                    setScope('all')
-                    setSuccess(false)
-                  }}
+                  checked
+                  readOnly
                 />
                 <span className="en-radio" aria-hidden="true">
-                  {scope === 'all' ? <i /> : null}
+                  <i />
                 </span>
                 <span className="en-scope-copy">
                   <span className="en-scope-name">{t('export.scope.all')}</span>
                   <span className="en-scope-meta">
                     {t('export.scope.allMeta', {
-                      count: entryStats.total,
-                      range: entriesStudy.dateRange,
+                      count: countLabel,
+                      range,
                     })}
                   </span>
                 </span>
               </label>
-              <label className={`en-scope-card${scope === 'filtered' ? ' is-selected' : ''}`}>
+              {/* Local fallback: the export endpoint always exports the whole study. */}
+              <label className="en-scope-card is-disabled">
                 <input
                   className="en-visually-hidden"
                   type="radio"
                   name="export-scope"
-                  checked={scope === 'filtered'}
-                  onChange={() => {
-                    setScope('filtered')
-                    setSuccess(false)
-                  }}
+                  checked={false}
+                  disabled
+                  readOnly
                 />
-                <span className="en-radio" aria-hidden="true">
-                  {scope === 'filtered' ? <i /> : null}
-                </span>
+                <span className="en-radio" aria-hidden="true" />
                 <span className="en-scope-copy">
                   <span className="en-scope-name">{t('export.scope.filtered')}</span>
-                  <span className="en-scope-meta">
-                    {t('export.scope.filteredMeta', { count: 14 })}{' '}
-                    <Link to={`${base}/registos`}>Registos</Link>.
-                  </span>
+                  <span className="en-scope-meta">{t('export.scope.filteredUnavailable')}</span>
                 </span>
               </label>
             </div>
+            <p className="sub en-export-source">
+              <Link to={`${base}/registos`}>{t('export.scope.openList')}</Link>
+            </p>
           </section>
 
           <section className="card en-export-section" aria-label={t('export.format.title')}>
@@ -191,7 +250,7 @@ export default function ExportPage() {
             <div className="en-format-row">
               <span className="en-format-chip">
                 <CheckIcon width={16} height={16} />
-                {t('export.format.csv')}
+                {t('export.format.zip')}
               </span>
               <span className="sub">{t('export.format.note')}</span>
             </div>
@@ -217,25 +276,43 @@ export default function ExportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {exportPreviewRows.map((entry) => (
+                  {preview.map((entry) => (
                     <tr key={entry.id}>
-                      <td className="en-td mono">{entry.participantId}</td>
-                      <td className="en-td">{activityFullLabel(entry.activityCode, entry.free)}</td>
+                      <td className="en-td mono">
+                        {entry.participant_alias ?? shortId(entry.participant_id)}
+                      </td>
+                      <td className="en-td">
+                        {entry.activity_title ?? t('activity.unknown')}
+                      </td>
                       <td className="en-td">{previewPrompt(entry)}</td>
-                      <td className="en-td">{t(entryKindMeta[entry.kind].labelKey)}</td>
+                      <td className="en-td">{t(entryKindMeta[entry.entry_type].labelKey)}</td>
                       <td className="en-td en-export-content">{previewContent(entry)}</td>
-                      <td className="en-td mono">{previewTimestamp(entry, 'recorded')}</td>
-                      <td className="en-td mono">{previewTimestamp(entry, 'received')}</td>
-                      <td className="en-td">{entry.tags.length ? entry.tags.join('; ') : '–'}</td>
+                      <td className="en-td mono">{formatStamp(entry.recorded_at, timeZone)}</td>
+                      <td className="en-td mono">{formatReceived(entry, timeZone)}</td>
+                      <td className="en-td">
+                        {(entry.tags ?? []).length
+                          ? (entry.tags ?? []).map((tag) => tag.name).join('; ')
+                          : '–'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {entriesQuery.isLoading ? <EntryLoadingState /> : null}
+            {entriesQuery.isError ? (
+              <EntryErrorState
+                error={entriesQuery.error}
+                onRetry={() => void entriesQuery.refetch()}
+              />
+            ) : null}
             <p className="sub">{t('export.preview.note')}</p>
           </section>
 
-          <section className="card en-export-section en-export-options" aria-label={t('export.options.title')}>
+          <section
+            className="card en-export-section en-export-options"
+            aria-label={t('export.options.title')}
+          >
             <div className="en-export-section-head">
               <span className="en-step">3</span>
               <div className="en-export-section-copy">
@@ -245,7 +322,10 @@ export default function ExportPage() {
             </div>
             {optionDefinitions.map((option) => {
               const Icon = option.Icon
-              const on = options[option.id]
+              const locked =
+                option.id === 'media' ||
+                (option.id === 'identity' && !permissions.canIncludeIdentity)
+              const on = options[option.id] && !locked
               const name = t(option.nameKey)
               return (
                 <div className="en-export-option" key={option.id}>
@@ -260,6 +340,16 @@ export default function ExportPage() {
                       ) : null}
                     </span>
                     <span className="en-export-option-desc">{t(option.descriptionKey)}</span>
+                    {option.id === 'media' ? (
+                      <span className="en-export-option-note">
+                        {t('export.option.mediaUnavailable')}
+                      </span>
+                    ) : null}
+                    {option.id === 'identity' && locked ? (
+                      <span className="en-export-option-note">
+                        {t('export.option.identityLocked')}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="en-export-option-switch">
                     <span>{on ? t('export.option.on') : t('export.option.off')}</span>
@@ -267,6 +357,7 @@ export default function ExportPage() {
                       type="button"
                       role="switch"
                       aria-checked={on}
+                      disabled={locked}
                       aria-label={t('export.option.switchAria', {
                         name,
                         state: on ? t('export.option.on') : t('export.option.off'),
@@ -282,10 +373,14 @@ export default function ExportPage() {
             })}
           </section>
 
-          <section className="card en-export-section en-export-history" aria-label={t('export.previous.title')}>
+          <section
+            className="card en-export-section en-export-history"
+            aria-label={t('export.previous.title')}
+          >
             <div className="en-export-history-head">
               <h2 className="h2">{t('export.previous.title')}</h2>
               <p className="sub">{t('export.previous.sub')}</p>
+              <p className="sub">{t('export.previous.local')}</p>
             </div>
             <table className="en-export-table en-history-table">
               <thead>
@@ -298,30 +393,38 @@ export default function ExportPage() {
                 </tr>
               </thead>
               <tbody>
-                {history.map((record) => (
-                  <tr key={record.id}>
-                    <td className="en-td en-history-who">{record.who}</td>
-                    <td className="en-td en-history-meta">{record.when}</td>
-                    <td className="en-td en-history-meta">
-                      {t('export.previous.entries', { count: record.count })}
+                {history.length === 0 ? (
+                  <tr>
+                    <td className="en-td en-history-meta" colSpan={5}>
+                      {t('export.previous.empty')}
                     </td>
-                    <td className="en-td">
-                      {record.options.length === 0 ? (
-                        <span className="en-history-meta">{t('export.previous.none')}</span>
-                      ) : (
-                        record.options.map((option) => (
-                          <span key={option} className="pill wa">
-                            {t(
-                              optionDefinitions.find((item) => item.id === option)?.nameKey ??
-                                'export.summary.options',
-                            )}
-                          </span>
-                        ))
-                      )}
-                    </td>
-                    <td className="en-td en-history-meta">{record.format}</td>
                   </tr>
-                ))}
+                ) : (
+                  history.map((record) => (
+                    <tr key={record.id}>
+                      <td className="en-td en-history-who">{record.who}</td>
+                      <td className="en-td en-history-meta">{record.when}</td>
+                      <td className="en-td en-history-meta">
+                        {t('export.previous.entries', { count: record.count })}
+                      </td>
+                      <td className="en-td">
+                        {record.options.length === 0 ? (
+                          <span className="en-history-meta">{t('export.previous.none')}</span>
+                        ) : (
+                          record.options.map((option) => (
+                            <span key={option} className="pill wa">
+                              {t(
+                                optionDefinitions.find((item) => item.id === option)?.nameKey ??
+                                  'export.summary.options',
+                              )}
+                            </span>
+                          ))
+                        )}
+                      </td>
+                      <td className="en-td en-history-meta">ZIP</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </section>
@@ -332,15 +435,15 @@ export default function ExportPage() {
           <div className="en-summary-rows">
             <div>
               <span>{t('export.summary.entries')}</span>
-              <b>{count}</b>
+              <b>{entriesQuery.isLoading ? '–' : countLabel}</b>
             </div>
             <div>
               <span>{t('export.summary.format')}</span>
-              <b>CSV</b>
+              <b>ZIP</b>
             </div>
             <div>
-              <span>{t('export.summary.columns')}</span>
-              <b>8</b>
+              <span>{t('export.summary.files')}</span>
+              <b>2</b>
             </div>
             <div>
               <span>{t('export.summary.options')}</span>
@@ -362,12 +465,22 @@ export default function ExportPage() {
           {success ? (
             <p className="en-export-success" role="status">
               <CheckIcon width={16} height={16} />
-              {t('export.success')}
+              {t('export.successFile', { file: success })}
             </p>
           ) : null}
-          <button type="button" className="btn btn-dk en-export-button" onClick={runExport}>
+          {exportError ? (
+            <p className="en-export-error" role="alert">
+              {entriesErrorMessage(exportError)}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="btn btn-dk en-export-button"
+            disabled={busy || entriesQuery.isLoading || entriesQuery.isError}
+            onClick={() => void runExport()}
+          >
             <ExportIcon width={20} height={20} />
-            {t('export.button', { count })}
+            {busy ? t('export.preparing') : t('export.button', { count: countLabel })}
           </button>
           <p className="sub en-detail-note">
             <ShieldIcon width={16} height={16} />

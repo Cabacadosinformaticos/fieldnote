@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react'
-import type { EntryKind, TimelineKind } from '../../fake/entries'
+import type { EntryType, TimelineKind } from './entryMeta'
 
 export type IconProps = SVGProps<SVGSVGElement>
 
@@ -234,12 +234,22 @@ const kindIcons: Record<Exclude<TimelineKind, 'request'>, ComponentType<IconProp
   audio: AudioIcon,
   text: TextIcon,
   scale: ScaleIcon,
+  choice: ChoiceIcon,
+}
+
+export function ChoiceIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8 12 2.5 2.5L16 9" />
+    </svg>
+  )
 }
 
 export function EntryTypeIcon({
   kind,
   ...props
-}: IconProps & { kind: EntryKind | TimelineKind }) {
+}: IconProps & { kind: EntryType | TimelineKind }) {
   const Icon = kind === 'request' ? RequestIcon : kindIcons[kind]
   return <Icon {...props} />
 }

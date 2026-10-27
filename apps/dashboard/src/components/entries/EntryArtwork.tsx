@@ -1,20 +1,24 @@
-import {
-  entryPalettes,
-  type Entry,
-  type EntryPaletteName,
-  type ScaleAnswer,
-} from '../../fake/entries'
 import { t } from '../../i18n/entries'
+import {
+  entryStatusOf,
+  isFree,
+  paletteFor,
+  scaleAnswer,
+  type EntryOut,
+  type ScaleAnswer,
+} from './entryMeta'
 import { AlertTriangleIcon, PlayIcon, RefreshIcon } from './EntryIcons'
 
+type Palette = ReturnType<typeof paletteFor>
+
 export function ScenicFrame({
-  palette = 'teal',
+  palette,
   className,
 }: {
-  palette?: EntryPaletteName
+  palette?: Palette
   className?: string
 }) {
-  const colors = entryPalettes[palette]
+  const colors = palette ?? paletteFor('default')
 
   return (
     <svg
@@ -76,7 +80,7 @@ export function ScaleDots({ scale }: { scale: ScaleAnswer }) {
     return (
       <span className="en-scale-faces" role="img" aria-label={`${scale.value} de ${scale.points}`}>
         {scale.labels.map((label, index) => (
-          <Face key={label} mood={index} chosen={index + 1 === scale.value} />
+          <Face key={`${label}-${index}`} mood={index} chosen={index + 1 === scale.value} />
         ))}
       </span>
     )
@@ -85,17 +89,24 @@ export function ScaleDots({ scale }: { scale: ScaleAnswer }) {
   return (
     <span className="en-scale-dots" role="img" aria-label={`${scale.value} de ${scale.points}`}>
       {scale.labels.map((label, index) => (
-        <i key={label} className={index + 1 <= scale.value ? 'is-filled' : ''} />
+        <i key={`${label}-${index}`} className={index + 1 <= scale.value ? 'is-filled' : ''} />
       ))}
     </span>
   )
 }
 
-export default function EntryArtwork({ entry, retrying }: { entry: Entry; retrying?: boolean }) {
-  const processing = entry.status === 'processing' || retrying
-  const failed = entry.status === 'failed' && !retrying
+function textOf(entry: EntryOut): string {
+  if (entry.entry_type === 'choice') {
+    return entry.choice ?? ''
+  }
+  return entry.body ?? ''
+}
 
-  if (processing) {
+export default function EntryArtwork({ entry, retrying }: { entry: EntryOut; retrying?: boolean }) {
+  const status = retrying ? 'processing' : entryStatusOf(entry)
+  const scale = scaleAnswer(entry)
+
+  if (status === 'processing') {
     return (
       <div className="en-art en-art-state">
         <RefreshIcon width={26} height={26} />
@@ -104,7 +115,7 @@ export default function EntryArtwork({ entry, retrying }: { entry: Entry; retryi
     )
   }
 
-  if (failed) {
+  if (status === 'failed') {
     return (
       <div className="en-art en-art-state en-art-state-failed">
         <AlertTriangleIcon width={26} height={26} />
@@ -113,46 +124,43 @@ export default function EntryArtwork({ entry, retrying }: { entry: Entry; retryi
     )
   }
 
-  if (entry.kind === 'text') {
+  if (entry.entry_type === 'text' || entry.entry_type === 'choice') {
     return (
       <div className="en-art en-art-text">
-        <p>{entry.text ?? entry.excerpt}</p>
+        <p>{textOf(entry) || t('detail.mediaUnavailable')}</p>
       </div>
     )
   }
 
-  if (entry.kind === 'scale' && entry.scale) {
+  if (entry.entry_type === 'scale' && scale) {
     return (
       <div className="en-art en-art-scale">
         <span className="en-scale-number">
-          {entry.scale.value}
-          <span> de {entry.scale.points}</span>
+          {scale.value}
+          {scale.points > 0 ? <span> de {scale.points}</span> : null}
         </span>
-        <ScaleDots scale={entry.scale} />
+        <ScaleDots scale={scale} />
       </div>
     )
   }
 
-  if (entry.kind === 'audio') {
+  if (entry.entry_type === 'audio') {
     return (
       <div className="en-art en-art-audio">
         <Waveform />
-        {entry.duration ? <span className="en-duration">{entry.duration}</span> : null}
       </div>
     )
   }
 
   return (
     <div className="en-art">
-      <ScenicFrame palette={entry.palette} className="en-scenic" />
-      {entry.kind === 'video' ? (
+      <ScenicFrame palette={paletteFor(entry.id)} className="en-scenic" />
+      {entry.entry_type === 'video' ? (
         <span className="en-art-play">
           <PlayIcon width={18} height={18} />
         </span>
       ) : null}
-      {entry.kind === 'video' && entry.duration ? (
-        <span className="en-duration">{entry.duration}</span>
-      ) : null}
+      {isFree(entry) ? <span className="pill ne en-art-free">{t('list.free')}</span> : null}
     </div>
   )
 }
