@@ -25,7 +25,7 @@ http:
     api:
       loadBalancer:
         healthCheck:
-          path: /api/v1/health
+          path: /api/v1/health/ready
           interval: 2s
           timeout: 1s
         servers:

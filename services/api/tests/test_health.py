@@ -1,5 +1,7 @@
+import pytest
 from fastapi.testclient import TestClient
 
+from app import main
 from app.main import app
 
 client = TestClient(app)
@@ -12,11 +14,22 @@ def test_health() -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_health_ready() -> None:
+def test_health_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "_database_ok", lambda: True)
+    monkeypatch.setattr(main, "_broker_ok", lambda: True)
     response = client.get("/api/v1/health/ready")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "checks": {"database": True, "broker": True}}
+
+
+def test_health_ready_fails_without_the_database(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "_database_ok", lambda: False)
+    monkeypatch.setattr(main, "_broker_ok", lambda: True)
+    response = client.get("/api/v1/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["checks"] == {"database": False, "broker": True}
 
 
 def test_unknown_route_returns_error_body() -> None:
