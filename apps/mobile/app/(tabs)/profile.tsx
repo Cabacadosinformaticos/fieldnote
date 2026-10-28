@@ -1,23 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { deviceClient } from '@/api/client';
+import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { Screen } from '@/components/Screen';
+import { SelectSheet } from '@/components/account/SelectSheet';
 import {
   AvailabilitySheet,
   type AvailabilityDraft,
 } from '@/components/join/AvailabilitySheet';
 import { formatTime } from '@/components/join/TimeWheel';
 import { WeekdayChips } from '@/components/join/WeekdayChips';
-import { dailyStudy } from '@/fake/daily';
 import {
-  moreAvailability,
-  type AvailabilityInterval,
-} from '@/fake/more';
+  fromApiInterval,
+  toApiInterval,
+  type AvailabilityIntervalView,
+} from '@/components/more/availability';
 import type { JoinKey } from '@/i18n/join';
 import { tj } from '@/i18n/tj';
 import { tm } from '@/i18n/tm';
+import { getDeviceToken, listParticipations, type Participation } from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const WEEKDAY_DAYS = [true, true, true, true, true, false, false];
@@ -29,22 +34,10 @@ const QUICK_ADDS: { label: JoinKey; from: number; to: number }[] = [
   { label: 'availability.quickEvening', from: 36, to: 44 },
 ];
 
-const OTHER_STUDY_INTERVALS: AvailabilityInterval[] = [
-  { id: 101, from: 16, to: 24, days: [...ALL_DAYS] },
-  { id: 102, from: 32, to: 44, days: [...WEEKDAY_DAYS] },
-];
-
 type SheetState = {
   id: number | null;
   initial: AvailabilityDraft;
 };
-
-function cloneIntervals(): AvailabilityInterval[] {
-  return moreAvailability.intervals.map((interval) => ({
-    ...interval,
-    days: [...interval.days],
-  }));
-}
 
 function rangeLabel(from: number, to: number): string {
   return tj('availability.range', {
@@ -53,14 +46,112 @@ function rangeLabel(from: number, to: number): string {
   });
 }
 
-export default function HoursScreen() {
-  const [anyTime, setAnyTime] = useState(moreAvailability.anyTime);
-  const [intervals, setIntervals] = useState<AvailabilityInterval[]>(cloneIntervals);
-  const [sheet, setSheet] = useState<SheetState | null>(null);
-  const [saved, setSaved] = useState(false);
-  const nextId = useRef(10);
+function studyDay(participation: Participation | undefined): {
+  day: number;
+  total: number;
+} | null {
+  if (!participation?.startsOn || !participation.endsOn) {
+    return null;
+  }
 
-  const markChanged = () => setSaved(false);
+  const start = new Date(`${participation.startsOn}T00:00:00`);
+  const end = new Date(`${participation.endsOn}T00:00:00`);
+  const now = new Date();
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
+
+  const total = Math.max(
+    1,
+    Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1,
+  );
+  const day = Math.max(
+    1,
+    Math.min(
+      total,
+      Math.round((now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1,
+    ),
+  );
+
+  return { day, total };
+}
+
+export default function HoursScreen() {
+  const [participations, setParticipations] = useState<Participation[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [anyTime, setAnyTime] = useState(false);
+  const [intervals, setIntervals] = useState<AvailabilityIntervalView[]>([]);
+  const [sheet, setSheet] = useState<SheetState | null>(null);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const nextId = useRef(1);
+
+  const selected = participations.find((item) => item.studyId === selectedId);
+  const meta = studyDay(selected);
+
+  const loadAvailability = useCallback(async (studyId: string) => {
+    const token = await getDeviceToken(studyId);
+    if (!token) {
+      setAnyTime(false);
+      setIntervals([]);
+      return;
+    }
+
+    try {
+      const { data } = await deviceClient(token).GET(
+        '/api/v1/participation/me/availability',
+      );
+      if (!data) {
+        setError(networkErrorMessage());
+        return;
+      }
+
+      setAnyTime(data.any_time);
+      setIntervals(
+        data.intervals.map((interval, index) => fromApiInterval(interval, index + 1)),
+      );
+      nextId.current = data.intervals.length + 1;
+      setError(null);
+    } catch {
+      setError(networkErrorMessage());
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    const rows = await listParticipations().catch(() => []);
+    setParticipations(rows);
+    setLoading(false);
+
+    const next =
+      rows.find(
+        (row) =>
+          row.status === 'active' ||
+          row.status === 'pending_approval' ||
+          row.status === 'withdrawn',
+      ) ?? rows[0];
+
+    const nextIdValue = next?.studyId ?? null;
+    if (nextIdValue !== selectedId) {
+      setSelectedId(nextIdValue);
+    }
+    if (nextIdValue) {
+      await loadAvailability(nextIdValue);
+    }
+  }, [loadAvailability, selectedId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  const markChanged = () => {
+    setSaved(false);
+    setError(null);
+  };
 
   const addInterval = (from: number, to: number, days: boolean[]) => {
     const id = nextId.current;
@@ -100,7 +191,7 @@ export default function HoursScreen() {
     });
   };
 
-  const openEditInterval = (interval: AvailabilityInterval) => {
+  const openEditInterval = (interval: AvailabilityIntervalView) => {
     setSheet({
       id: interval.id,
       initial: {
@@ -111,13 +202,105 @@ export default function HoursScreen() {
     });
   };
 
-  const copyOtherStudy = () => {
-    markChanged();
-    setIntervals(OTHER_STUDY_INTERVALS.map((interval) => ({
-      ...interval,
-      days: [...interval.days],
-    })));
+  const chooseStudy = async (studyId: string) => {
+    setSelectedId(studyId);
+    setSaved(false);
+    setIntervals([]);
+    setAnyTime(false);
+    await loadAvailability(studyId);
   };
+
+  const copyOtherStudy = async (studyId: string) => {
+    setCopyOpen(false);
+    const token = await getDeviceToken(studyId);
+    if (!token) {
+      return;
+    }
+
+    try {
+      const { data } = await deviceClient(token).GET(
+        '/api/v1/participation/me/availability',
+      );
+      if (!data) {
+        setError(networkErrorMessage());
+        return;
+      }
+
+      markChanged();
+      setAnyTime(data.any_time);
+      setIntervals(
+        data.intervals.map((interval, index) =>
+          fromApiInterval(interval, index + 1),
+        ),
+      );
+      nextId.current = data.intervals.length + 1;
+    } catch {
+      setError(networkErrorMessage());
+    }
+  };
+
+  const save = async () => {
+    if (!selectedId) {
+      return;
+    }
+
+    if (!anyTime) {
+      if (intervals.length === 0) {
+        setError(tj('availability.emptyError'));
+        return;
+      }
+      if (intervals.some((interval) => interval.from >= interval.to)) {
+        setError(tj('availability.invalidInterval'));
+        return;
+      }
+      if (intervals.some((interval) => !interval.days.some(Boolean))) {
+        setError(tj('availability.noDays'));
+        return;
+      }
+    }
+
+    const token = await getDeviceToken(selectedId);
+    if (!token) {
+      setError(tm('hours.noToken'));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const { data, error: apiError } = await deviceClient(token).PUT(
+        '/api/v1/participation/me/availability',
+        {
+          body: anyTime
+            ? { any_time: true, intervals: [] }
+            : { any_time: false, intervals: intervals.map(toApiInterval) },
+        },
+      );
+
+      if (!data) {
+        setError(apiErrorMessage(apiError));
+        return;
+      }
+
+      setSaved(true);
+    } catch {
+      setError(networkErrorMessage());
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!loading && participations.length === 0) {
+    return (
+      <Screen contentStyle={styles.content} edges={['top']}>
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <Text style={styles.title}>{tm('hours.title')}</Text>
+          <Text style={styles.body}>{tm('hours.noStudies')}</Text>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen contentStyle={styles.content} edges={['top']}>
@@ -125,15 +308,51 @@ export default function HoursScreen() {
 
       <View style={styles.header}>
         <Text style={styles.eyebrow}>
-          {tm('hours.eyebrow', {
-            study: dailyStudy.name,
-            day: dailyStudy.day,
-            total: dailyStudy.totalDays,
-          })}
+          {selected
+            ? tm('hours.eyebrow', {
+                study: selected.title,
+                day: meta?.day ?? 1,
+                total: meta?.total ?? 1,
+              })
+            : tm('hours.title')}
         </Text>
         <Text style={styles.title}>{tm('hours.title')}</Text>
         <Text style={styles.body}>{tm('hours.body')}</Text>
       </View>
+
+      {participations.length > 1 ? (
+        <View style={styles.studyPicker}>
+          <Text style={styles.pickerLabel}>{tm('hours.pickStudy')}</Text>
+          <View style={styles.pickerRow}>
+            {participations.map((participation) => {
+              const active = participation.studyId === selectedId;
+              return (
+                <Pressable
+                  key={participation.studyId}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => {
+                    void chooseStudy(participation.studyId);
+                  }}
+                  style={[
+                    styles.studyChip,
+                    active ? styles.studyChipOn : styles.studyChipOff,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.studyChipLabel,
+                      active && styles.studyChipLabelOn,
+                    ]}
+                  >
+                    {participation.title}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.anyCard}>
         <View style={styles.anyHeader}>
@@ -245,9 +464,24 @@ export default function HoursScreen() {
         <Text style={styles.noteText}>{tj('availability.dailyNote')}</Text>
       </View>
 
+      {error ? (
+        <View style={styles.errorCard}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={20}
+            color={colors.primaryDark}
+          />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
       <Pressable
         accessibilityRole="button"
-        onPress={() => setSaved(true)}
+        accessibilityState={{ disabled: saving || !selectedId }}
+        disabled={saving || !selectedId}
+        onPress={() => {
+          void save();
+        }}
         style={({ pressed }) => [
           styles.saveButton,
           saved ? styles.saveButtonSaved : styles.saveButtonActive,
@@ -255,18 +489,20 @@ export default function HoursScreen() {
         ]}
       >
         <Text style={[styles.saveLabel, saved && styles.saveLabelSaved]}>
-          {saved ? tm('hours.saved') : tm('hours.save')}
+          {saving ? tm('hours.saving') : saved ? tm('hours.saved') : tm('hours.save')}
         </Text>
       </Pressable>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={copyOtherStudy}
-        style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}
-      >
-        <Ionicons name="copy-outline" size={18} color={colors.primaryDark} />
-        <Text style={styles.copyLabel}>{tm('hours.copy')}</Text>
-      </Pressable>
+      {participations.length > 1 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setCopyOpen(true)}
+          style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}
+        >
+          <Ionicons name="copy-outline" size={18} color={colors.primaryDark} />
+          <Text style={styles.copyLabel}>{tm('hours.copy')}</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.infoCard}>
         <Ionicons
@@ -288,6 +524,23 @@ export default function HoursScreen() {
           onSave={saveInterval}
         />
       ) : null}
+
+      <SelectSheet
+        hint={tm('hours.copyHint')}
+        onClose={() => setCopyOpen(false)}
+        onSelect={(title) => {
+          const source = participations.find((item) => item.title === title);
+          if (source && source.studyId !== selectedId) {
+            void copyOtherStudy(source.studyId);
+          }
+        }}
+        options={participations
+          .filter((item) => item.studyId !== selectedId)
+          .map((item) => item.title)}
+        selected={undefined}
+        title={tm('hours.copy')}
+        visible={copyOpen}
+      />
     </Screen>
   );
 }
@@ -321,6 +574,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: colors.textMuted,
+  },
+  studyPicker: {
+    gap: 6,
+  },
+  pickerLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  studyChip: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+  },
+  studyChipOn: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  studyChipOff: {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  studyChipLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.text,
+  },
+  studyChipLabelOn: {
+    color: colors.white,
   },
   anyCard: {
     gap: 2,
@@ -553,6 +844,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     color: colors.primaryDark,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textBody,
   },
   pressed: {
     opacity: 0.8,
