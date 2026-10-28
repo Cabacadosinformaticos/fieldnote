@@ -33,9 +33,20 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "A câmara só serve para ler o código QR do convite."
+          "cameraPermission": "A câmara serve para ler o código QR do convite e para tirar fotografias ou vídeos pedidos pelo estudo.",
+          "microphonePermission": "O microfone só é usado nos registos de áudio ou vídeo pedidos pelo estudo.",
+          "recordAudioAndroid": true
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "O microfone só é usado nos registos de áudio pedidos pelo estudo.",
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      "expo-notifications"
     ],
     "extra": {
       "apiBaseUrl": "http://10.0.2.2:8080/api/v1"
