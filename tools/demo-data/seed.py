@@ -1,0 +1,1206 @@
+"""Fill a running Fieldnote stack with the demonstration study through the public API.
+
+The script only talks to the API at ``--base-url`` (plus ``docker compose exec`` to derive a
+TOTP code for the administrator, exactly as ``infra/deploy/smoke.sh`` does). It creates the
+researchers, the study, its activities and questions, the participants, their availability and
+their entries spread over the last days. Running it again finds the study by title and stops
+without creating a second one.
+
+Run with:
+
+    uv run seed.py --admin-email <email> --admin-password-stdin
+"""
+
+from __future__ import annotations
+
+import argparse
+import calendar
+import getpass
+import hashlib
+import io
+import os
+import random
+import subprocess
+import sys
+import time as clock
+import uuid
+from collections import Counter
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, time, timedelta, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+import httpx
+from PIL import Image, ImageDraw
+
+API_ROOT = "/api/v1"
+STUDY_TITLE = "Viver o Jardim da Estrela"
+STUDY_DESCRIPTION = (
+    "Como é que os moradores usam o Jardim da Estrela ao longo do dia, durante duas semanas."
+)
+TIMEZONE = "Europe/Lisbon"
+
+# Windows normally has no IANA database, and the project may install only httpx and Pillow.
+# Europe/Lisbon follows the EU rule (last Sunday of March to last Sunday of October), so the
+# fallback below derives the offset with the standard library rather than adding tzdata.
+try:
+    _LISBON = ZoneInfo(TIMEZONE)
+except ZoneInfoNotFoundError:
+    _LISBON = None
+
+
+def _last_sunday(year: int, month: int) -> date:
+    last = date(year, month, calendar.monthrange(year, month)[1])
+    return last - timedelta(days=last.isoweekday() % 7)
+
+
+def _is_dst(local_date: date) -> bool:
+    return _last_sunday(local_date.year, 3) <= local_date < _last_sunday(local_date.year, 10)
+
+
+def _lisbon_tz(local_date: date) -> timezone | ZoneInfo:
+    if _LISBON is not None:
+        return _LISBON
+    return timezone(timedelta(hours=1 if _is_dst(local_date) else 0))
+
+
+def _now_lisbon() -> datetime:
+    if _LISBON is not None:
+        return datetime.now(_LISBON)
+    now_utc = datetime.now(UTC)
+    offset = 1 if _is_dst(now_utc.date()) else 0
+    local_date = (now_utc + timedelta(hours=offset)).date()
+    if _is_dst(local_date) != bool(offset):
+        offset = 1 - offset
+    return now_utc.astimezone(timezone(timedelta(hours=offset)))
+
+PRINCIPAL = "ines.marques@fieldnote.test"
+CO_INVESTIGATOR = "duarte.lopes@fieldnote.test"
+MEMBER = "rita.ferraz@fieldnote.test"
+RESEARCHERS = (
+    (PRINCIPAL, "principal_investigator"),
+    (CO_INVESTIGATOR, "co_investigator"),
+    (MEMBER, "member"),
+)
+
+QUESTIONS = (
+    {
+        "kind": "single_choice",
+        "text": "Com que frequência vai ao Jardim da Estrela?",
+        "options": [
+            "Todos os dias",
+            "Algumas vezes por semana",
+            "Algumas vezes por mês",
+            "Raramente",
+        ],
+    },
+    {
+        "kind": "multiple_choice",
+        "text": "Como costuma chegar ao jardim?",
+        "options": ["A pé", "De bicicleta", "Transportes públicos", "De carro", "Outro"],
+    },
+)
+
+ACTIVITIES = (
+    {
+        "key": "A1",
+        "title": "Um momento no jardim",
+        "instructions": "Fotografe o sítio onde está agora no jardim e o que está a fazer.",
+        "entry_types": ["photo"],
+        "options": None,
+        "prompts_per_day": 1,
+        "window_start": "08:00:00",
+        "window_end": "20:00:00",
+        "min_gap_minutes": 30,
+        "capture_location": True,
+        "allow_free_entries": True,
+        "max_free_entries_per_day": 2,
+        "expected_minutes": 2,
+    },
+    {
+        "key": "A2",
+        "title": "O que o trouxe ao jardim?",
+        "instructions": (
+            "Conte em poucas palavras o que o trouxe hoje ao jardim. "
+            "Pode gravar até 1 minuto de áudio ou escrever."
+        ),
+        "entry_types": ["text", "audio"],
+        "options": None,
+        "prompts_per_day": 1,
+        "window_start": "09:00:00",
+        "window_end": "20:00:00",
+        "min_gap_minutes": 30,
+        "capture_location": False,
+        "allow_free_entries": True,
+        "max_free_entries_per_day": 1,
+        "expected_minutes": 1,
+    },
+    {
+        "key": "A3",
+        "title": "Como se sente agora?",
+        "instructions": "Escolha a cara que melhor descreve como se sente neste momento.",
+        "entry_types": ["scale"],
+        "options": {
+            "scale_type": "faces",
+            "points": 5,
+            "start_label": "Muito mal",
+            "middle_label": "Assim-assim",
+            "end_label": "Muito bem",
+        },
+        "prompts_per_day": 1,
+        "window_start": "09:00:00",
+        "window_end": "23:59:00",
+        "min_gap_minutes": 30,
+        "capture_location": False,
+        "allow_free_entries": True,
+        "max_free_entries_per_day": 1,
+        "expected_minutes": 1,
+    },
+)
+
+# Each entry is (start minute, end minute, ISO weekdays). Weekdays use 1 = Monday, 7 = Sunday.
+AVAILABILITY_SPECS = (
+    (8 * 60, 21 * 60, [1, 2, 3, 4, 5, 6, 7]),
+    (9 * 60, 18 * 60, [1, 2, 3, 4, 5]),
+    (10 * 60, 20 * 60, [1, 2, 3, 4, 5, 6, 7]),
+    (8 * 60 + 30, 19 * 60 + 30, [1, 2, 3, 4, 5]),
+    (9 * 60, 22 * 60, [1, 2, 3, 4, 5, 6, 7]),
+    (10 * 60, 18 * 60, [6, 7]),
+    (7 * 60 + 30, 20 * 60, [1, 2, 3, 4, 5, 6, 7]),
+)
+
+FAKE_IDENTITIES = (
+    ("Ana Silva", "ana.silva@exemplo.pt"),
+    ("Bruno Costa", "bruno.costa@exemplo.pt"),
+    ("Carla Nunes", "carla.nunes@exemplo.pt"),
+    ("Diogo Martins", "diogo.martins@exemplo.pt"),
+    ("Elisa Rocha", "elisa.rocha@exemplo.pt"),
+    ("Filipe Almeida", "filipe.almeida@exemplo.pt"),
+    ("Gabriela Pinto", "gabriela.pinto@exemplo.pt"),
+    ("Hugo Carvalho", "hugo.carvalho@exemplo.pt"),
+    ("Inês Teixeira", "ines.teixeira@exemplo.pt"),
+    ("João Neves", "joao.neves@exemplo.pt"),
+    ("Lara Mendes", "lara.mendes@exemplo.pt"),
+    ("Miguel Santos", "miguel.santos@exemplo.pt"),
+    ("Nádia Ferreira", "nadia.ferreira@exemplo.pt"),
+    ("Óscar Pereira", "oscar.pereira@exemplo.pt"),
+    ("Patrícia Lopes", "patricia.lopes@exemplo.pt"),
+    ("Ricardo Sousa", "ricardo.sousa@exemplo.pt"),
+    ("Sara Oliveira", "sara.oliveira@exemplo.pt"),
+    ("Tiago Marques", "tiago.marques@exemplo.pt"),
+    ("Vera Matos", "vera.matos@exemplo.pt"),
+    ("Xavier Gomes", "xavier.gomes@exemplo.pt"),
+    ("Zulmira Reis", "zulmira.reis@exemplo.pt"),
+    ("André Fonseca", "andre.fonseca@exemplo.pt"),
+)
+
+TEXTS = (
+    "Vim ler um livro à sombra, como faço quase todas as sextas-feiras.",
+    "Trago a minha filha ao parque infantil e fico a conversar com outros pais.",
+    "Atravessei o jardim a caminho do trabalho e sentei-me cinco minutos num banco.",
+    "Encontrei um vizinho e ficámos a falar sobre as obras do quiosque.",
+    "Vim caminhar depois do almoço e contar as voltas ao lago.",
+    "Trago o cão a passear todos os dias e hoje ficámos mais tempo do que o costume.",
+    "Vim esperar por uma amiga e aproveitei para ver as flores novas junto à estufa.",
+    "Gosto de vir aqui ler quando o jardim está mais calmo, ao fim da tarde.",
+    "Hoje vim só para descansar um pouco antes de voltar para casa.",
+    "Passei a correr pelo caminho de terra e parei para beber água.",
+    "Vim com os netos ao parque infantil e ficámos até ao lanche.",
+    "Sentei-me num banco ao sol a ver as pessoas a passar.",
+    "Vim buscar sombra: em casa não se consegue estar com este calor.",
+    "Atravessei o jardim para apanhar o autocarro e parei para ver o lago.",
+    "Costumo vir aqui à hora do almoço e hoje trouxe uma sandes.",
+    "Vim ver se as árvores do lado da estufa já tinham flores.",
+    "Passei pelo jardim a caminho da consulta e sentei-me um pouco.",
+    "Vim ler as notícias no telemóvel e acabei a olhar para os patos.",
+    "Hoje apeteceu-me vir ouvir os pássaros antes de começar o dia.",
+    "Vim com uma amiga que não conhecia o jardim e mostrei-lhe o lago.",
+)
+
+PHOTO_NOTES = (
+    "Sombra perto do lago.",
+    "Os bancos estão quase todos ocupados.",
+    "O caminho de terra está mais calmo hoje.",
+    "As árvores junto à estufa estão cheias de flores.",
+    "Um canto do jardim onde quase não passa ninguém.",
+    "A luz desta hora apanha o relvado todo.",
+    "O quiosque está fechado mas o jardim continua cheio.",
+    "Parei aqui porque havia sombra e silêncio.",
+)
+
+SCALE_WEIGHTS = (2, 8, 20, 35, 35)  # value 1..5, mostly the positive end
+
+
+class SeedError(RuntimeError):
+    """A step of the demonstration data could not be completed."""
+
+
+class ApiError(SeedError):
+    def __init__(self, method: str, path: str, status: int, body: str) -> None:
+        super().__init__(f"{method} {path} answered HTTP {status}: {body}")
+        self.status = status
+        self.body = body
+
+
+def _normalise_base_url(value: str) -> str:
+    cleaned = value.strip().rstrip("/")
+    if "//localhost" in cleaned:
+        cleaned = cleaned.replace("//localhost", "//127.0.0.1")
+    return cleaned
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+class Api:
+    """Thin JSON client. Administrator calls re-authenticate once on a 401."""
+
+    def __init__(self, base_url: str) -> None:
+        self.base_url = _normalise_base_url(base_url)
+        self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(60.0))
+        self.admin_token: str | None = None
+        self.admin_email: str | None = None
+        self.admin_password: str | None = None
+        self.totp_secret: str | None = None
+
+    def close(self) -> None:
+        self.client.close()
+
+    # Raw helpers -----------------------------------------------------------------------------
+
+    def _raw(
+        self,
+        method: str,
+        path: str,
+        *,
+        token: str | None = None,
+        scheme: str = "Bearer",
+        **kwargs: Any,
+    ) -> httpx.Response:
+        headers = dict(kwargs.pop("headers", {}))
+        if token is not None:
+            headers["Authorization"] = f"{scheme} {token}"
+        return self.client.request(method, f"{API_ROOT}{path}", headers=headers, **kwargs)
+
+    def _checked(self, method: str, path: str, response: httpx.Response) -> Any:
+        if response.status_code == 204:
+            return None
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise ApiError(method, path, response.status_code, response.text) from exc
+        if response.status_code >= 400:
+            raise ApiError(method, path, response.status_code, response.text)
+        return payload
+
+    # Administrator ---------------------------------------------------------------------------
+
+    def login_admin(self) -> str:
+        if not self.admin_email or not self.admin_password:
+            raise SeedError("The administrator credentials are not set.")
+        response = self._raw(
+            "POST",
+            "/auth/login",
+            json={"email": self.admin_email, "password": self.admin_password},
+        )
+        if response.status_code == 200:
+            self.admin_token = response.json()["access_token"]
+            return self.admin_token
+
+        code = _error_code(response)
+        if code == "totp_enrolment_required":
+            enrolment = self._raw(
+                "POST",
+                "/auth/totp/enrolment",
+                json={"email": self.admin_email, "password": self.admin_password},
+            )
+            payload = self._checked("POST", "/auth/totp/enrolment", enrolment)
+            self.totp_secret = payload["secret"]
+        elif code != "totp_required":
+            raise ApiError("POST", "/auth/login", response.status_code, response.text)
+
+        last: httpx.Response | None = None
+        for attempt in range(4):
+            totp_code = self._totp_code()
+            last = self._raw(
+                "POST",
+                "/auth/login",
+                json={
+                    "email": self.admin_email,
+                    "password": self.admin_password,
+                    "totp_code": totp_code,
+                },
+            )
+            if last.status_code == 200:
+                self.admin_token = last.json()["access_token"]
+                return self.admin_token
+            if _error_code(last) not in {"invalid_credentials", "totp_required"}:
+                break
+            clock.sleep(1 + attempt)
+        assert last is not None
+        raise ApiError("POST", "/auth/login", last.status_code, last.text)
+
+    def _totp_code(self) -> str:
+        if self.totp_secret is not None:
+            return _totp_for_secret(self.totp_secret)
+        assert self.admin_email is not None
+        return _totp_for_account(self.admin_email)
+
+    def admin(
+        self, method: str, path: str, *, expected: tuple[int, ...] = (200,), **kwargs: Any
+    ) -> Any:
+        if self.admin_token is None:
+            self.login_admin()
+        response = self._raw(method, path, token=self.admin_token, **kwargs)
+        if response.status_code == 401:
+            self.login_admin()
+            response = self._raw(method, path, token=self.admin_token, **kwargs)
+        if response.status_code not in expected:
+            raise ApiError(method, path, response.status_code, response.text)
+        return self._checked(method, path, response)
+
+    # Participant -----------------------------------------------------------------------------
+
+    def device(
+        self,
+        method: str,
+        path: str,
+        token: str,
+        *,
+        expected: tuple[int, ...] = (200,),
+        **kwargs: Any,
+    ) -> Any:
+        response = self._raw(method, path, token=token, scheme="Device", **kwargs)
+        if response.status_code not in expected:
+            raise ApiError(method, path, response.status_code, response.text)
+        return self._checked(method, path, response)
+
+    def public(self, method: str, path: str, *, expected: tuple[int, ...] = (200,), **kwargs: Any) -> Any:
+        response = self._raw(method, path, **kwargs)
+        if response.status_code not in expected:
+            raise ApiError(method, path, response.status_code, response.text)
+        return self._checked(method, path, response)
+
+
+def _error_code(response: httpx.Response) -> str | None:
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    error = payload.get("error") if isinstance(payload, dict) else None
+    return error.get("code") if isinstance(error, dict) else None
+
+
+def _compose_file() -> Path:
+    path = _repo_root() / "infra" / "deploy" / "compose.yaml"
+    if not path.is_file():
+        raise SeedError(
+            "The TOTP code needs docker compose: infra/deploy/compose.yaml was not found."
+        )
+    return path
+
+
+def _compose_exec(python_code: str, *arguments: str) -> str:
+    command = [
+        "docker",
+        "compose",
+        "-f",
+        str(_compose_file()),
+        "--profile",
+        "dev",
+        "exec",
+        "-T",
+        "api",
+        "python",
+        "-c",
+        python_code,
+        *arguments,
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise SeedError(f"Cannot run the API container to derive a TOTP code: {exc}") from exc
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise SeedError(f"Cannot derive a TOTP code from the API container: {detail}")
+    code = result.stdout.strip().splitlines()[-1].strip() if result.stdout.strip() else ""
+    if not code:
+        raise SeedError("The API container did not return a TOTP code.")
+    return code
+
+
+def _totp_for_secret(secret: str) -> str:
+    return _compose_exec(
+        "import sys; from app.security import totp; print(totp.generate_code(sys.argv[1]))",
+        secret,
+    )
+
+
+def _totp_for_account(email: str) -> str:
+    # The administrator is already enrolled, so the secret is read from its row and the code is
+    # generated by the API's own helper. Nothing is written.
+    return _compose_exec(
+        "import sys\n"
+        "from sqlalchemy import select\n"
+        "from app.db import SessionLocal\n"
+        "from app.models import UserAccount\n"
+        "from app.security import totp\n"
+        "session = SessionLocal()\n"
+        "account = session.scalar(select(UserAccount).where(UserAccount.email == sys.argv[1]))\n"
+        "if account is None or account.totp_secret is None:\n"
+        "    raise SystemExit('account has no TOTP secret')\n"
+        "print(totp.generate_code(account.totp_secret))\n"
+        "session.close()\n",
+        email,
+    )
+
+
+def _find_study(api: Api) -> dict[str, Any] | None:
+    studies = api.admin("GET", "/admin/studies")
+    matches = [study for study in studies if study.get("title") == STUDY_TITLE]
+    return matches[0] if matches else None
+
+
+def _print_existing(api: Api, study: dict[str, Any], dashboard_url: str) -> None:
+    participants = api.admin("GET", f"/studies/{study['id']}/participants")
+    statuses = Counter(item["status"] for item in participants)
+    unused = sum(
+        1 for item in participants if item["status"] == "active" and item.get("entered_at") is None
+    )
+    print(f"Study already exists: {STUDY_TITLE} ({study['id']})")
+    print(
+        "Participants: "
+        f"{len(participants)} total, {statuses.get('active', 0)} active "
+        f"({unused} invite unused), {statuses.get('withdrawn', 0)} withdrawn, "
+        f"{statuses.get('removed', 0)} removed, {statuses.get('declined', 0)} declined"
+    )
+    print(f"Entries: {study.get('entries', 0)}")
+    team = ", ".join(
+        f"{member['email']} ({member['role']})" for member in study.get("team", [])
+    )
+    print(f"Team: {team}")
+    print(
+        "Researcher passwords: unchanged from the first run "
+        "(they are printed only when the accounts are created)."
+    )
+    print(f"Dashboard: {dashboard_url}")
+    print("Nothing was created: a second run does not duplicate the study.")
+
+
+def _account_passwords(api: Api) -> dict[str, str]:
+    accounts = api.admin("GET", "/admin/accounts")
+    by_email = {account["email"]: account for account in accounts}
+    passwords: dict[str, str] = {}
+    for email, _role in RESEARCHERS:
+        if email in by_email:
+            print(f"Account already exists, password unchanged: {email}")
+            continue
+        created = api.admin(
+            "POST",
+            "/admin/accounts",
+            expected=(201,),
+            json={"email": email, "role": "researcher"},
+        )
+        passwords[email] = created["temporary_password"]
+        print(f"Created account: {email}")
+    return passwords
+
+
+def _create_study(
+    api: Api, starts_on: str, ends_on: str, researchers: dict[str, str]
+) -> str:
+    study = api.admin(
+        "POST",
+        "/studies",
+        expected=(201,),
+        json={
+            "title": STUDY_TITLE,
+            "description": STUDY_DESCRIPTION,
+            "starts_on": starts_on,
+            "ends_on": ends_on,
+            "timezone": TIMEZONE,
+            "max_prompts_per_day": 4,
+            "max_prompts_per_slot": 2,
+            "schedule_style": "varied",
+        },
+    )
+    study_id = study["id"]
+    accounts = {account["email"]: account for account in api.admin("GET", "/admin/accounts")}
+    for email, role in RESEARCHERS:
+        api.admin(
+            "POST",
+            f"/studies/{study_id}/members",
+            expected=(201,),
+            json={"email": email, "role": role},
+        )
+    # The administrator created the study; hand it to the principal investigator.
+    admin_id = accounts[api.admin_email]["id"]
+    api.admin("DELETE", f"/studies/{study_id}/members/{admin_id}", expected=(204,))
+    return study_id
+
+
+def _create_questions(api: Api, study_id: str) -> list[dict[str, Any]]:
+    created = []
+    for question in QUESTIONS:
+        created.append(
+            api.admin(
+                "POST",
+                f"/studies/{study_id}/questions",
+                expected=(201,),
+                json=question,
+            )
+        )
+    return created
+
+
+def _create_activities(api: Api, study_id: str) -> dict[str, str]:
+    ids: dict[str, str] = {}
+    for activity in ACTIVITIES:
+        payload = {key: value for key, value in activity.items() if key != "key"}
+        created = api.admin(
+            "POST",
+            f"/studies/{study_id}/activities",
+            expected=(201,),
+            json=payload,
+        )
+        ids[activity["key"]] = created["id"]
+    return ids
+
+
+def _study_dates(days: int) -> tuple[str, str]:
+    today = _now_lisbon().date()
+    first = today - timedelta(days=days - 1)
+    return first.isoformat(), today.isoformat()
+
+
+@dataclass
+class Participant:
+    id: str
+    alias: str
+    token: str
+    availability: tuple[int, int, list[int]]
+    answers: list[dict[str, Any]]
+    profile: float
+    entries: int = 0
+
+
+def _answers(rng: random.Random, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    answers: list[dict[str, Any]] = []
+    for question in questions:
+        kind = question["kind"]
+        options = question.get("options") or []
+        if kind == "multiple_choice":
+            count = rng.randint(1, min(2, len(options)))
+            answers.append(
+                {"question_id": question["id"], "answer": rng.sample(list(options), count)}
+            )
+        elif kind == "single_choice":
+            answers.append({"question_id": question["id"], "answer": rng.choice(list(options))})
+        elif kind == "yes_no":
+            answers.append({"question_id": question["id"], "answer": rng.choice(["yes", "no"])})
+        else:
+            answers.append(
+                {
+                    "question_id": question["id"],
+                    "answer": "Venho ao jardim quase todas as semanas.",
+                }
+            )
+    return answers
+
+
+def _personal_code(api: Api, study_id: str, index: int) -> dict[str, Any]:
+    alias = f"P-{index + 1:02d}"
+    name, email = FAKE_IDENTITIES[index % len(FAKE_IDENTITIES)]
+    return api.admin(
+        "POST",
+        f"/studies/{study_id}/participants",
+        expected=(201,),
+        json={"alias": alias, "name": name, "email": email},
+    )
+
+
+def _join(
+    api: Api,
+    code: str,
+    android_id: str,
+    answers: list[dict[str, Any]],
+    rng: random.Random,
+) -> dict[str, Any]:
+    lookup = api.public(
+        "POST",
+        "/participation/invitations/lookup",
+        json={"code": code, "android_id": android_id},
+    )
+    accepted = api.public(
+        "POST",
+        "/participation/invitations/accept",
+        json={
+            "code": code,
+            "android_id": android_id,
+            "locale": "pt",
+            "consent_version": lookup["consent_version"],
+            "answers": answers,
+        },
+    )
+    if accepted["outcome"] not in {
+        "joined",
+        "returned",
+        "already_participating",
+        "pending_approval",
+        "waiting_approval",
+    }:
+        raise SeedError(f"Unexpected join outcome for {code}: {accepted['outcome']}")
+    if not accepted.get("device_token"):
+        raise SeedError(f"Joining with {code} did not return a device token.")
+    return accepted
+
+
+def _set_availability(api: Api, participant: Participant) -> None:
+    start, end, weekdays = participant.availability
+    api.device(
+        "PUT",
+        "/participation/me/availability",
+        participant.token,
+        json={
+            "any_time": False,
+            "intervals": [
+                {
+                    "start_time": f"{start // 60:02d}:{start % 60:02d}:00",
+                    "end_time": f"{end // 60:02d}:{end % 60:02d}:00",
+                    "weekdays": weekdays,
+                }
+            ],
+        },
+    )
+
+
+def _join_participants(
+    api: Api,
+    created: list[tuple[dict[str, Any], str, int]],
+    questions: list[dict[str, Any]],
+    rng: random.Random,
+) -> list[Participant]:
+    joined: list[Participant] = []
+    for index, (record, code, spec_index) in enumerate(created):
+        answers = _answers(rng, questions)
+        accepted = _join(api, code, f"demo-{rng.getrandbits(48):012x}", answers, rng)
+        participant = Participant(
+            id=accepted["participant"]["id"],
+            alias=record["alias"],
+            token=accepted["device_token"],
+            availability=AVAILABILITY_SPECS[spec_index % len(AVAILABILITY_SPECS)],
+            answers=answers,
+            profile=_profile_for(index),
+        )
+        _set_availability(api, participant)
+        joined.append(participant)
+        print(f"  joined {participant.alias} ({index + 1}/{len(created)})")
+    return joined
+
+
+def _profile_for(index: int) -> float:
+    # Most participants answer almost everything; a few answer much less.
+    return (0.90, 0.90, 0.90, 0.90, 0.90, 0.62, 0.35)[index % 7]
+
+
+def _declined_participant(
+    api: Api, study_id: str, questions: list[dict[str, Any]], rng: random.Random, ends_on: str
+) -> None:
+    code = api.admin(
+        "POST",
+        f"/studies/{study_id}/invite-codes",
+        expected=(201,),
+        json={
+            "name": "Cartaz no quiosque do jardim",
+            "end_date": ends_on,
+            "max_uses": 10,
+            "max_per_hour": 5,
+            "requires_approval": True,
+            "requires_account": False,
+        },
+    )
+    answers = _answers(rng, questions)
+    accepted = _join(api, code["code"], f"demo-declined-{rng.getrandbits(48):012x}", answers, rng)
+    if accepted["outcome"] != "pending_approval":
+        raise SeedError("The poster code did not leave the participant waiting for approval.")
+    participant_id = accepted["participant"]["id"]
+    api.admin(
+        "POST",
+        f"/studies/{study_id}/approvals/{participant_id}/decline",
+        json={},
+    )
+    # Keep a personal code on the row too, so every participant has one in the list.
+    api.admin(
+        "POST",
+        f"/studies/{study_id}/participants/{participant_id}/invite-code",
+        expected=(201,),
+    )
+    print("  one participant entered by the poster code and was declined")
+
+
+def _pick_time(
+    rng: random.Random,
+    local_date: Any,
+    availability: tuple[int, int, list[int]],
+    activity_key: str,
+    now_local: datetime,
+) -> datetime | None:
+    start, end, weekdays = availability
+    if local_date.isoweekday() not in weekdays:
+        return None
+    activity = next(item for item in ACTIVITIES if item["key"] == activity_key)
+    window_start = _minutes(activity["window_start"])
+    window_end = _minutes(activity["window_end"])
+    low = max(start, window_start)
+    high = min(end, window_end)
+    if local_date == now_local.date():
+        high = min(high, now_local.hour * 60 + now_local.minute - 10)
+    if high - low < 20:
+        return None
+    minute = rng.randint(low + 10, high - 5)
+    return datetime.combine(
+        local_date, time(minute // 60, minute % 60), tzinfo=_lisbon_tz(local_date)
+    )
+
+
+def _minutes(value: str) -> int:
+    hours, minutes, _seconds = (int(part) for part in value.split(":"))
+    return hours * 60 + minutes
+
+
+def _sha256(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _garden_photo(rng: random.Random) -> bytes:
+    width, height = 800, 600
+    image = Image.new("RGB", (width, height), (220, 235, 250))
+    draw = ImageDraw.Draw(image)
+
+    sky_top = (rng.randint(100, 140), rng.randint(165, 195), rng.randint(215, 245))
+    sky_bottom = (rng.randint(205, 235), rng.randint(225, 240), rng.randint(240, 250))
+    for y in range(height * 2 // 3):
+        ratio = y / max(1, height * 2 // 3)
+        colour = tuple(int(sky_top[i] + (sky_bottom[i] - sky_top[i]) * ratio) for i in range(3))
+        draw.line([(0, y), (width, y)], fill=colour)
+
+    horizon = int(height * 0.62)
+    ground_top = (rng.randint(52, 82), rng.randint(105, 135), rng.randint(52, 78))
+    ground_bottom = (rng.randint(30, 58), rng.randint(78, 104), rng.randint(34, 58))
+    for y in range(horizon, height):
+        ratio = (y - horizon) / max(1, height - horizon)
+        colour = tuple(
+            int(ground_top[i] + (ground_bottom[i] - ground_top[i]) * ratio) for i in range(3)
+        )
+        draw.line([(0, y), (width, y)], fill=colour)
+
+    if rng.random() < 0.55:
+        pond_left = rng.randint(40, 300)
+        pond_top = horizon + rng.randint(20, 80)
+        draw.ellipse(
+            [pond_left, pond_top, pond_left + rng.randint(180, 320), pond_top + rng.randint(50, 100)],
+            fill=(rng.randint(90, 130), rng.randint(150, 185), rng.randint(190, 220)),
+            outline=(70, 115, 150),
+            width=3,
+        )
+
+    path_y = horizon + rng.randint(80, 140)
+    draw.polygon(
+        [
+            (0, height),
+            (rng.randint(120, 300), path_y),
+            (rng.randint(480, 680), path_y),
+            (width, height),
+        ],
+        fill=(rng.randint(178, 205), rng.randint(160, 186), rng.randint(125, 150)),
+    )
+
+    for _ in range(rng.randint(2, 4)):
+        x = rng.randint(50, width - 80)
+        tree_height = rng.randint(150, 260)
+        trunk_width = rng.randint(12, 24)
+        base = horizon + rng.randint(20, 90)
+        draw.rectangle(
+            [x, base - tree_height, x + trunk_width, base],
+            fill=(rng.randint(78, 105), rng.randint(52, 72), rng.randint(34, 52)),
+        )
+        canopy = (rng.randint(35, 70), rng.randint(90, 140), rng.randint(40, 80))
+        for _ in range(rng.randint(4, 7)):
+            radius = rng.randint(35, 70)
+            cx = x + trunk_width // 2 + rng.randint(-55, 55)
+            cy = base - tree_height + rng.randint(-35, 55)
+            draw.ellipse(
+                [cx - radius, cy - radius, cx + radius, cy + radius],
+                fill=canopy,
+            )
+
+    if rng.random() < 0.8:
+        bench_x = rng.randint(380, 650)
+        bench_y = horizon + rng.randint(70, 130)
+        wood = (rng.randint(110, 140), rng.randint(72, 95), rng.randint(42, 62))
+        draw.rectangle([bench_x, bench_y, bench_x + 120, bench_y + 14], fill=wood)
+        draw.rectangle([bench_x, bench_y + 22, bench_x + 120, bench_y + 34], fill=wood)
+        draw.rectangle([bench_x + 8, bench_y + 34, bench_x + 18, bench_y + 68], fill=wood)
+        draw.rectangle([bench_x + 102, bench_y + 34, bench_x + 112, bench_y + 68], fill=wood)
+
+    sun_x = rng.randint(60, width - 60)
+    sun_y = rng.randint(40, horizon - 80)
+    sun_radius = rng.randint(24, 40)
+    draw.ellipse(
+        [sun_x - sun_radius, sun_y - sun_radius, sun_x + sun_radius, sun_y + sun_radius],
+        fill=(rng.randint(240, 255), rng.randint(215, 240), rng.randint(150, 190)),
+    )
+
+    for _ in range(rng.randint(8, 22)):
+        flower_x = rng.randint(0, width)
+        flower_y = rng.randint(horizon + 20, height - 10)
+        flower_radius = rng.randint(3, 7)
+        draw.ellipse(
+            [flower_x, flower_y, flower_x + flower_radius, flower_y + flower_radius],
+            fill=(rng.randint(200, 250), rng.randint(80, 180), rng.randint(90, 190)),
+        )
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=85, optimize=True)
+    return buffer.getvalue()
+
+
+def _upload_photo(api: Api, participant: Participant, entry_id: str, payload: bytes) -> str:
+    digest = _sha256(payload)
+    upload = api.device(
+        "POST",
+        "/media/upload-url",
+        participant.token,
+        expected=(201,),
+        json={
+            "entry_id": entry_id,
+            "mime_type": "image/jpeg",
+            "size_bytes": len(payload),
+            "sha256": digest,
+        },
+    )
+    signed = urlsplit(upload["upload_url"])
+    base = urlsplit(api.base_url)
+    port = signed.port or (443 if signed.scheme == "https" else 80)
+    target = f"{base.scheme}://{base.hostname}:{port}{signed.path}"
+    if signed.query:
+        target = f"{target}?{signed.query}"
+    response = api.client.put(
+        target,
+        content=payload,
+        headers={
+            "Host": signed.netloc,
+            "Content-Type": "image/jpeg",
+            "Content-Length": str(len(payload)),
+        },
+    )
+    if response.status_code not in (200, 204):
+        raise SeedError(
+            f"Uploading the photo answered HTTP {response.status_code}: {response.text[:200]}"
+        )
+    return upload["media_object_id"]
+
+
+def _submit_photo(
+    api: Api,
+    participant: Participant,
+    activity_id: str,
+    recorded_at: datetime,
+    rng: random.Random,
+    index: int,
+) -> None:
+    entry_id = str(uuid.uuid4())
+    payload = _garden_photo(random.Random(f"{index}-{rng.getrandbits(32)}"))
+    media_id = _upload_photo(api, participant, entry_id, payload)
+    body = rng.choice(PHOTO_NOTES) if rng.random() < 0.4 else None
+    latitude = 38.7145 + rng.uniform(-0.0008, 0.0008)
+    longitude = -9.1590 + rng.uniform(-0.0008, 0.0008)
+    request: dict[str, Any] = {
+        "id": entry_id,
+        "activity_id": activity_id,
+        "entry_type": "photo",
+        "content_sha256": _sha256(payload),
+        "recorded_at": recorded_at.isoformat(),
+        "media_object_ids": [media_id],
+        "latitude": latitude,
+        "longitude": longitude,
+    }
+    if body:
+        request["body"] = body
+    api.device("POST", "/entries", participant.token, json=request)
+
+
+def _submit_text(
+    api: Api, participant: Participant, activity_id: str, recorded_at: datetime, rng: random.Random
+) -> None:
+    body = rng.choice(TEXTS)
+    api.device(
+        "POST",
+        "/entries",
+        participant.token,
+        json={
+            "id": str(uuid.uuid4()),
+            "activity_id": activity_id,
+            "entry_type": "text",
+            "content_sha256": _sha256(body.encode("utf-8")),
+            "recorded_at": recorded_at.isoformat(),
+            "body": body,
+        },
+    )
+
+
+def _submit_scale(
+    api: Api, participant: Participant, activity_id: str, recorded_at: datetime, rng: random.Random
+) -> None:
+    value = rng.choices(range(1, 6), weights=SCALE_WEIGHTS, k=1)[0]
+    shown = {
+        "scale_type": "faces",
+        "points": 5,
+        "start_label": "Muito mal",
+        "middle_label": "Assim-assim",
+        "end_label": "Muito bem",
+    }
+    api.device(
+        "POST",
+        "/entries",
+        participant.token,
+        json={
+            "id": str(uuid.uuid4()),
+            "activity_id": activity_id,
+            "entry_type": "scale",
+            "content_sha256": _sha256(f"scale:{value}".encode("utf-8")),
+            "recorded_at": recorded_at.isoformat(),
+            "value": value,
+            "scale_shown": shown,
+        },
+    )
+
+
+def _seed_entries(
+    api: Api,
+    participants: list[Participant],
+    activity_ids: dict[str, str],
+    days: int,
+    seed: int,
+) -> None:
+    now_local = _now_lisbon()
+    first = (now_local - timedelta(days=days - 1)).date()
+    for index, participant in enumerate(participants):
+        rng = random.Random(f"{seed}-{index}-entries")
+        count = 0
+        for offset in range(days):
+            local_date = first + timedelta(days=offset)
+            for activity in ACTIVITIES:
+                if rng.random() > participant.profile:
+                    continue
+                recorded_at = _pick_time(
+                    rng, local_date, participant.availability, activity["key"], now_local
+                )
+                if recorded_at is None:
+                    continue
+                activity_id = activity_ids[activity["key"]]
+                if activity["key"] == "A1":
+                    _submit_photo(api, participant, activity_id, recorded_at, rng, index)
+                elif activity["key"] == "A2":
+                    _submit_text(api, participant, activity_id, recorded_at, rng)
+                else:
+                    _submit_scale(api, participant, activity_id, recorded_at, rng)
+                count += 1
+        participant.entries = count
+        print(f"  {participant.alias}: {count} entries")
+
+
+def _list_entries(api: Api, study_id: str) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    cursor: str | None = None
+    while True:
+        params: dict[str, Any] = {"limit": 200}
+        if cursor:
+            params["cursor"] = cursor
+        page = api.admin("GET", f"/studies/{study_id}/entries", params=params)
+        items.extend(page["items"])
+        cursor = page.get("next_cursor")
+        if not cursor:
+            return items
+
+
+def _wait_for_media(api: Api, study_id: str, timeout: int = 600) -> list[dict[str, Any]]:
+    deadline = clock.monotonic() + timeout
+    last_report = 0.0
+    while True:
+        entries = _list_entries(api, study_id)
+        statuses = [media["status"] for entry in entries for media in entry.get("media", [])]
+        processed = sum(1 for status in statuses if status == "processed")
+        failed = sum(1 for status in statuses if status == "failed")
+        if failed:
+            raise SeedError(f"{failed} media files failed processing.")
+        if not statuses or processed == len(statuses):
+            print(f"  media processed: {processed}")
+            return entries
+        now = clock.monotonic()
+        if now >= deadline:
+            pending = len(statuses) - processed
+            raise SeedError(
+                f"{pending} of {len(statuses)} media files are still not processed "
+                f"after {timeout} seconds."
+            )
+        if now - last_report >= 10:
+            print(f"  waiting for media: {processed}/{len(statuses)} processed")
+            last_report = now
+        clock.sleep(3)
+
+
+def _finish_participants(
+    api: Api, study_id: str, joined: list[Participant]
+) -> tuple[Participant | None, Participant | None]:
+    if len(joined) < 2:
+        return None, None
+    withdrawn = joined[-1]
+    removed = joined[-2]
+    api.device("POST", "/participation/me/leave", withdrawn.token, json={})
+    api.admin(
+        "POST",
+        f"/studies/{study_id}/participants/{removed.id}/remove",
+        expected=(204,),
+        json={},
+    )
+    print(f"  {withdrawn.alias} withdrew; {removed.alias} was removed by the team")
+    return withdrawn, removed
+
+
+def _print_summary(
+    api: Api,
+    study_id: str,
+    entries: list[dict[str, Any]],
+    passwords: dict[str, str],
+    dashboard_url: str,
+) -> None:
+    participants = api.admin("GET", f"/studies/{study_id}/participants")
+    statuses = Counter(item["status"] for item in participants)
+    unused = sum(
+        1 for item in participants if item["status"] == "active" and item.get("entered_at") is None
+    )
+    by_type = Counter(entry["entry_type"] for entry in entries)
+    media = [item for entry in entries for item in entry.get("media", [])]
+    processed = sum(1 for item in media if item["status"] == "processed")
+    members = api.admin("GET", f"/studies/{study_id}/members")
+    team = ", ".join(f"{member['email']} ({member['role']})" for member in members)
+
+    print()
+    print("Demo study ready")
+    print(f"  Study: {STUDY_TITLE} ({study_id})")
+    print(f"  Team: {team}")
+    print(
+        "  Participants: "
+        f"{len(participants)} total, {statuses.get('active', 0)} active "
+        f"({unused} invite unused), {statuses.get('withdrawn', 0)} withdrawn, "
+        f"{statuses.get('removed', 0)} removed, {statuses.get('declined', 0)} declined"
+    )
+    print(
+        "  Entries: "
+        f"{len(entries)} total, {by_type.get('photo', 0)} photo, "
+        f"{by_type.get('text', 0)} text, {by_type.get('scale', 0)} scale"
+    )
+    print(f"  Media: {len(media)} files, {processed} processed")
+    print("  Researcher logins (passwords are shown only in this run):")
+    for email, _role in RESEARCHERS:
+        password = passwords.get(email)
+        if password:
+            print(f"    {email} / {password}")
+        else:
+            print(f"    {email} / unchanged (the account already existed)")
+    print(f"  Dashboard: {dashboard_url}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Fill a running Fieldnote stack with the demonstration study."
+    )
+    parser.add_argument("--base-url", default="http://127.0.0.1:8080")
+    parser.add_argument("--admin-email", required=True)
+    parser.add_argument("--admin-password-stdin", action="store_true")
+    parser.add_argument("--days", type=int, default=14)
+    parser.add_argument("--participants", type=int, default=22)
+    parser.add_argument("--seed", type=int, default=20261006)
+    arguments = parser.parse_args(argv)
+
+    if arguments.days < 1:
+        parser.error("--days must be at least 1")
+    if arguments.participants < 4:
+        parser.error("--participants must be at least 4")
+
+    if arguments.admin_password_stdin:
+        password = sys.stdin.readline().rstrip("\r\n")
+    else:
+        password = getpass.getpass("Administrator password: ")
+    if not password:
+        print("ERROR: the administrator password is empty.", file=sys.stderr)
+        return 2
+
+    dashboard_url = _normalise_base_url(
+        os.environ.get("FIELDNOTE_DASHBOARD_URL", "http://127.0.0.1:5173")
+    )
+    api = Api(arguments.base_url)
+    api.admin_email = arguments.admin_email.strip().lower()
+    api.admin_password = password
+
+    try:
+        print(f"Signing in to {api.base_url} as {api.admin_email}")
+        api.login_admin()
+
+        existing = _find_study(api)
+        if existing is not None:
+            _print_existing(api, existing, dashboard_url)
+            return 0
+
+        print("Creating the researcher accounts")
+        passwords = _account_passwords(api)
+
+        starts_on, ends_on = _study_dates(arguments.days)
+        print(f"Creating the study ({starts_on} to {ends_on})")
+        study_id = _create_study(api, starts_on, ends_on, passwords)
+        questions = _create_questions(api, study_id)
+        activity_ids = _create_activities(api, study_id)
+        api.admin("POST", f"/studies/{study_id}/start", json={})
+        print(f"  study {study_id} is running")
+
+        personal_count = arguments.participants - 1
+        joined_count = max(0, personal_count - 1)
+        print(f"Creating {personal_count} participants with personal codes")
+        created: list[tuple[dict[str, Any], str, int]] = []
+        for index in range(personal_count):
+            record = _personal_code(api, study_id, index)
+            created.append((record, record["invite_code"]["code"], index))
+
+        print(f"Joining {joined_count} participants as phones")
+        joined = _join_participants(api, created[:joined_count], questions, random.Random(arguments.seed))
+        rng = random.Random(arguments.seed + 1)
+        _declined_participant(api, study_id, questions, rng, ends_on)
+
+        print(f"Submitting entries over the last {arguments.days} days")
+        _seed_entries(api, joined, activity_ids, arguments.days, arguments.seed)
+
+        print("Waiting for the media worker")
+        entries = _wait_for_media(api, study_id)
+
+        print("Finishing the demonstration states")
+        _finish_participants(api, study_id, joined)
+
+        entries = _list_entries(api, study_id)
+        _print_summary(api, study_id, entries, passwords, dashboard_url)
+        return 0
+    except ApiError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    except SeedError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        api.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
