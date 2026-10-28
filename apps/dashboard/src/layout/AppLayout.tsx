@@ -1,6 +1,8 @@
-import type { ComponentType, SVGProps } from 'react'
+import { useState, type ComponentType, type SVGProps } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
+import { useErasures } from '../api/admin'
+import { statusFromApi, useStudies } from '../api/studies'
 import {
   ActivitiesIcon,
   ChevronRightIcon,
@@ -26,8 +28,6 @@ type NavItem = {
   icon: ComponentType<SVGProps<SVGSVGElement>>
 }
 
-const DEMO_STUDY_ID = 'jardim-da-estrela'
-
 const adminNav: NavItem[] = [
   { key: 'nav.admin.accounts', to: '/admin/contas', icon: ParticipantsIcon },
   { key: 'nav.admin.studies', to: '/admin/estudos', icon: FolderIcon },
@@ -36,26 +36,45 @@ const adminNav: NavItem[] = [
   { key: 'nav.admin.erasure', to: '/admin/pedidos-de-apagamento', icon: ErasureIcon },
 ]
 
+const statusKeys = {
+  ongoing: 'study.status.ongoing',
+  draft: 'study.status.draft',
+  finished: 'study.status.finished',
+} as const
+
 export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const params = useParams<{ studyId?: string }>()
-  const studyId = params.studyId ?? DEMO_STUDY_ID
-
-  const researcherNav: NavItem[] = [
-    { key: 'nav.overview', to: `/estudos/${studyId}/visao-geral`, icon: OverviewIcon },
-    { key: 'nav.plan', to: `/estudos/${studyId}/plano`, icon: PlanIcon },
-    { key: 'nav.activities', to: `/estudos/${studyId}/atividades`, icon: ActivitiesIcon },
-    { key: 'nav.participants', to: `/estudos/${studyId}/participantes`, icon: ParticipantsIcon },
-    { key: 'nav.entries', to: `/estudos/${studyId}/registos`, icon: EntriesIcon },
-    { key: 'nav.export', to: `/estudos/${studyId}/exportar`, icon: ExportIcon },
-    { key: 'nav.settings', to: `/estudos/${studyId}/definicoes`, icon: SettingsIcon },
-  ]
+  const studyId = params.studyId
+  const [switcherOpen, setSwitcherOpen] = useState(false)
 
   const isAdmin = user?.role === 'admin'
+  const studiesQuery = useStudies()
+  const erasuresQuery = useErasures(isAdmin)
+  const studies = studiesQuery.data ?? []
+  const currentStudy = studies.find((study) => study.id === studyId)
+  const studyTitle =
+    currentStudy?.title ?? (studiesQuery.isLoading ? t('study.switcherLoading') : t('study.switcherEmpty'))
+  const studyStatus = currentStudy ? t(statusKeys[statusFromApi(currentStudy.status)]) : ''
+
+  const researcherNav: NavItem[] = studyId
+    ? [
+        { key: 'nav.overview', to: `/estudos/${studyId}/visao-geral`, icon: OverviewIcon },
+        { key: 'nav.plan', to: `/estudos/${studyId}/plano`, icon: PlanIcon },
+        { key: 'nav.activities', to: `/estudos/${studyId}/atividades`, icon: ActivitiesIcon },
+        { key: 'nav.participants', to: `/estudos/${studyId}/participantes`, icon: ParticipantsIcon },
+        { key: 'nav.entries', to: `/estudos/${studyId}/registos`, icon: EntriesIcon },
+        { key: 'nav.export', to: `/estudos/${studyId}/exportar`, icon: ExportIcon },
+        { key: 'nav.settings', to: `/estudos/${studyId}/definicoes`, icon: SettingsIcon },
+      ]
+    : []
+
   const navItems = isAdmin ? adminNav : researcherNav
-  const currentItem = navItems.find((item) => item.to === location.pathname)
+  const currentItem = navItems.find(
+    (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
+  )
   const isStudiesIndex = location.pathname === '/estudos'
 
   const userEmail = user?.email ?? ''
@@ -64,10 +83,16 @@ export default function AppLayout() {
     role: t(isAdmin ? 'user.role.admin' : 'user.role.researcher'),
     initials: userEmail.split('@')[0].slice(0, 2).toUpperCase(),
   }
+  const pendingErasures = erasuresQuery.data?.scheduled.length ?? 0
 
   async function handleSignOut() {
     await signOut()
     navigate('/entrar', { replace: true })
+  }
+
+  function switchStudy(nextId: string) {
+    setSwitcherOpen(false)
+    navigate(`/estudos/${nextId}/visao-geral`)
   }
 
   return (
@@ -79,53 +104,93 @@ export default function AppLayout() {
             <span className="brand-name">{t('app.name')}</span>
           </div>
 
-          {!isAdmin ? (
-            <Link
-              className="study-switcher"
-              to="/estudos"
-              aria-label={t('study.switcherAria', {
-                study: t('study.demoTitle'),
-                status: t('study.status.ongoing'),
-              })}
-            >
-              <span className="study-switcher-text">
-                <span className="study-switcher-label">{t('study.switcherLabel')}</span>
-                <span className="study-switcher-name">{t('study.demoTitle')}</span>
-                <span className="study-status-pill">
-                  <span className="status-dot" aria-hidden="true" />
-                  {t('study.status.ongoing')}
+          {!isAdmin && studyId ? (
+            <div className="study-switcher-wrap">
+              <button
+                type="button"
+                className="study-switcher"
+                aria-haspopup="menu"
+                aria-expanded={switcherOpen}
+                aria-label={t('study.switcherAria', {
+                  study: studyTitle,
+                  status: studyStatus,
+                })}
+                onClick={() => setSwitcherOpen((open) => !open)}
+              >
+                <span className="study-switcher-text">
+                  <span className="study-switcher-label">{t('study.switcherLabel')}</span>
+                  <span className="study-switcher-name">{studyTitle}</span>
+                  {currentStudy ? (
+                    <span className="study-status-pill">
+                      <span className="status-dot" aria-hidden="true" />
+                      {studyStatus}
+                    </span>
+                  ) : null}
                 </span>
-              </span>
-              <UpDownIcon />
-            </Link>
+                <UpDownIcon />
+              </button>
+
+              {switcherOpen ? (
+                <div className="study-switcher-menu" role="menu">
+                  {studies.map((study) => (
+                    <button
+                      key={study.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={study.id === studyId}
+                      className="study-switcher-option"
+                      onClick={() => switchStudy(study.id)}
+                    >
+                      <span className="study-switcher-option-name">{study.title}</span>
+                      <span className="study-switcher-option-status">
+                        {t(statusKeys[statusFromApi(study.status)])}
+                      </span>
+                    </button>
+                  ))}
+                  {studies.length === 0 && !studiesQuery.isLoading ? (
+                    <span className="study-switcher-empty">{t('study.switcherNoStudies')}</span>
+                  ) : null}
+                  <Link className="study-switcher-all" to="/estudos" onClick={() => setSwitcherOpen(false)}>
+                    {t('study.switcherAll')}
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
-          <nav
-            className="sidebar-nav"
-            aria-label={isAdmin ? t('nav.administration') : t('nav.studySections')}
-          >
-            {isAdmin ? <span className="sidebar-nav-label">{t('nav.administration')}</span> : null}
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const active = item.to === location.pathname
+          {navItems.length > 0 ? (
+            <nav
+              className="sidebar-nav"
+              aria-label={isAdmin ? t('nav.administration') : t('nav.studySections')}
+            >
+              {isAdmin ? <span className="sidebar-nav-label">{t('nav.administration')}</span> : null}
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const active = item.to === currentItem?.to
+                const badge =
+                  isAdmin && item.to === '/admin/pedidos-de-apagamento' && pendingErasures > 0
+                    ? pendingErasures
+                    : null
 
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={isAdmin ? 'nav-link nav-link-admin' : 'nav-link'}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  <Icon
-                    width={isAdmin ? 18 : 20}
-                    height={isAdmin ? 18 : 20}
-                    strokeWidth={isAdmin ? 2 : 1.9}
-                  />
-                  <span className="nav-link-text">{t(item.key)}</span>
-                </Link>
-              )
-            })}
-          </nav>
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={isAdmin ? 'nav-link nav-link-admin' : 'nav-link'}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <Icon
+                      width={isAdmin ? 18 : 20}
+                      height={isAdmin ? 18 : 20}
+                      strokeWidth={isAdmin ? 2 : 1.9}
+                    />
+                    <span className="nav-link-text">{t(item.key)}</span>
+                    {badge !== null ? <span className="nav-badge">{badge}</span> : null}
+                  </Link>
+                )
+              })}
+            </nav>
+          ) : null}
 
           <div className="sidebar-footer">
             <div className={isAdmin ? 'user-card user-card-admin' : 'user-card'}>
@@ -169,20 +234,22 @@ export default function AppLayout() {
               </>
             ) : isStudiesIndex ? (
               <span className="breadcrumb-current">{t('breadcrumb.studies')}</span>
-            ) : (
+            ) : studyId ? (
               <>
                 <Link className="breadcrumb-link" to="/estudos">
                   {t('breadcrumb.studies')}
                 </Link>
                 <span aria-hidden="true">/</span>
                 <Link className="breadcrumb-link" to={`/estudos/${studyId}/visao-geral`}>
-                  {t('study.demoTitle')}
+                  {studyTitle}
                 </Link>
                 <span aria-hidden="true">/</span>
                 <span className="breadcrumb-current">
                   {currentItem ? t(currentItem.key) : null}
                 </span>
               </>
+            ) : (
+              <span className="breadcrumb-current">{t('breadcrumb.studies')}</span>
             )}
           </nav>
 

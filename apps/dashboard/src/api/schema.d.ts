@@ -451,7 +451,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ready */
+        /**
+         * Ready
+         * @description Ready only when this replica reaches the database primary and the broker.
+         *
+         *     The gateways route on this check, so a replica cut off from the cluster stops receiving
+         *     requests, as the fault model expects.
+         */
         get: operations["ready_api_v1_health_ready_get"];
         put?: never;
         post?: never;
@@ -911,6 +917,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/studies/{study_id}/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Consent Summary */
+        get: operations["read_consent_summary_api_v1_studies__study_id__consent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/studies/{study_id}/entries": {
         parameters: {
             query?: never;
@@ -938,6 +961,23 @@ export interface paths {
         /** Entry Detail */
         get: operations["entry_detail_api_v1_studies__study_id__entries__entry_id__get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/studies/{study_id}/entries/{entry_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Entry Tags */
+        put: operations["set_entry_tags_api_v1_studies__study_id__entries__entry_id__tags_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1067,6 +1107,23 @@ export interface paths {
         patch: operations["change_member_role_api_v1_studies__study_id__members__user_id__patch"];
         trace?: never;
     };
+    "/studies/{study_id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Study Overview */
+        get: operations["get_study_overview_api_v1_studies__study_id__overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/studies/{study_id}/participants": {
         parameters: {
             query?: never;
@@ -1164,6 +1221,23 @@ export interface paths {
         put?: never;
         /** Remove Participant */
         post: operations["remove_participant_api_v1_studies__study_id__participants__participant_id__remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/studies/{study_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Study Plan */
+        get: operations["get_study_plan_api_v1_studies__study_id__plan_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1908,6 +1982,21 @@ export interface components {
              */
             received_at: string;
         };
+        /** EntryTagsOut */
+        EntryTagsOut: {
+            /**
+             * Entry Id
+             * Format: uuid
+             */
+            entry_id: string;
+            /** Tags */
+            tags?: components["schemas"]["TagOut"][];
+        };
+        /** EntryTagsUpdate */
+        EntryTagsUpdate: {
+            /** Tag Ids */
+            tag_ids?: string[];
+        };
         /**
          * EntryType
          * @enum {string}
@@ -2144,6 +2233,141 @@ export interface components {
             /** Prompts */
             prompts: components["schemas"]["OpenPromptOut"][];
         };
+        /** OverviewAdherence */
+        OverviewAdherence: {
+            /**
+             * Answered
+             * @default 0
+             */
+            answered: number;
+            /**
+             * Expired
+             * @default 0
+             */
+            expired: number;
+            /**
+             * Percentage
+             * @default 0
+             */
+            percentage: number;
+            /**
+             * Planned
+             * @default 0
+             */
+            planned: number;
+            /**
+             * Sent
+             * @default 0
+             */
+            sent: number;
+        };
+        /** OverviewAlert */
+        OverviewAlert: {
+            /** Alias */
+            alias: string | null;
+            /** Entered At */
+            entered_at?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pending_approval" | "no_entries";
+            /** Last Entry At */
+            last_entry_at?: string | null;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
+        /** OverviewEntry */
+        OverviewEntry: {
+            /** Activity Id */
+            activity_id: string | null;
+            /** Activity Title */
+            activity_title: string | null;
+            entry_type: components["schemas"]["EntryType"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Participant Alias */
+            participant_alias: string | null;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            /** Prompt Id */
+            prompt_id: string | null;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+        };
+        /** OverviewEntryCounts */
+        OverviewEntryCounts: {
+            /**
+             * Today
+             * @default 0
+             */
+            today: number;
+            /**
+             * Today Answered
+             * @default 0
+             */
+            today_answered: number;
+            /**
+             * Today Free
+             * @default 0
+             */
+            today_free: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+        };
+        /** OverviewParticipantCounts */
+        OverviewParticipantCounts: {
+            /**
+             * Active
+             * @default 0
+             */
+            active: number;
+            /**
+             * Declined
+             * @default 0
+             */
+            declined: number;
+            /**
+             * Pending Approval
+             * @default 0
+             */
+            pending_approval: number;
+            /**
+             * Removed
+             * @default 0
+             */
+            removed: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Withdrawn
+             * @default 0
+             */
+            withdrawn: number;
+        };
         /** ParticipantAddedOut */
         ParticipantAddedOut: {
             /** Alias */
@@ -2235,6 +2459,63 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+        };
+        /** PlanAvailabilityInterval */
+        PlanAvailabilityInterval: {
+            /**
+             * End Time
+             * Format: time
+             */
+            end_time: string;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+        };
+        /** PlanParticipant */
+        PlanParticipant: {
+            /** Alias */
+            alias: string | null;
+            /** Availability */
+            availability: components["schemas"]["PlanAvailabilityInterval"][];
+            /** Availability Any Time */
+            availability_any_time: boolean;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
+        /** PlanPrompt */
+        PlanPrompt: {
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /** Activity Title */
+            activity_title: string;
+            /** Occurrence */
+            occurrence: number;
+            /** Participant Alias */
+            participant_alias: string | null;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            /**
+             * Prompt Id
+             * Format: uuid
+             */
+            prompt_id: string;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /** Sent At */
+            sent_at: string | null;
+            status: components["schemas"]["PromptStatus"];
+            unplanned_reason: components["schemas"]["UnplannedReason"] | null;
         };
         /** PoolCountOut */
         PoolCountOut: {
@@ -2650,6 +2931,16 @@ export interface components {
             /** Requires Approval */
             requires_approval?: boolean | null;
         };
+        /**
+         * StudyConsentOut
+         * @description The consent version in use and how many active participants accepted it.
+         */
+        StudyConsentOut: {
+            /** Accepted */
+            accepted: number;
+            /** Version */
+            version: string;
+        };
         /** StudyCreate */
         StudyCreate: {
             /** Description */
@@ -2712,6 +3003,43 @@ export interface components {
             timezone: string;
             /** Title */
             title: string;
+        };
+        /** StudyOverviewOut */
+        StudyOverviewOut: {
+            adherence_study: components["schemas"]["OverviewAdherence"];
+            adherence_today: components["schemas"]["OverviewAdherence"];
+            /** Alerts */
+            alerts?: components["schemas"]["OverviewAlert"][];
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            entries: components["schemas"]["OverviewEntryCounts"];
+            /** Last Entries */
+            last_entries?: components["schemas"]["OverviewEntry"][];
+            participants: components["schemas"]["OverviewParticipantCounts"];
+            /**
+             * Study Id
+             * Format: uuid
+             */
+            study_id: string;
+            /** Timezone */
+            timezone: string;
+        };
+        /** StudyPlanOut */
+        StudyPlanOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Participants */
+            participants: components["schemas"]["PlanParticipant"][];
+            /** Prompts */
+            prompts: components["schemas"]["PlanPrompt"][];
+            /** Weekday */
+            weekday: number;
         };
         /** StudyQuestionCreate */
         StudyQuestionCreate: {
@@ -2939,6 +3267,11 @@ export interface components {
          * @enum {string}
          */
         TransportMode: "walking" | "public_transport" | "car" | "bicycle" | "scooter" | "other";
+        /**
+         * UnplannedReason
+         * @enum {string}
+         */
+        UnplannedReason: "outside_availability" | "min_gap_infeasible" | "daily_cap" | "slot_cap" | "search_cut";
         /** UserOut */
         UserOut: {
             /** Email */
@@ -3785,9 +4118,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": unknown;
                 };
             };
         };
@@ -4884,6 +5215,37 @@ export interface operations {
             };
         };
     };
+    read_consent_summary_api_v1_studies__study_id__consent_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyConsentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_entries_api_v1_studies__study_id__entries_get: {
         parameters: {
             query?: {
@@ -4943,6 +5305,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_entry_tags_api_v1_studies__study_id__entries__entry_id__tags_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryTagsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryTagsOut"];
                 };
             };
             /** @description Validation Error */
@@ -5289,6 +5687,37 @@ export interface operations {
             };
         };
     };
+    get_study_overview_api_v1_studies__study_id__overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyOverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_participants_api_v1_studies__study_id__participants_get: {
         parameters: {
             query?: never;
@@ -5501,6 +5930,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_study_plan_api_v1_studies__study_id__plan_get: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path: {
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyPlanOut"];
+                };
             };
             /** @description Validation Error */
             422: {

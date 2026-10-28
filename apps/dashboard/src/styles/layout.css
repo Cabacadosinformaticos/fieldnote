@@ -310,3 +310,93 @@
     padding: var(--fn-space-24) var(--fn-space-20) var(--fn-space-40);
   }
 }
+
+.study-switcher-wrap {
+  position: relative;
+}
+
+.study-switcher {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.study-switcher-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  padding: var(--fn-space-4);
+  overflow-y: auto;
+  border: 1px solid var(--fn-color-sidebar-border);
+  border-radius: var(--fn-radius-md);
+  background: var(--fn-color-sidebar-card);
+  box-shadow: var(--fn-shadow-card);
+}
+
+.study-switcher-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--fn-space-8) var(--fn-space-10);
+  border: 0;
+  border-radius: var(--fn-radius-sm);
+  background: transparent;
+  color: var(--fn-color-sidebar-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.study-switcher-option:hover,
+.study-switcher-option[aria-checked='true'] {
+  background: var(--fn-color-sidebar-hover);
+}
+
+.study-switcher-option-name {
+  font-size: var(--fn-text-14);
+  font-weight: 700;
+}
+
+.study-switcher-option-status,
+.study-switcher-empty {
+  color: var(--fn-color-sidebar-muted);
+  font-size: var(--fn-text-12);
+}
+
+.study-switcher-empty {
+  padding: var(--fn-space-8) var(--fn-space-10);
+}
+
+.study-switcher-all {
+  margin-top: var(--fn-space-4);
+  padding: var(--fn-space-8) var(--fn-space-10);
+  border-top: 1px solid var(--fn-color-sidebar-border);
+  color: var(--fn-color-sidebar-muted);
+  font-size: var(--fn-text-12);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.study-switcher-all:hover {
+  color: var(--fn-color-white);
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--fn-radius-pill);
+  background: var(--fn-color-danger-text);
+  color: var(--fn-color-white);
+  font-size: var(--fn-text-12);
+  font-weight: 800;
+}

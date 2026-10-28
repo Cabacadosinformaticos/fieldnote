@@ -25,8 +25,13 @@ export const pt = {
 
   'study.switcherLabel': 'Estudo',
   'study.switcherAria': 'Mudar de estudo. Estudo atual: {study}, {status}',
-  'study.demoTitle': 'Viver o Jardim da Estrela',
+  'study.switcherLoading': 'A carregar…',
+  'study.switcherEmpty': 'Estudo',
+  'study.switcherNoStudies': 'Não há estudos para mostrar.',
+  'study.switcherAll': 'Os meus estudos',
   'study.status.ongoing': 'Em curso',
+  'study.status.draft': 'Rascunho',
+  'study.status.finished': 'Terminado',
 
   'user.researcher.name': 'Inês Marques',
   'user.researcher.role': 'Investigadora',

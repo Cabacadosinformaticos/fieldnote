@@ -185,8 +185,12 @@ export function useStudies() {
   return useQuery({ queryKey: keys.studies, queryFn: fetchStudies })
 }
 
-export function useErasures() {
-  return useQuery({ queryKey: keys.erasures, queryFn: fetchErasures })
+export function useErasures(enabled = true) {
+  return useQuery({
+    queryKey: keys.erasures,
+    queryFn: fetchErasures,
+    enabled,
+  })
 }
 
 export function useAuditLog(filters: AuditFilters) {
