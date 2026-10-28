@@ -1,30 +1,97 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Note } from '@/components/account/Note';
 import { accountHref } from '@/components/account/navigation';
+import { formatDate } from '@/components/join/format';
 import { StatusPill } from '@/components/more/StatusPill';
-import { restoredStudies, type RestoredStudy } from '@/fake/account';
 import { ta } from '@/i18n/ta';
+import {
+  getAccount,
+  getAccountToken,
+  getPoolCredential,
+  getPoolMember,
+  type AccountParticipation,
+} from '@/state/actions';
 import { colors, fonts, radii, spacing } from '@/theme';
 
-function statusLabel(item: RestoredStudy): string {
-  if (item.status === 'active') {
-    return ta('restored.active');
-  }
+type Row = {
+  id: string;
+  title: string;
+  status: string;
+  erasing: string | null;
+};
 
-  if (item.status === 'pool') {
-    return ta('restored.pool', { date: item.memberSince ?? '' });
+function statusLabel(item: AccountParticipation): string {
+  switch (item.status) {
+    case 'pending_approval':
+      return ta('account.pending');
+    case 'withdrawn':
+      return ta('account.withdrawn');
+    case 'removed':
+      return ta('account.removed');
+    case 'erasure_scheduled':
+      return ta('account.erasing');
+    case 'declined':
+      return ta('account.declined');
+    default:
+      return item.study.status === 'closed'
+        ? ta('account.ended')
+        : ta('account.active');
   }
+}
 
-  return ta('restored.ended');
+function toRow(item: AccountParticipation): Row {
+  return {
+    id: item.study.id,
+    title: item.study.title,
+    status: statusLabel(item),
+    erasing: item.erasure_due_at ? formatDate(item.erasure_due_at) : null,
+  };
 }
 
 export default function AccountRestoredScreen() {
+  const [rows, setRows] = useState<Row[]>([]);
+  const [poolSince, setPoolSince] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const token = await getAccountToken().catch(() => null);
+
+      if (!token) {
+        return;
+      }
+
+      const { data } = await getAccount(token);
+      if (!data) {
+        return;
+      }
+
+      setRows(data.participations.map(toRow));
+
+      if (!data.pool_linked) {
+        return;
+      }
+
+      const credential = await getPoolCredential();
+      if (!credential) {
+        return;
+      }
+
+      const member = await getPoolMember(credential);
+      if (member.data) {
+        setPoolSince(formatDate(member.data.joined_at));
+      }
+    };
+
+    void load();
+  }, []);
+
   return (
     <Screen contentStyle={styles.content}>
       <StatusBar style="dark" />
@@ -47,17 +114,17 @@ export default function AccountRestoredScreen() {
         accessibilityLabel={ta('restored.listLabel')}
         style={styles.card}
       >
-        {restoredStudies.map((item, index) => (
+        {rows.map((item, index) => (
           <View key={item.id}>
             {index > 0 ? <View style={styles.divider} /> : null}
             <View style={styles.row}>
               <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{item.name}</Text>
+                <Text style={styles.rowTitle}>{item.title}</Text>
                 <View style={styles.statusLine}>
-                  <Text style={styles.status}>{statusLabel(item)}</Text>
-                  {item.erasingDate ? (
+                  <Text style={styles.status}>{item.status}</Text>
+                  {item.erasing ? (
                     <StatusPill
-                      label={ta('restored.erasing', { date: item.erasingDate })}
+                      label={ta('restored.erasing', { date: item.erasing })}
                       tone="erasing"
                     />
                   ) : null}
@@ -66,6 +133,26 @@ export default function AccountRestoredScreen() {
             </View>
           </View>
         ))}
+
+        {poolSince ? (
+          <View>
+            {rows.length > 0 ? <View style={styles.divider} /> : null}
+            <View style={styles.row}>
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>{ta('pool.title')}</Text>
+                <Text style={styles.status}>
+                  {ta('restored.pool', { date: poolSince })}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {rows.length === 0 && !poolSince ? (
+          <View style={styles.row}>
+            <Text style={styles.status}>{ta('account.noStudies')}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Note

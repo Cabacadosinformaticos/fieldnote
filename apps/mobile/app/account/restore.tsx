@@ -4,32 +4,157 @@ import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { apiErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { CodeInput } from '@/components/account/CodeInput';
 import { Note } from '@/components/account/Note';
 import { accountHref } from '@/components/account/navigation';
-import { accountRecoveryCode } from '@/fake/account';
 import { ta } from '@/i18n/ta';
+import {
+  applySignIn,
+  linkableCredentials,
+  requestEmailCode,
+  signInWithRecovery,
+  verifyEmailCode,
+} from '@/state/actions';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 type SignInMethod = 'code' | 'mail' | 'google';
 
+function maskEmail(address: string): string {
+  const at = address.indexOf('@');
+  if (at <= 0) {
+    return '•••';
+  }
+  return `${address.charAt(0)}•••${address.slice(at)}`;
+}
+
 export default function RestoreAccountScreen() {
   const [method, setMethod] = useState<SignInMethod>('code');
-  const [recoveryCode, setRecoveryCode] = useState(accountRecoveryCode);
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isCode = method === 'code';
   const isMail = method === 'mail';
   const isGoogle = method === 'google';
+
+  const choose = (next: SignInMethod) => {
+    setMethod(next);
+    setStep('email');
+    setCode('');
+    setError(null);
+  };
+
+  const signIn = async () => {
+    const value = recoveryCode.trim();
+    if (!value) {
+      setError(ta('restore.error'));
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const credentials = await linkableCredentials();
+    const { data, error: apiError } = await signInWithRecovery(value, credentials);
+    setBusy(false);
+    if (!data) {
+      setError(apiErrorMessage(apiError));
+      return;
+    }
+
+    await applySignIn(data);
+    router.replace(accountHref('/account/restored'));
+  };
+
+  const sendCode = async () => {
+    const address = email.trim();
+    if (!address.includes('@')) {
+      setError(ta('restore.error'));
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const { error: apiError } = await requestEmailCode(address);
+    setBusy(false);
+    if (apiError !== null) {
+      setError(apiErrorMessage(apiError));
+      return;
+    }
+
+    setCode('');
+    setStep('code');
+  };
+
+  const verify = async () => {
+    if (code.length !== 6) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const credentials = await linkableCredentials();
+    const { data, error: apiError } = await verifyEmailCode(
+      email.trim(),
+      code,
+      credentials,
+    );
+    setBusy(false);
+    if (!data) {
+      setError(apiErrorMessage(apiError));
+      return;
+    }
+
+    if ('account_token' in data) {
+      await applySignIn(data);
+      router.replace(accountHref('/account/restored'));
+      return;
+    }
+
+    setError(ta('restore.error'));
+  };
+
+  const submit = () => {
+    if (isCode) {
+      void signIn();
+      return;
+    }
+    if (isMail && step === 'email') {
+      void sendCode();
+      return;
+    }
+    if (isMail) {
+      void verify();
+    }
+  };
+
+  const submitLabel = isCode
+    ? ta('restore.enter')
+    : isMail && step === 'code'
+      ? ta('restore.verify')
+      : ta('restore.continue');
 
   return (
     <Screen contentStyle={styles.content}>
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton onPress={() => router.back()} />
+        <BackButton
+          onPress={() => {
+            if (isMail && step === 'code') {
+              setStep('email');
+              setError(null);
+            } else {
+              router.back();
+            }
+          }}
+        />
       </View>
 
       <View style={styles.intro}>
@@ -44,7 +169,7 @@ export default function RestoreAccountScreen() {
               accessibilityLabel={ta('restore.code')}
               accessibilityRole="radio"
               accessibilityState={{ checked: isCode }}
-              onPress={() => setMethod('code')}
+              onPress={() => choose('code')}
               style={styles.methodHeader}
             >
               <Radio checked={isCode} />
@@ -73,7 +198,7 @@ export default function RestoreAccountScreen() {
               accessibilityLabel={ta('restore.email')}
               accessibilityRole="radio"
               accessibilityState={{ checked: isMail }}
-              onPress={() => setMethod('mail')}
+              onPress={() => choose('mail')}
               style={styles.methodHeader}
             >
               <Radio checked={isMail} />
@@ -82,7 +207,7 @@ export default function RestoreAccountScreen() {
               </View>
               <Text style={styles.methodTitle}>{ta('restore.email')}</Text>
             </Pressable>
-            {isMail ? (
+            {isMail && step === 'email' ? (
               <View style={styles.methodField}>
                 <Text style={styles.fieldLabel}>{ta('restore.emailLabel')}</Text>
                 <TextInput
@@ -100,30 +225,44 @@ export default function RestoreAccountScreen() {
                 <Text style={styles.fieldHelp}>{ta('restore.emailHelp')}</Text>
               </View>
             ) : null}
+            {isMail && step === 'code' ? (
+              <View style={styles.methodField}>
+                <Text style={styles.fieldHelp}>
+                  {ta('accountEmail.codeBodyBefore')}
+                  {maskEmail(email)}
+                  {ta('accountEmail.codeBodyAfter')}
+                </Text>
+                <CodeInput
+                  label={ta('restore.codeField')}
+                  onChange={setCode}
+                  value={code}
+                />
+                <Text style={styles.fieldHelp}>{ta('restore.codeHelp')}</Text>
+              </View>
+            ) : null}
           </View>
 
-          <View
-            style={[styles.method, isGoogle ? styles.methodOn : styles.methodOff]}
-          >
+          <View style={[styles.method, styles.methodOff]}>
             <Pressable
               accessibilityLabel={ta('restore.google')}
               accessibilityRole="radio"
-              accessibilityState={{ checked: isGoogle }}
-              onPress={() => setMethod('google')}
+              accessibilityState={{ checked: isGoogle, disabled: true }}
+              disabled
+              onPress={() => choose('google')}
               style={styles.methodHeader}
             >
-              <Radio checked={isGoogle} />
+              <Radio checked={false} />
               <View style={styles.googleIcon}>
                 <Text style={styles.googleLetter}>G</Text>
               </View>
               <Text style={styles.methodTitle}>{ta('restore.google')}</Text>
             </Pressable>
-            {isGoogle ? (
-              <Text style={styles.googleHelp}>{ta('restore.googleHelp')}</Text>
-            ) : null}
+            <Text style={styles.googleHelp}>{ta('restore.googleHelp')}</Text>
           </View>
         </View>
       </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Note
         body={ta('restore.warning')}
@@ -134,8 +273,9 @@ export default function RestoreAccountScreen() {
       <View style={styles.spacer} />
 
       <Button
-        label={isCode ? ta('restore.enter') : ta('restore.continue')}
-        onPress={() => router.push(accountHref('/account/restored'))}
+        disabled={busy || (!isCode && !isMail)}
+        label={busy ? ta('restore.busy') : submitLabel}
+        onPress={submit}
       />
     </Screen>
   );
@@ -293,6 +433,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     color: colors.textMuted,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   spacer: {
     flexGrow: 1,

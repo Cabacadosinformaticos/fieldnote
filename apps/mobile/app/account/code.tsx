@@ -2,22 +2,84 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
+import { apiErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Note } from '@/components/account/Note';
 import { accountHref } from '@/components/account/navigation';
-import { accountRecoveryCode } from '@/fake/account';
 import { ta } from '@/i18n/ta';
+import {
+  clearPendingRecoveryCode,
+  confirmAccount,
+  getAccountToken,
+  getPendingRecoveryCode,
+  linkableCredentials,
+} from '@/state/actions';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const tips = ['accountCode.tip1', 'accountCode.tip2', 'accountCode.tip3'] as const;
 
 export default function RecoveryCodeScreen() {
   const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const code = getPendingRecoveryCode();
+
+  const share = async () => {
+    if (!code) {
+      return;
+    }
+
+    try {
+      await Share.share({ message: code });
+      setShared(true);
+    } catch {
+      // Closing the share sheet is not an error.
+    }
+  };
+
+  const finish = async () => {
+    const token = await getAccountToken().catch(() => null);
+    if (!token) {
+      setError(ta('accountCode.confirmError'));
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const credentials = await linkableCredentials();
+    const { data, error: apiError } = await confirmAccount(token, credentials);
+    setBusy(false);
+    if (!data) {
+      setError(apiErrorMessage(apiError));
+      return;
+    }
+
+    clearPendingRecoveryCode();
+    router.replace(accountHref('/settings'));
+  };
+
+  if (!code) {
+    return (
+      <Screen contentStyle={styles.content}>
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <BackButton onPress={() => router.back()} />
+        </View>
+        <Text style={styles.title}>{ta('accountCode.title')}</Text>
+        <Text style={styles.body}>{ta('accountCode.missing')}</Text>
+        <View style={styles.spacer} />
+        <Button
+          label={ta('common.back')}
+          onPress={() => router.replace(accountHref('/account'))}
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen contentStyle={styles.content}>
@@ -37,43 +99,30 @@ export default function RecoveryCodeScreen() {
             adjustsFontSizeToFit
             minimumFontScale={0.7}
             numberOfLines={1}
+            selectable
             style={styles.code}
           >
-            {accountRecoveryCode}
+            {code}
           </Text>
         </View>
-        <View style={styles.codeActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setCopied(true)}
-            style={({ pressed }) => [
-              styles.codeButton,
-              styles.copyButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name={copied ? 'checkmark' : 'copy-outline'}
-              size={20}
-              color={colors.text}
-            />
-            <Text style={styles.codeButtonLabel}>
-              {copied ? ta('accountCode.copied') : ta('accountCode.copy')}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => undefined}
-            style={({ pressed }) => [
-              styles.codeButton,
-              styles.saveButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="download-outline" size={20} color={colors.text} />
-            <Text style={styles.codeButtonLabel}>{ta('accountCode.save')}</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            void share();
+          }}
+          style={({ pressed }) => [
+            styles.codeButton,
+            styles.saveButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Ionicons
+            name={shared ? 'checkmark' : 'share-outline'}
+            size={20}
+            color={colors.text}
+          />
+          <Text style={styles.codeButtonLabel}>{ta('accountCode.share')}</Text>
+        </Pressable>
       </View>
 
       <Note
@@ -97,6 +146,8 @@ export default function RecoveryCodeScreen() {
         ))}
       </View>
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <View style={styles.spacer} />
 
       <Pressable
@@ -115,9 +166,11 @@ export default function RecoveryCodeScreen() {
       </Pressable>
 
       <Button
-        disabled={!saved}
-        label={ta('accountCode.finish')}
-        onPress={() => router.replace(accountHref('/settings'))}
+        disabled={!saved || busy}
+        label={busy ? ta('accountCode.confirming') : ta('accountCode.finish')}
+        onPress={() => {
+          void finish();
+        }}
       />
     </Screen>
   );
@@ -174,10 +227,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.96,
     color: '#131A2A',
   },
-  codeActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
   codeButton: {
     height: 48,
     flexDirection: 'row',
@@ -189,12 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     backgroundColor: colors.surface,
   },
-  copyButton: {
-    flexShrink: 0,
-    paddingHorizontal: spacing.lg,
-  },
   saveButton: {
-    flexGrow: 1,
     paddingHorizontal: spacing.md,
   },
   codeButtonLabel: {
@@ -225,6 +269,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.textBody,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   spacer: {
     flexGrow: 1,

@@ -1,16 +1,24 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { apiErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { CodeInput } from '@/components/account/CodeInput';
 import { Note } from '@/components/account/Note';
 import { accountHref } from '@/components/account/navigation';
-import { accountEmail } from '@/fake/account';
 import { ta } from '@/i18n/ta';
+import {
+  applyAccountParticipations,
+  applySignIn,
+  getAccountToken,
+  linkableCredentials,
+  requestEmailCode,
+  verifyEmailCode,
+} from '@/state/actions';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 function maskEmail(address: string): string {
@@ -25,8 +33,65 @@ function maskEmail(address: string): string {
 
 export default function AccountEmailScreen() {
   const [step, setStep] = useState<'email' | 'code'>('email');
-  const [email, setEmail] = useState<string>(accountEmail.full);
+  const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [token, setToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getAccountToken().then(setToken).catch(() => undefined);
+  }, []);
+
+  const send = async () => {
+    const address = email.trim();
+    if (!address.includes('@')) {
+      setError(ta('account.error'));
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const { error: apiError } = await requestEmailCode(address, token);
+    setBusy(false);
+    if (apiError !== null) {
+      setError(apiErrorMessage(apiError));
+      return;
+    }
+
+    setCode('');
+    setStep('code');
+  };
+
+  const verify = async () => {
+    if (code.length !== 6) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const credentials = await linkableCredentials();
+    const { data, error: apiError } = await verifyEmailCode(
+      email.trim(),
+      code,
+      credentials,
+      token,
+    );
+    setBusy(false);
+    if (!data) {
+      setError(apiErrorMessage(apiError));
+      return;
+    }
+
+    if ('account_token' in data) {
+      await applySignIn(data);
+      router.replace(accountHref('/account/restored'));
+      return;
+    }
+
+    await applyAccountParticipations(data);
+    router.replace(accountHref('/settings'));
+  };
 
   if (step === 'code') {
     return (
@@ -53,26 +118,27 @@ export default function AccountEmailScreen() {
 
         <View style={styles.resendRow}>
           <Text style={styles.resend}>{ta('accountEmail.resend')}</Text>
-          <Text
+          <Pressable
             accessibilityRole="button"
             onPress={() => {
-              setCode('');
-              setStep('email');
+              void send();
             }}
-            style={styles.change}
           >
-            {ta('accountEmail.change')}
-          </Text>
+            <Text style={styles.change}>{ta('accountEmail.change')}</Text>
+          </Pressable>
         </View>
 
         <Note body={ta('accountEmail.spam')} icon="mail-outline" />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.spacer} />
 
         <Button
-          disabled={code.length !== 6}
+          disabled={code.length !== 6 || busy}
           label={ta('accountEmail.confirm')}
-          onPress={() => router.replace(accountHref('/settings'))}
+          onPress={() => {
+            void verify();
+          }}
         />
       </Screen>
     );
@@ -111,14 +177,15 @@ export default function AccountEmailScreen() {
         icon="warning-outline"
         tone="warning"
       />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.spacer} />
 
       <Button
+        disabled={busy}
         label={ta('accountEmail.send')}
         onPress={() => {
-          setCode('');
-          setStep('code');
+          void send();
         }}
       />
     </Screen>
@@ -200,6 +267,12 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textDecorationLine: 'underline',
     color: colors.primaryDark,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   spacer: {
     flexGrow: 1,
