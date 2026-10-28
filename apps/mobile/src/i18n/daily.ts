@@ -15,31 +15,51 @@ const daily = {
   'type.scale': 'Escala',
 
   'today.studyDay': '{study} · Dia {day} de {total}',
+  'today.studyLine': '{study}',
+  'today.studyPending': '{study} · à espera de aprovação',
   'today.title': 'Hoje',
-  'today.date': 'sexta-feira, 9 de outubro',
+  'today.loading': 'A carregar os pedidos…',
   'today.syncSent': 'Estado do envio: tudo enviado',
-  'today.syncWaiting': 'Estado do envio: sem rede, {count} registos à espera',
+  'today.syncWaiting': 'Estado do envio: {count} registos à espera',
+  'today.syncFailed': 'Estado do envio: {count} registos com problema',
   'today.syncOpenHint': 'Abrir estado do envio',
   'today.requestAsked': 'Pedido às {time}',
+  'today.requestScheduled': 'Pedido previsto para as {time}',
+  'today.requestOpen': 'Pedido em aberto',
   'today.requestMeta': '{types} · Demora cerca de {minutes} min',
   'today.closesAt': 'Fecha às {time}',
   'today.answerNow': 'Responder agora',
-  'today.freeTitle': 'Registo livre',
-  'today.freeUsed': '{used} de {cap} usados hoje',
-  'today.freeCapped': 'Já fez os {cap} de hoje. Amanhã pode voltar a fazer.',
-  'today.freeAvailable': 'Pode fazer até {cap} registos livres por dia.',
-  'today.freeBody':
-    'Quer registar um momento, um sítio ou algo que lhe chamou a atenção? Pode fazê-lo a qualquer hora, sem esperar por um pedido.',
-  'today.newFreeEntry': 'Novo registo livre',
+  'today.unsupportedAnswer': 'Tipo de resposta não suportado',
+  'today.unsupportedTypes': 'tipo não suportado',
+  'today.otherPrompts': 'Outros pedidos ({count})',
+  'today.fromStudy': '{study} · {types}',
   'today.noRequestTitle': 'Não há pedidos em aberto',
-  'today.nextRequest': 'O próximo chega entre as {from} e as {to}.',
+  'today.noRequestBody':
+    'Quando a equipa do estudo enviar um novo pedido, ele aparece aqui.',
+  'today.pendingTitle': 'Participação à espera de aprovação',
+  'today.pendingBody':
+    'A equipa do estudo ainda tem de aceitar a sua participação. Volte a verificar mais tarde.',
+  'today.noStudyTitle': 'Ainda não participa em nenhum estudo',
+  'today.noStudyBody':
+    'Introduza o código do convite que recebeu para começar a responder aos pedidos.',
+  'today.enterStudy': 'Entrar num estudo',
+  'today.offline': 'Sem ligação. Está a ver os últimos pedidos guardados.',
+  'today.retry': 'Tentar',
 
   'sync.sentTitle': 'Tudo enviado',
   'sync.sentBody':
     'Todos os seus registos já chegaram à equipa do estudo. Não há nada à espera de ser enviado neste telemóvel.',
-  'sync.waitingTitle': 'Sem rede',
-  'sync.waitingBody': '{count} registos guardados neste telemóvel. São enviados quando houver rede.',
+  'sync.waitingTitle': 'À espera de envio',
+  'sync.waitingBody':
+    '{count} registos guardados neste telemóvel. São enviados quando houver ligação.',
   'sync.waitingNote': 'Não desinstale a app até lá.',
+  'sync.failedTitle': 'Registos com problema',
+  'sync.failedBody':
+    '{failed} registos não puderam ser aceites e {waiting} continuam à espera de envio.',
+  'sync.failedNote':
+    'Abra o registo com problema para ver o estado. Se o problema continuar, contacte a equipa do estudo.',
+  'sync.retry': 'Tentar enviar agora',
+  'sync.retrying': 'A tentar enviar…',
   'sync.close': 'Fechar',
 
   'warning.count': '{count} avisos sobre esta atividade',
@@ -53,20 +73,40 @@ const daily = {
   'warning.locationOffBody': 'O registo não inclui o sítio onde está.',
   'warning.dismiss': 'Percebi',
 
+  'record.loading': 'A carregar a atividade…',
   'record.requested': 'O que é pedido',
   'record.chooseType': 'Como quer responder?',
   'record.notFound': 'Atividade não encontrada.',
+  'record.notFoundBody':
+    'Este pedido já não está disponível neste telemóvel. Volte a Hoje e tente outra vez.',
+  'record.unsupportedTitle': 'Este pedido não pode ser respondido nesta versão',
+  'record.unsupportedBody':
+    'A equipa pediu um tipo de resposta que esta versão da app ainda não sabe gravar.',
+  'record.typeUnavailable': 'Esta atividade não aceita este tipo de resposta.',
   'record.save': 'Guardar registo',
+  'record.saving': 'A guardar…',
+  'record.saveError':
+    'Não foi possível guardar o registo neste telemóvel. Tente outra vez.',
   'record.offlineNote': 'Sem rede, fica guardado no telemóvel e é enviado depois.',
+  'record.noInstructions': 'Sem instruções adicionais.',
 
-  'record.context.free': 'Registo livre',
-  'record.context.request': 'Pedido das 14:15 · aberto até às 20:00',
-  'record.context.quick': 'Um registo rápido',
+  'record.camera.permissionTitle': 'Precisa de dar acesso à câmara',
+  'record.camera.permissionBody':
+    'A câmara só é usada enquanto grava este registo. A permissão é pedida agora.',
+  'record.camera.openCamera': 'Ativar câmara',
+  'record.camera.openSettings': 'Abrir definições',
+  'record.camera.error': 'Não foi possível abrir a câmara.',
+  'record.microphone.permissionTitle': 'Precisa de dar acesso ao microfone',
+  'record.microphone.permissionBody':
+    'O microfone só é usado enquanto grava este registo. A permissão é pedida agora.',
+  'record.microphone.openMicrophone': 'Ativar microfone',
+  'record.microphone.openSettings': 'Abrir definições',
+  'record.microphone.error': 'Não foi possível usar o microfone.',
 
   'record.photo.capturedAt': 'Captada às {time}',
   'record.photo.retake': 'Repetir a foto',
-  'record.photo.cameraPlaceholder': 'Pré-visualização da câmara',
   'record.photo.shutter': 'Tirar foto',
+  'record.photo.captureError': 'Não foi possível tirar a foto. Tente outra vez.',
   'record.photo.noteLabel': 'Uma frase sobre o momento',
   'record.photo.noteOptional': '(opcional)',
   'record.photo.notePlaceholder': 'Escreva uma frase curta',
@@ -76,22 +116,31 @@ const daily = {
   'record.text.toAudio': 'Gravar áudio em vez disso',
 
   'record.video.recording': 'A gravar',
-  'record.video.timer': '0:48 / 2:00',
-  'record.video.limit': 'O vídeo pára sozinho aos 2 minutos.',
+  'record.video.limit': 'O vídeo pára sozinho ao fim de 1 minuto.',
+  'record.video.stop': 'Parar a gravação',
   'record.video.stopSave': 'Parar e guardar',
   'record.video.discard': 'Descartar gravação',
+  'record.video.recorded': 'Vídeo gravado',
+  'record.video.duration': '{duration} de vídeo',
+  'record.video.captureError': 'Não foi possível gravar o vídeo. Tente outra vez.',
+  'record.video.start': 'Começar a gravar',
   'record.video.preview': 'Pré-visualização do vídeo',
 
   'record.audio.recording': 'A gravar',
-  'record.audio.elapsed': '0:23',
-  'record.audio.total': '/ 1:00',
   'record.audio.limit': 'A gravação pára sozinha ao fim de 1 minuto.',
   'record.audio.stopSave': 'Parar e guardar',
+  'record.audio.stop': 'Parar a gravação',
+  'record.audio.recorded': 'Gravação feita',
+  'record.audio.duration': '{duration} de áudio',
+  'record.audio.captureError': 'Não foi possível gravar o áudio. Tente outra vez.',
+  'record.audio.start': 'Começar a gravar',
   'record.audio.toText': 'Escrever em vez disso',
   'record.audio.toAudio': 'Gravar áudio em vez disso',
+  'record.audio.level': 'Nível do microfone',
 
   'scale.low': 'Muito mal',
   'scale.high': 'Muito bem',
+  'scale.middle': 'Assim-assim',
   'scale.face.veryBad': 'Muito mal',
   'scale.face.bad': 'Mal',
   'scale.face.neutral': 'Assim-assim',
@@ -99,6 +148,9 @@ const daily = {
   'scale.face.veryGood': 'Muito bem',
   'scale.group': 'Escala de {count} pontos',
   'scale.optionLabel': '{value}, {label}',
+  'scale.sliderGroup': 'Escala de 0 a 100',
+  'scale.sliderLabel': 'Valor escolhido: {value} de 100',
+  'scale.sliderHint': 'Deslize o dedo para escolher um valor entre 0 e 100.',
 
   'saved.title': 'Guardado no telemóvel',
   'saved.body': 'Será enviado quando houver rede.',
@@ -107,6 +159,11 @@ const daily = {
     'Enquanto não forem enviados, só existem neste telemóvel. Não desinstale a app até serem enviados.',
   'saved.note':
     'Quando houver rede, o registo passa a Enviado e mantém a hora a que o gravou.',
+  'saved.sentTitle': 'Registo enviado',
+  'saved.sentBody': 'O registo já chegou à equipa do estudo.',
+  'saved.failedTitle': 'Registo guardado, mas com problema no envio',
+  'saved.failedBody':
+    'O registo está neste telemóvel, mas a equipa do estudo não o aceitou. Contacte a equipa do estudo.',
   'saved.seeEntries': 'Ver os meus registos',
   'saved.backToday': 'Voltar a Hoje',
   'saved.celebrationLabel': 'Registo guardado',
@@ -117,12 +174,14 @@ const daily = {
   'entries.waitingBody':
     'Estão só neste telemóvel. Não desinstale a app até serem enviados.',
   'entries.group.attention': 'Precisa de atenção',
-  'entries.group.today': 'Hoje, 9 out.',
-  'entries.group.yesterday': 'Ontem, 8 out.',
-  'entries.group.oct7': '7 out.',
-  'entries.group.oct6': '6 out.',
+  'entries.group.today': 'Hoje',
+  'entries.group.yesterday': 'Ontem',
+  'entries.emptyTitle': 'Ainda não há registos',
+  'entries.emptyBody':
+    'Quando responder a um pedido, o registo aparece aqui e fica guardado neste telemóvel até chegar à equipa do estudo.',
   'entries.recordedAt': 'Gravado às {time}',
   'entries.recordedOn': 'Gravado {date}, {time}',
+  'entries.recordedOnYesterday': 'Gravado ontem, {time}',
   'entries.failed': 'Este registo não pôde ser aceite. Contacte a equipa do estudo.',
   'entry.status.sent': 'Enviado',
   'entry.status.waiting': 'À espera de rede',
@@ -135,36 +194,24 @@ const daily = {
   'entry.activity': 'Atividade',
   'entry.recorded': 'Gravado',
   'entry.received': 'Recebido',
-  'entry.location': 'Local',
   'entry.notReceived': 'Ainda não recebido',
   'entry.receivedToday': 'hoje, às {time}',
   'entry.receivedOn': '{date}, às {time}',
   'entry.lock': 'Os registos não podem ser alterados depois de enviados.',
-  'entry.photoLabel': 'Fotografia do jardim, desenho de exemplo',
+  'entry.photoLabel': 'A sua fotografia',
+  'entry.photoSent':
+    'A fotografia foi enviada para a equipa do estudo. Já não está guardada neste telemóvel.',
+  'entry.videoSent':
+    'O vídeo foi enviado para a equipa do estudo. Já não está guardado neste telemóvel.',
+  'entry.audioSent':
+    'O áudio foi enviado para a equipa do estudo. Já não está guardado neste telemóvel.',
   'entry.scaleValue': '{value} de {max}',
   'entry.notFound': 'Registo não encontrado.',
-
-  'entry.value.momentPhoto':
-    'Muita gente à sombra. Os bancos junto ao lago estão todos ocupados.',
-  'entry.value.momentText':
-    'Vim ler um livro à sombra e acabei a falar com um vizinho sobre o jardim.',
-  'entry.value.broughtAudio':
-    'Nota de voz de 42 segundos sobre o que me trouxe ao jardim.',
-  'entry.value.broughtText':
-    'Vim ler um livro à sombra, como faço quase todas as sextas-feiras.',
-
-  'activity.moment.title': 'Um momento no jardim',
-  'activity.moment.instruction':
-    'Fotografe ou descreva o sítio onde está agora no jardim e o que está a fazer.',
-  'activity.brought.title': 'O que o trouxe ao jardim?',
-  'activity.brought.instruction':
-    'Conte em poucas palavras o que o trouxe hoje ao jardim. Pode gravar até 1 minuto de áudio ou escrever.',
-  'activity.mood.title': 'Como se sente agora?',
-  'activity.mood.instruction':
-    'De 1 (muito mal) a 7 (muito bem), como se sente neste momento?',
-  'activity.moodFaces.title': 'Como se sente agora?',
-  'activity.moodFaces.instruction':
-    'Escolha a cara que melhor descreve como se sente neste momento.',
+  'entry.failedTitle': 'Problema no envio',
+  'entry.failedBody':
+    'A equipa do estudo não aceitou este registo. Contacte a equipa do estudo para saber o que fazer.',
+  'entry.retryHint':
+    'O registo continua guardado neste telemóvel e será tentado outra vez quando a ligação voltar.',
 
   'studies.title': 'Estudos',
   'studies.body':
