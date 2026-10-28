@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -10,19 +10,181 @@ import {
   View,
 } from 'react-native';
 
+import { deviceClient } from '@/api/client';
+import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { Screen } from '@/components/Screen';
 import { BackLink } from '@/components/more/BackLink';
 import { Bullets } from '@/components/more/Bullets';
 import { LanguageToggle } from '@/components/more/LanguageToggle';
 import { SettingsRow } from '@/components/more/SettingsRow';
 import { moreHref } from '@/components/more/navigation';
-import { moreStudies } from '@/fake/more';
+import { formatDate } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
+import {
+  clearAccountToken,
+  clearPoolCredential,
+  clearStudyQueue,
+  deleteAccount,
+  getAccount,
+  getAccountToken,
+  getErasureDue,
+  getPoolCredential,
+  getPoolMember,
+  leavePool,
+  setErasureDue,
+  type AccountOut,
+} from '@/state/actions';
+import {
+  getDeviceToken,
+  listParticipations,
+} from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 export default function SettingsScreen() {
   const [confirmation, setConfirmation] = useState('');
-  const ready = confirmation.trim() === 'APAGAR';
+  const [count, setCount] = useState(0);
+  const [account, setAccount] = useState<AccountOut | null>(null);
+  const [hasPool, setHasPool] = useState(false);
+  const [poolSince, setPoolSince] = useState<string | null>(null);
+  const [poolPaused, setPoolPaused] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const ready = confirmation.trim().toUpperCase() === 'APAGAR';
+
+  const load = useCallback(async () => {
+    const rows = await listParticipations().catch(() => []);
+    setCount(rows.length);
+
+    const accountToken = await getAccountToken().catch(() => null);
+    if (accountToken) {
+      const { data } = await getAccount(accountToken);
+      setAccount(data);
+    } else {
+      setAccount(null);
+    }
+
+    const credential = await getPoolCredential().catch(() => null);
+    setHasPool(Boolean(credential));
+    if (credential) {
+      const { data } = await getPoolMember(credential);
+      if (data) {
+        setPoolSince(formatDate(data.joined_at));
+        setPoolPaused(data.invitations_paused);
+      }
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  const eraseAll = async () => {
+    if (!ready || busy) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    const rows = await listParticipations().catch(() => []);
+    let firstDue: string | null = null;
+
+    for (const row of rows) {
+      if (row.status === 'erasure_scheduled') {
+        const due = await getErasureDue(row.studyId).catch(() => null);
+        if (!firstDue && due) {
+          firstDue = due;
+        }
+        await clearStudyQueue(row.studyId).catch(() => undefined);
+        continue;
+      }
+
+      const token = await getDeviceToken(row.studyId).catch(() => null);
+      if (!token) {
+        continue;
+      }
+
+      try {
+        const { data, error: apiError } = await deviceClient(token).POST(
+          '/api/v1/participation/me/erasure',
+          { body: { confirmation: 'APAGAR' } },
+        );
+        if (!data) {
+          setBusy(false);
+          setError(apiErrorMessage(apiError));
+          return;
+        }
+
+        await clearStudyQueue(row.studyId).catch(() => undefined);
+        await setErasureDue(row.studyId, data.erasure_due_at).catch(
+          () => undefined,
+        );
+        if (!firstDue && data.erasure_due_at) {
+          firstDue = data.erasure_due_at;
+        }
+      } catch {
+        setBusy(false);
+        setError(networkErrorMessage());
+        return;
+      }
+    }
+
+    const credential = await getPoolCredential().catch(() => null);
+    if (credential) {
+      const { error: apiError } = await leavePool(credential);
+      if (apiError !== null) {
+        setBusy(false);
+        setError(apiErrorMessage(apiError));
+        return;
+      }
+      await clearPoolCredential().catch(() => undefined);
+    }
+
+    const accountToken = await getAccountToken().catch(() => null);
+    if (accountToken) {
+      const { error: apiError } = await deleteAccount(accountToken, false);
+      if (apiError !== null) {
+        setBusy(false);
+        setError(apiErrorMessage(apiError));
+        return;
+      }
+      await clearAccountToken().catch(() => undefined);
+    }
+
+    setBusy(false);
+    setConfirmation('');
+    await load();
+
+    if (rows.length === 0) {
+      setNotice(tm('settings.eraseDone'));
+      return;
+    }
+
+    router.push({
+      pathname: '/erase/scheduled',
+      params: {
+        scope: 'all',
+        due: firstDue ?? '',
+        requested: new Date().toISOString(),
+      },
+    });
+  };
+
+  const accountSubtitle = account
+    ? account.confirmed
+      ? tm('settings.accountCreated')
+      : tm('settings.accountPending')
+    : tm('settings.accountBody');
+
+  const poolSubtitle = poolSince
+    ? tm('settings.poolMember', {
+        date: poolSince,
+        state: poolPaused ? tm('settings.poolPaused') : tm('settings.poolActive'),
+      })
+    : tm('settings.poolBody');
 
   return (
     <Screen contentStyle={styles.content}>
@@ -37,7 +199,8 @@ export default function SettingsScreen() {
         <SettingsRow
           divider
           icon="person-outline"
-          subtitle={tm('settings.accountBody')}
+          onPress={() => router.push(moreHref('/account'))}
+          subtitle={accountSubtitle}
           title={tm('settings.account')}
         />
         <SettingsRow
@@ -49,7 +212,10 @@ export default function SettingsScreen() {
         <SettingsRow
           divider
           icon="people-outline"
-          subtitle={tm('settings.poolBody')}
+          onPress={() =>
+            router.push(moreHref(hasPool ? '/pool/settings' : '/pool'))
+          }
+          subtitle={poolSubtitle}
           title={tm('settings.pool')}
         />
         <SettingsRow
@@ -73,7 +239,7 @@ export default function SettingsScreen() {
         </Text>
         <Bullets
           items={[
-            tm('settings.eraseB1', { count: moreStudies.length }),
+            tm('settings.eraseB1', { count }),
             tm('settings.eraseB2'),
             tm('settings.eraseB3'),
             tm('settings.eraseB4'),
@@ -97,13 +263,15 @@ export default function SettingsScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: !ready }}
-          disabled={!ready}
-          onPress={() => router.push(moreHref('/erase/scheduled?scope=all'))}
+          accessibilityState={{ disabled: !ready || busy }}
+          disabled={!ready || busy}
+          onPress={() => {
+            void eraseAll();
+          }}
           style={({ pressed }) => [
             styles.eraseButton,
             ready ? styles.eraseButtonOn : styles.eraseButtonOff,
-            pressed && ready && styles.pressed,
+            pressed && ready && !busy && styles.pressed,
           ]}
         >
           <Ionicons
@@ -112,9 +280,12 @@ export default function SettingsScreen() {
             color={ready ? colors.white : '#9B1C1C'}
           />
           <Text style={[styles.eraseLabel, ready && styles.eraseLabelOn]}>
-            {tm('settings.eraseCta')}
+            {busy ? tm('settings.erasing') : tm('settings.eraseCta')}
           </Text>
         </Pressable>
+
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
 
       <View style={styles.spacer} />
@@ -209,6 +380,18 @@ const styles = StyleSheet.create({
   },
   eraseLabelOn: {
     color: colors.white,
+  },
+  notice: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.successText,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   version: {
     fontFamily: fonts.regular,

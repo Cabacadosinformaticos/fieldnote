@@ -1,64 +1,111 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatDate } from '@/components/join/format';
 import { StatusPill } from '@/components/more/StatusPill';
-import type { Study } from '@/fake/more';
 import { tm } from '@/i18n/tm';
 import { colors, fonts, radii, spacing } from '@/theme';
 
+export type StudyCardState =
+  | 'active'
+  | 'pending'
+  | 'withdrawn'
+  | 'removed'
+  | 'erasing'
+  | 'ended'
+  | 'declined';
+
+export type StudyCardModel = {
+  id: string;
+  title: string;
+  state: StudyCardState;
+  erasureDueAt?: string | null;
+  endsOn?: string | null;
+};
+
 type StudyCardProps = {
-  study: Study;
+  study: StudyCardModel;
   onOpen: () => void;
   onDetails: () => void;
 };
 
-export function StudyCard({ study, onOpen, onDetails }: StudyCardProps) {
-  const meta =
-    study.status === 'erasing'
-      ? tm('studies.erasingNote')
-      : study.openUntil
-        ? tm('studies.openRequestUntil', { time: study.openUntil })
-        : tm('studies.openRequest');
+function metaFor(study: StudyCardModel): string {
+  switch (study.state) {
+    case 'erasing':
+      return tm('studies.erasingNote');
+    case 'ended':
+      return study.endsOn
+        ? tm('studies.endedOn', { date: formatDate(study.endsOn) })
+        : tm('studies.ended');
+    case 'pending':
+      return tm('studies.pendingNote');
+    case 'withdrawn':
+      return tm('studies.withdrawnNote');
+    case 'removed':
+      return tm('studies.removedNote');
+    case 'declined':
+      return tm('studies.declinedNote');
+    default:
+      return tm('studies.activeNote');
+  }
+}
 
+export function StudyCard({ study, onOpen, onDetails }: StudyCardProps) {
   return (
     <View style={styles.card}>
       <Pressable
-        accessibilityLabel={study.name}
+        accessibilityLabel={study.title}
         accessibilityRole="button"
         onPress={onOpen}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
         <View style={styles.text}>
-          <Text style={styles.title}>{study.name}</Text>
+          <Text style={styles.title}>{study.title}</Text>
 
           <View style={styles.pills}>
-            {study.isNow ? (
-              <StatusPill label={tm('studies.now')} tone="now" />
-            ) : null}
-            {study.status === 'active' ? (
+            {study.state === 'active' ? (
               <StatusPill label={tm('studies.active')} tone="active" />
             ) : null}
-            {study.status === 'ended' || study.status === 'erasing' ? (
+            {study.state === 'pending' ? (
+              <StatusPill label={tm('studies.pending')} tone="now" />
+            ) : null}
+            {study.state === 'withdrawn' ? (
+              <StatusPill label={tm('studies.withdrawn')} tone="ended" />
+            ) : null}
+            {study.state === 'removed' ? (
+              <StatusPill label={tm('studies.removed')} tone="erasing" />
+            ) : null}
+            {study.state === 'declined' ? (
+              <StatusPill label={tm('studies.declined')} tone="ended" />
+            ) : null}
+            {study.state === 'ended' ? (
               <StatusPill label={tm('studies.ended')} tone="ended" />
             ) : null}
-            {study.status === 'erasing' && study.eraseDate ? (
-              <StatusPill
-                label={tm('studies.erasing', { date: study.eraseDate })}
-                tone="erasing"
-              />
+            {study.state === 'erasing' ? (
+              <>
+                <StatusPill label={tm('studies.ended')} tone="ended" />
+                <StatusPill
+                  label={tm('studies.erasing', {
+                    date: study.erasureDueAt
+                      ? formatDate(study.erasureDueAt)
+                      : '',
+                  })}
+                  tone="erasing"
+                />
+              </>
             ) : null}
           </View>
 
           <View style={styles.meta}>
-            {study.status === 'active' ? <View style={styles.dot} /> : null}
+            {study.state === 'active' ? <View style={styles.dot} /> : null}
             <Text
               numberOfLines={2}
               style={[
                 styles.metaText,
-                study.status === 'erasing' && styles.metaTextMuted,
+                study.state !== 'active' && styles.metaTextMuted,
               ]}
             >
-              {meta}
+              {metaFor(study)}
             </Text>
           </View>
         </View>

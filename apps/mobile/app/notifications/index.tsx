@@ -9,9 +9,10 @@ import { Screen } from '@/components/Screen';
 import { InfoRow } from '@/components/more/InfoRow';
 import { StepProgress } from '@/components/join/StepProgress';
 import { moreHref } from '@/components/more/navigation';
-import { moreNotification } from '@/fake/more';
 import { tm } from '@/i18n/tm';
 import { colors, fonts, radii, spacing } from '@/theme';
+
+const SAMPLE_NOTIFICATION_ID = 'sample';
 
 export default function NotificationsScreen() {
   return (
@@ -31,7 +32,9 @@ export default function NotificationsScreen() {
           accessibilityLabel={tm('notifications.sampleBody')}
           accessibilityRole="button"
           onPress={() =>
-            router.push(moreHref(`/notifications/${moreNotification.id}`))
+            router.push(
+              moreHref(`/notifications/${SAMPLE_NOTIFICATION_ID}`),
+            )
           }
           style={({ pressed }) => [
             styles.notification,

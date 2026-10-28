@@ -1,36 +1,234 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { deviceClient, type components } from '@/api/client';
+import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { Screen } from '@/components/Screen';
 import { BackLink } from '@/components/more/BackLink';
 import { Bullets } from '@/components/more/Bullets';
-import { LanguageToggle } from '@/components/more/LanguageToggle';
 import { SettingsRow } from '@/components/more/SettingsRow';
-import { StatusPill } from '@/components/more/StatusPill';
+import { StatusPill, type StatusTone } from '@/components/more/StatusPill';
 import { moreHref } from '@/components/more/navigation';
-import { getStudy, moreStudies } from '@/fake/more';
+import { formatDate, formatPeriod } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
+import { setErasureDue } from '@/state/actions';
+import {
+  getDeviceToken,
+  saveParticipation,
+  type ParticipationInput,
+} from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
+
+type ParticipantMe = components['schemas']['ParticipantMeOut'];
+
+type StatusView = { label: string; tone: StatusTone };
+
+function statusView(me: ParticipantMe): StatusView {
+  switch (me.status) {
+    case 'pending_approval':
+      return { label: tm('studies.pending'), tone: 'now' };
+    case 'withdrawn':
+      return { label: tm('studies.withdrawn'), tone: 'ended' };
+    case 'removed':
+      return { label: tm('studies.removed'), tone: 'erasing' };
+    case 'declined':
+      return { label: tm('studies.declined'), tone: 'ended' };
+    case 'erasure_scheduled':
+      return {
+        label: tm('studies.erasing', {
+          date: formatDate(me.erasure_due_at),
+        }),
+        tone: 'erasing',
+      };
+    default:
+      return { label: tm('studies.active'), tone: 'active' };
+  }
+}
+
+function isEnded(me: ParticipantMe): boolean {
+  if (me.study.status === 'closed') {
+    return true;
+  }
+
+  if (!me.study.ends_on) {
+    return false;
+  }
+
+  const end = new Date(`${me.study.ends_on}T23:59:59`);
+  return !Number.isNaN(end.getTime()) && end.getTime() < Date.now();
+}
+
+function localeLabel(me: ParticipantMe): string {
+  if (me.locale === 'en') {
+    return tm('language.english');
+  }
+  return tm('language.portuguese');
+}
+
+function rowModel(me: ParticipantMe): ParticipationInput {
+  return {
+    studyId: me.study.id,
+    title: me.study.title,
+    status: me.status,
+    alias: me.alias,
+    startsOn: me.study.starts_on,
+    endsOn: me.study.ends_on,
+    timezone: me.study.timezone,
+  };
+}
 
 export default function StudyDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const study = getStudy(id) ?? moreStudies[0];
+  const [me, setMe] = useState<ParticipantMe | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const statusLabel =
-    study.status === 'erasing' && study.eraseDate
-      ? tm('studies.erasing', { date: study.eraseDate })
-      : study.status === 'ended'
-        ? tm('studies.ended')
-        : tm('studies.active');
+  const load = useCallback(async () => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
 
-  const leave = () => {
-    setLeaving(false);
-    router.replace('/(tabs)/studies');
+    const deviceToken = await getDeviceToken(id).catch(() => null);
+    setToken(deviceToken);
+    if (!deviceToken) {
+      setError(tm('study.loadError'));
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data } = await deviceClient(deviceToken).GET(
+        '/api/v1/participation/me',
+      );
+      if (!data) {
+        setError(tm('study.loadError'));
+        return;
+      }
+
+      setMe(data);
+      setError(null);
+      await saveParticipation(rowModel(data)).catch(() => undefined);
+      await setErasureDue(data.study.id, data.erasure_due_at).catch(
+        () => undefined,
+      );
+    } catch {
+      setError(networkErrorMessage());
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  const apply = async (next: ParticipantMe) => {
+    setMe(next);
+    await saveParticipation(rowModel(next)).catch(() => undefined);
+    await setErasureDue(next.study.id, next.erasure_due_at).catch(
+      () => undefined,
+    );
   };
+
+  const leave = async () => {
+    if (!token) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const { data, error: apiError } = await deviceClient(token).POST(
+        '/api/v1/participation/me/leave',
+      );
+      if (!data) {
+        setError(apiErrorMessage(apiError));
+        return;
+      }
+
+      await apply(data);
+      setLeaving(false);
+    } catch {
+      setError(tm('study.leaveError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const returnToStudy = async () => {
+    if (!token) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const { data, error: apiError } = await deviceClient(token).POST(
+        '/api/v1/participation/me/return',
+      );
+      if (!data) {
+        setError(apiErrorMessage(apiError));
+        return;
+      }
+
+      await apply(data);
+    } catch {
+      setError(tm('study.returnError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Screen contentStyle={styles.loadingContent}>
+        <StatusBar style="dark" />
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={styles.loadingText}>{tm('study.loading')}</Text>
+      </Screen>
+    );
+  }
+
+  if (!me) {
+    return (
+      <Screen contentStyle={styles.content}>
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <BackLink label={tm('study.back')} onPress={() => router.back()} />
+          <Text style={styles.title}>{tm('study.title')}</Text>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.body}>{error ?? tm('study.loadError')}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const status = statusView(me);
+  const ended = isEnded(me);
+  const canLeave =
+    (me.status === 'active' || me.status === 'pending_approval') && !ended;
+  const canReturn = me.status === 'withdrawn' && !ended;
+  const erasureAllowed =
+    me.status !== 'declined' &&
+    me.status !== 'pending_approval' &&
+    me.status !== 'erasure_scheduled';
 
   return (
     <Screen contentStyle={styles.content}>
@@ -43,49 +241,50 @@ export default function StudyDetailsScreen() {
 
       <View style={styles.card}>
         <View style={styles.studyTop}>
-          <Text style={styles.studyName}>{study.name}</Text>
-          <StatusPill
-            label={statusLabel}
-            tone={
-              study.status === 'erasing'
-                ? 'erasing'
-                : study.status === 'ended'
-                  ? 'ended'
-                  : 'active'
-            }
-          />
+          <Text style={styles.studyName}>{me.study.title}</Text>
+          <StatusPill label={status.label} tone={status.tone} />
         </View>
-        <Text style={styles.description}>{study.description}</Text>
         <Text style={styles.period}>
-          {tm('study.period', {
-            period: study.period,
-            day: study.day,
-            total: study.totalDays,
-          })}
+          {formatPeriod(me.study.starts_on, me.study.ends_on)}
         </Text>
+        {me.status === 'pending_approval' ? (
+          <Text style={styles.body}>{tm('study.pendingBody')}</Text>
+        ) : null}
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>{tm('study.team')}</Text>
-        <Text style={styles.team}>{study.team}</Text>
-        <Text style={styles.email}>{study.email}</Text>
-      </View>
-
-      <View style={styles.languageCard}>
-        <View style={styles.languageLabel}>
-          <Ionicons name="globe-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.languageText}>{tm('study.language')}</Text>
+        <View style={styles.factRow}>
+          <Text style={styles.factLabel}>{tm('study.alias')}</Text>
+          <Text style={styles.factValue}>{me.alias ?? '—'}</Text>
         </View>
-        <LanguageToggle />
+        <View style={styles.factRow}>
+          <Text style={styles.factLabel}>{tm('study.entered')}</Text>
+          <Text style={styles.factValue}>
+            {me.entered_at
+              ? formatDate(me.entered_at)
+              : tm('study.noEntry')}
+          </Text>
+        </View>
+        <View style={styles.factRow}>
+          <Text style={styles.factLabel}>{tm('study.locale')}</Text>
+          <Text style={styles.factValue}>{localeLabel(me)}</Text>
+        </View>
+        <View style={styles.factRow}>
+          <Text style={styles.factLabel}>
+            {me.has_consent ? tm('study.consentDone') : tm('study.consentMissing')}
+          </Text>
+          <Ionicons
+            name={me.has_consent ? 'checkmark-circle' : 'ellipse-outline'}
+            size={22}
+            color={me.has_consent ? colors.primaryDark : colors.textMuted}
+          />
+        </View>
       </View>
 
       <Pressable
         accessibilityRole="button"
         onPress={() => router.push('/join/consent-text')}
-        style={({ pressed }) => [
-          styles.consentRow,
-          pressed && styles.pressed,
-        ]}
+        style={({ pressed }) => [styles.consentRow, pressed && styles.pressed]}
       >
         <Ionicons
           name="document-text-outline"
@@ -103,22 +302,63 @@ export default function StudyDetailsScreen() {
       <View style={styles.leaveSection}>
         <Text style={styles.sectionLabel}>{tm('study.leaveOrErase')}</Text>
         <View style={styles.actionsCard}>
-          <SettingsRow
-            divider
-            icon="log-out-outline"
-            onPress={() => setLeaving(true)}
-            subtitle={tm('study.leaveBody')}
-            title={tm('study.leave')}
-          />
-          <SettingsRow
-            danger
-            icon="trash-outline"
-            onPress={() => router.push(moreHref(`/erase/${study.id}`))}
-            subtitle={tm('study.eraseBody')}
-            title={tm('study.erase')}
-          />
+          {canReturn ? (
+            <SettingsRow
+              divider={erasureAllowed}
+              icon="return-down-back-outline"
+              onPress={() => {
+                void returnToStudy();
+              }}
+              subtitle={
+                busy ? tm('study.returning') : tm('study.returnBody')
+              }
+              title={tm('study.return')}
+            />
+          ) : null}
+
+          {canLeave ? (
+            <SettingsRow
+              divider={erasureAllowed}
+              icon="log-out-outline"
+              onPress={() => setLeaving(true)}
+              subtitle={tm('study.leaveBody')}
+              title={tm('study.leave')}
+            />
+          ) : null}
+
+          {me.status === 'erasure_scheduled' ? (
+            <SettingsRow
+              icon="refresh-outline"
+              onPress={() =>
+                router.push({
+                  pathname: '/erase/scheduled',
+                  params: {
+                    scope: 'study',
+                    studyId: me.study.id,
+                    study: me.study.title,
+                    due: me.erasure_due_at ?? '',
+                    requested: me.erasure_requested_at ?? '',
+                  },
+                })
+              }
+              subtitle={tm('study.cancelErasureBody')}
+              title={tm('study.cancelErasure')}
+            />
+          ) : null}
+
+          {erasureAllowed ? (
+            <SettingsRow
+              danger
+              icon="trash-outline"
+              onPress={() => router.push(moreHref(`/erase/${me.study.id}`))}
+              subtitle={tm('study.eraseBody')}
+              title={tm('study.erase')}
+            />
+          ) : null}
         </View>
       </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Text style={styles.version}>{tm('settings.version')}</Text>
 
@@ -147,14 +387,18 @@ export default function StudyDetailsScreen() {
             <View style={styles.dialogActions}>
               <Pressable
                 accessibilityRole="button"
-                onPress={leave}
+                accessibilityState={{ disabled: busy }}
+                disabled={busy}
+                onPress={() => {
+                  void leave();
+                }}
                 style={({ pressed }) => [
                   styles.leaveButton,
                   pressed && styles.pressed,
                 ]}
               >
                 <Text style={styles.leaveLabel}>
-                  {tm('study.leaveConfirm')}
+                  {busy ? tm('study.leaving') : tm('study.leaveConfirm')}
                 </Text>
               </Pressable>
               <Pressable
@@ -181,6 +425,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
+  },
+  loadingContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.textMuted,
   },
   header: {
     gap: 2,
@@ -215,17 +470,39 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: colors.text,
   },
-  description: {
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.text,
-  },
   period: {
     fontFamily: fonts.regular,
     fontSize: 14,
     lineHeight: 19,
     color: colors.textMuted,
+  },
+  body: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textBody,
+  },
+  factRow: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  factLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.textMuted,
+  },
+  factValue: {
+    minWidth: 0,
+    flexShrink: 1,
+    textAlign: 'right',
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.text,
   },
   sectionLabel: {
     fontFamily: fonts.extrabold,
@@ -234,42 +511,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.78,
     textTransform: 'uppercase',
     color: colors.textMuted,
-  },
-  team: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.text,
-  },
-  email: {
-    fontFamily: fonts.mono,
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.primaryDark,
-  },
-  languageCard: {
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-  },
-  languageLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  languageText: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    lineHeight: 22,
-    color: colors.text,
   },
   consentRow: {
     minHeight: 56,
@@ -300,6 +541,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.divider,
     backgroundColor: colors.surface,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   version: {
     fontFamily: fonts.regular,

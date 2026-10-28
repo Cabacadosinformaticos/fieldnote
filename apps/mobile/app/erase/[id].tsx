@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -10,23 +10,131 @@ import {
   View,
 } from 'react-native';
 
+import { deviceClient } from '@/api/client';
+import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { Screen } from '@/components/Screen';
 import { BackLink } from '@/components/more/BackLink';
 import { Bullets } from '@/components/more/Bullets';
-import { moreHref } from '@/components/more/navigation';
-import { getStudy, moreStudies } from '@/fake/more';
+import { formatDate } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
+import { clearStudyQueue, setErasureDue } from '@/state/actions';
+import {
+  getDeviceToken,
+  getParticipation,
+  saveParticipation,
+} from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
+
+function dueDate(): Date {
+  return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+}
+
+function dueTime(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(
+    date.getMinutes(),
+  ).padStart(2, '0')}`;
+}
 
 export default function EraseStudyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const study = getStudy(id) ?? moreStudies[0];
+  const [title, setTitle] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState('');
-  const ready = confirmation.trim() === 'APAGAR';
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ready = confirmation.trim().toUpperCase() === 'APAGAR';
 
-  const confirm = () => {
-    router.replace(moreHref('/erase/scheduled'));
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      if (!id) {
+        return;
+      }
+
+      const cached = await getParticipation(id).catch(() => null);
+      if (active && cached) {
+        setTitle(cached.title);
+      }
+
+      const token = await getDeviceToken(id).catch(() => null);
+      if (!token) {
+        return;
+      }
+
+      try {
+        const { data } = await deviceClient(token).GET(
+          '/api/v1/participation/me',
+        );
+        if (active && data) {
+          setTitle(data.study.title);
+        }
+      } catch {
+        // The cached title is enough when the phone is offline.
+      }
+    };
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  const confirm = async () => {
+    if (!id || !ready || busy) {
+      return;
+    }
+
+    const token = await getDeviceToken(id).catch(() => null);
+    if (!token) {
+      setError(tm('erase.error'));
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const { data, error: apiError } = await deviceClient(token).POST(
+        '/api/v1/participation/me/erasure',
+        { body: { confirmation: 'APAGAR' } },
+      );
+      if (!data) {
+        setError(apiErrorMessage(apiError));
+        return;
+      }
+
+      await clearStudyQueue(id).catch(() => undefined);
+      await saveParticipation({
+        studyId: data.study.id,
+        title: data.study.title,
+        status: data.status,
+        alias: data.alias,
+        startsOn: data.study.starts_on,
+        endsOn: data.study.ends_on,
+        timezone: data.study.timezone,
+      }).catch(() => undefined);
+      await setErasureDue(data.study.id, data.erasure_due_at).catch(
+        () => undefined,
+      );
+
+      router.replace({
+        pathname: '/erase/scheduled',
+        params: {
+          scope: 'study',
+          studyId: data.study.id,
+          study: data.study.title,
+          due: data.erasure_due_at ?? '',
+          requested: data.erasure_requested_at ?? '',
+        },
+      });
+    } catch {
+      setError(networkErrorMessage());
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const due = dueDate();
 
   return (
     <Screen contentStyle={styles.content}>
@@ -36,7 +144,7 @@ export default function EraseStudyScreen() {
         <BackLink label={tm('common.back')} onPress={() => router.back()} />
         <Text style={styles.title}>{tm('erase.title')}</Text>
         <Text style={styles.study}>
-          {tm('erase.study', { study: study.name })}
+          {tm('erase.study', { study: title ?? '' })}
         </Text>
       </View>
 
@@ -54,12 +162,19 @@ export default function EraseStudyScreen() {
           />
         </View>
         <View style={styles.block}>
-          <Text style={styles.blockTitle}>{tm('erase.whenTitle')}</Text>
+          <Text style={styles.blockTitle}>
+            {tm('erase.whenTitleAt', {
+              date: formatDate(due.toISOString()),
+              time: dueTime(due),
+            })}
+          </Text>
           <Bullets
             items={[tm('erase.whenB1'), tm('erase.whenB2')]}
           />
         </View>
       </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.spacer} />
 
@@ -81,13 +196,15 @@ export default function EraseStudyScreen() {
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: !ready }}
-          disabled={!ready}
-          onPress={confirm}
+          accessibilityState={{ disabled: !ready || busy }}
+          disabled={!ready || busy}
+          onPress={() => {
+            void confirm();
+          }}
           style={({ pressed }) => [
             styles.eraseButton,
             ready ? styles.eraseButtonOn : styles.eraseButtonOff,
-            pressed && ready && styles.pressed,
+            pressed && ready && !busy && styles.pressed,
           ]}
         >
           <Ionicons
@@ -96,7 +213,7 @@ export default function EraseStudyScreen() {
             color={ready ? colors.white : '#9B1C1C'}
           />
           <Text style={[styles.eraseLabel, ready && styles.eraseLabelOn]}>
-            {tm('erase.cta')}
+            {busy ? tm('erase.busy') : tm('erase.cta')}
           </Text>
         </Pressable>
 
@@ -177,6 +294,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1.36,
     color: colors.text,
     backgroundColor: colors.surface,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   actions: {
     gap: spacing.sm,

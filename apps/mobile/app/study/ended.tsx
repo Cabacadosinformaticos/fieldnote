@@ -1,16 +1,73 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { deviceClient } from '@/api/client';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { InfoRow } from '@/components/more/InfoRow';
-import { endedStudy } from '@/fake/more';
+import { formatDate } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
+import { getDeviceToken, getParticipation, saveParticipation } from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 export default function StudyEndedScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [title, setTitle] = useState('');
+  const [endedOn, setEndedOn] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      if (!id) {
+        return;
+      }
+
+      const cached = await getParticipation(id).catch(() => null);
+      if (active && cached) {
+        setTitle(cached.title);
+        setEndedOn(cached.endsOn);
+      }
+
+      const token = await getDeviceToken(id).catch(() => null);
+      if (!token) {
+        return;
+      }
+
+      try {
+        const { data } = await deviceClient(token).GET(
+          '/api/v1/participation/me',
+        );
+        if (!active || !data) {
+          return;
+        }
+
+        setTitle(data.study.title);
+        setEndedOn(data.study.ends_on);
+        await saveParticipation({
+          studyId: data.study.id,
+          title: data.study.title,
+          status: data.status,
+          alias: data.alias,
+          startsOn: data.study.starts_on,
+          endsOn: data.study.ends_on,
+          timezone: data.study.timezone,
+        }).catch(() => undefined);
+      } catch {
+        // The cached card is enough when the phone is offline.
+      }
+    };
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
   return (
     <Screen contentStyle={styles.content}>
       <StatusBar style="dark" />
@@ -22,8 +79,8 @@ export default function StudyEndedScreen() {
         <Text style={styles.title}>{tm('ended.title')}</Text>
         <Text style={styles.body}>
           {tm('ended.body', {
-            study: endedStudy.name,
-            date: endedStudy.endedDate,
+            study: title,
+            date: formatDate(endedOn),
           })}
         </Text>
       </View>
@@ -40,14 +97,6 @@ export default function StudyEndedScreen() {
           icon="cloud-upload-outline"
           title={tm('ended.waiting')}
         />
-        <InfoRow
-          body={tm('ended.contactBody', {
-            name: endedStudy.teamName,
-            email: endedStudy.teamEmail,
-          })}
-          icon="mail-outline"
-          title={tm('ended.contact')}
-        />
       </View>
 
       <View style={styles.spacer} />
@@ -56,6 +105,13 @@ export default function StudyEndedScreen() {
         label={tm('ended.entries')}
         onPress={() => router.replace('/(tabs)/entries')}
       />
+      {id ? (
+        <Button
+          label={tm('studies.details')}
+          onPress={() => router.replace({ pathname: '/study/[id]', params: { id } })}
+          variant="secondary"
+        />
+      ) : null}
     </Screen>
   );
 }
