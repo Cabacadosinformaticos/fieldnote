@@ -151,6 +151,15 @@ const pt = {
   'overview.effort': 'Esforço previsto',
   'overview.effortPerDay': 'por dia',
   'overview.effortNote': 'Por participante: 2 × 3 min + 1 min + 1 min',
+  'overview.studyAdherence': 'Adesão no estudo',
+  'overview.adherenceStudyNote': '{answered} de {sent} pedidos respondidos desde o início',
+  'overview.prompts.answered': 'Respondidos',
+  'overview.prompts.sent': 'Enviados sem resposta',
+  'overview.prompts.expired': 'Expirados',
+  'overview.prompts.planned': 'Ainda por enviar',
+  'overview.participants.pending': 'Por aprovar',
+  'overview.participants.declined': 'Recusaram participar',
+  'overview.participants.left': 'Saíram ou foram removidos',
   'overview.attention.title': 'Precisa de atenção',
   'overview.attention.points': '{count} pontos',
   'overview.attention.onePoint': '1 ponto',
@@ -229,6 +238,7 @@ const pt = {
   'plan.viewToday': 'Ver hoje',
   'plan.summary.today': 'Plano de hoje',
   'plan.summary.tomorrow': 'Plano de amanhã',
+  'plan.summary.date': 'Plano de {date}',
   'plan.summary.complete': 'Pesquisa completa',
   'plan.summary.styleLine':
     'Estilo do estudo: {style} · máximo de {maxDay} pedidos por participante e dia · máximo de {maxSlot} por intervalo de 15 minutos',
@@ -237,6 +247,8 @@ const pt = {
   'plan.summary.plannedNote': '{participants} participantes ativos × {maxDay} pedidos',
   'plan.summary.unplanned': 'Por planear',
   'plan.summary.unplannedNote': 'Sem lugar que cumpra as regras',
+  'plan.summary.participants': 'Participantes',
+  'plan.summary.participantsNote': 'Com horas indicadas para este dia',
   'plan.summary.calculated': 'Calculado às',
   'plan.summary.duration': 'Demorou {duration}',
   'plan.summary.maxInterval': 'Máximo num intervalo',
@@ -263,6 +275,8 @@ const pt = {
     'O pedido fica por planear e o plano segue sem ele. A razão aparece aqui, em frase simples, para decidir o que mudar.',
   'plan.unplanned.title': 'Pedidos por planear hoje',
   'plan.unplanned.titleTomorrow': 'Pedidos por planear amanhã',
+  'plan.unplanned.titleDate': 'Pedidos por planear',
+  'plan.unplanned.empty': 'Não há pedidos por planear neste dia.',
   'plan.unplanned.count': '{count} pedidos',
   'plan.unplanned.one': '1 pedido',
   'plan.unplanned.note':
@@ -310,11 +324,13 @@ const pt = {
   'plan.schedule.status.sent': 'Enviado, sem resposta',
   'plan.schedule.status.expired': 'Expirado',
   'plan.schedule.status.planned': 'Planeado, ainda não enviado',
+  'plan.schedule.status.unplanned': 'Por planear',
   'plan.schedule.outsideWindow': 'Fora das horas indicadas',
-  'plan.schedule.showing': 'A mostrar {shown} de {total} participantes. {note}',
+  'plan.schedule.showing': 'A mostrar {shown} de {total} participantes.',
   'plan.schedule.none': 'Nenhum',
-  'plan.schedule.footnote':
-    'P-04 e P-11 só indicaram as 16:00 às 22:00, por isso A2 não coube e têm 3 pedidos em vez de 4.',
+  'plan.schedule.window': 'Horas indicadas: {start} às {end}',
+  'plan.schedule.allDay': 'Qualquer hora',
+  'plan.schedule.noAvailability': 'Sem horas indicadas neste dia',
   'plan.date.today': 'hoje',
   'plan.date.tomorrow': 'amanhã',
 
@@ -339,6 +355,12 @@ const pt = {
   'error.invalid_status_transition': 'O estado atual do estudo não permite esta ação.',
   'error.validation': 'Os dados enviados não são válidos. Reveja os campos.',
   'error.not_authenticated': 'A sessão expirou. Volte a entrar.',
+  'error.user_not_found': 'Não existe nenhuma conta com esse email.',
+  'error.not_a_researcher': 'Só contas de investigação podem entrar na equipa.',
+  'error.already_a_member': 'Essa pessoa já pertence à equipa.',
+  'error.last_principal_investigator':
+    'O estudo tem de manter pelo menos uma investigadora principal.',
+  'error.invalid_question': 'A pergunta não é válida. Reveja o texto e as opções.',
   'error.generic': 'Não foi possível concluir o pedido. Tente novamente.',
 
   'overview.entryType.photo': 'Foto',
@@ -355,6 +377,7 @@ const pt = {
   'overview.attention.inactiveNoEntries': 'Ainda não enviou qualquer registo.',
   'overview.attention.inactiveDetail': 'Último registo em {last}.',
   'overview.attention.empty': 'Nada a assinalar neste momento.',
+  'overview.attention.viewParticipant': 'Ver participante',
 
   'overview.adherence.inactive': 'sem registos recentes',
   'overview.adherence.empty': 'Ainda não há participantes com pedidos enviados.',
@@ -367,21 +390,11 @@ const pt = {
   'overview.feed.noActivity': 'Registo livre',
   'overview.feed.empty': 'Ainda não chegou nenhum registo.',
   'overview.effortNone': 'Sem atividades definidas.',
-  'overview.unplannedUnavailable': 'A API não expõe pedidos não planeados.',
-  'overview.fallback.unplanned':
-    'Os pedidos não planeados e os respetivos motivos ainda não estão disponíveis na API; o valor mostrado é 0.',
   'overview.endDialog.pending': 'A terminar…',
+  'overview.dateRange': '{range} · {participants}',
 
-  'plan.summary.fromApi': 'A partir dos pedidos reais',
   'plan.schedule.noParticipants': 'Ainda não há participantes neste estudo.',
-  'plan.fallback.noPrompts':
-    'Ainda não há pedidos planeados para hoje nem para amanhã. O plano aparece quando o agendador criar pedidos.',
-  'plan.fallback.unplanned':
-    'A API não expõe pedidos não planeados nem os motivos, por isso esta lista fica vazia.',
-  'plan.fallback.windows':
-    'A API não expõe as horas indicadas por participante; cada linha mostra o dia completo.',
-  'plan.fallback.otherDay': 'Outro dia disponível: {date}.',
-  'plan.fallback.generated': 'Valores calculados a partir da adesão real. Hora do cálculo: {time} · {style}.',
+  'plan.schedule.noPrompts': 'Ainda não há pedidos para este dia.',
 } as const
 
 export type StudiesKey = keyof typeof pt
