@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   CopyIcon,
@@ -7,144 +7,241 @@ import {
   LockIcon,
   PencilIcon,
   PlusIcon,
-  QrIcon,
   TrashIcon,
   WarningIcon,
   XIcon,
 } from '../../components/activities/ActivityIcons'
 import Modal from '../../components/activities/Modal'
 import Toggle from '../../components/activities/Toggle'
+import { useActivities } from '../../api/activities'
 import {
-  activities,
-  demoStudyId,
-  getStudySettings,
-  type PosterOptions,
-  type QuestionType,
-  type ScheduleStyleId,
+  statusFromApi,
+  studiesErrorMessage,
+  useAddStudyMember,
+  useChangeStudyMemberRole,
+  useCloseStudy,
+  useCreateQuestion,
+  useDeleteQuestion,
+  useRemoveStudyMember,
+  useReorderQuestions,
+  useStudy,
+  useStudyConsent,
+  useStudyMembers,
+  useStudyQuestions,
+  useStudyRole,
+  useUpdateQuestion,
+  useUpdateStudy,
+  type QuestionKind,
+  type Study,
   type StudyQuestion,
-  type StudySettings,
-  type TeamMember,
-} from '../../fake/activities'
+  type StudyRole,
+} from '../../api/studies'
+import {
+  useStudyCodes,
+  useUpdateStudyCode,
+  type StudyCodeOut,
+} from '../../api/participants'
 import { t, type ActivitiesKey } from '../../i18n/activities'
 import '../../styles/activities.css'
 
-const scheduleStyles: { id: ScheduleStyleId; label: ActivitiesKey; hint: ActivitiesKey }[] = [
+const scheduleStyles: {
+  id: Study['schedule_style']
+  label: ActivitiesKey
+  hint: ActivitiesKey
+}[] = [
   { id: 'fixed', label: 'settings.style.fixed', hint: 'settings.style.fixedHint' },
   { id: 'balanced', label: 'settings.style.balanced', hint: 'settings.style.balancedHint' },
   { id: 'varied', label: 'settings.style.varied', hint: 'settings.style.variedHint' },
 ]
 
-const questionTypeLabels: Record<QuestionType, ActivitiesKey> = {
-  single: 'settings.questions.single',
-  multiple: 'settings.questions.multiple',
-  yesno: 'settings.questions.yesno',
+const questionTypeLabels: Record<QuestionKind, ActivitiesKey> = {
+  single_choice: 'settings.questions.single',
+  multiple_choice: 'settings.questions.multiple',
+  yes_no: 'settings.questions.yesno',
+  short_text: 'settings.questions.shortText',
 }
 
-const questionTypePills: Record<QuestionType, string> = {
-  single: 'pr',
-  multiple: 'pr',
-  yesno: 'ne',
+const questionTypePills: Record<QuestionKind, string> = {
+  single_choice: 'pr',
+  multiple_choice: 'pr',
+  yes_no: 'ne',
+  short_text: 'da',
+}
+
+const roleLabels: Record<StudyRole, ActivitiesKey> = {
+  principal_investigator: 'settings.team.principal',
+  co_investigator: 'settings.team.coInvestigator',
+  member: 'settings.team.member',
+}
+
+const codeStateLabels: Record<string, ActivitiesKey> = {
+  active: 'settings.codes.state.active',
+  off: 'settings.codes.state.off',
+  ended: 'settings.codes.state.ended',
+  limit_reached: 'settings.codes.state.limit_reached',
+}
+
+const avatarTones = ['teal', 'amber', 'violet', 'blue']
+
+type Draft = {
+  title: string
+  description: string
+  endsOn: string
+  scheduleStyle: Study['schedule_style']
+  maxDay: string
+  maxSlot: string
 }
 
 type QuestionEditor = {
   id: string | null
   text: string
-  type: QuestionType
+  kind: QuestionKind
   optionsText: string
 }
 
+function isChoice(kind: QuestionKind): boolean {
+  return kind === 'single_choice' || kind === 'multiple_choice'
+}
+
+function emailName(email: string): string {
+  const localPart = email.split('@')[0] ?? email
+  return (
+    localPart
+      .split(/[._-]+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ') || email
+  )
+}
+
+function emailInitials(email: string): string {
+  const words = emailName(email).split(' ').filter(Boolean)
+  return (
+    words
+      .map((word) => word.charAt(0))
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'NC'
+  )
+}
+
 export default function StudySettingsPage() {
-  const { studyId = demoStudyId } = useParams<{ studyId: string }>()
-  const [settings, setSettings] = useState<StudySettings>(() => getStudySettings())
+  const { studyId = '' } = useParams<{ studyId: string }>()
+
+  const studyQuery = useStudy(studyId)
+  const activitiesQuery = useActivities(studyId)
+  const access = useStudyRole(studyId)
+  const membersQuery = useStudyMembers(studyId)
+  const questionsQuery = useStudyQuestions(studyId)
+  const consentQuery = useStudyConsent(studyId)
+  const codesQuery = useStudyCodes(studyId)
+
+  const updateStudy = useUpdateStudy(studyId)
+  const createQuestion = useCreateQuestion(studyId)
+  const updateQuestion = useUpdateQuestion(studyId)
+  const deleteQuestion = useDeleteQuestion(studyId)
+  const reorderQuestions = useReorderQuestions(studyId)
+  const addMember = useAddStudyMember(studyId)
+  const changeRole = useChangeStudyMemberRole(studyId)
+  const removeMember = useRemoveStudyMember(studyId)
+  const updateCode = useUpdateStudyCode(studyId)
+  const closeStudy = useCloseStudy(studyId)
+
+  const study = studyQuery.data
+  const questions = questionsQuery.data ?? []
+  const members = membersQuery.data ?? []
+  const codes = codesQuery.data ?? []
+  const status = study ? statusFromApi(study.status) : 'draft'
+  const closed = status === 'finished'
+  const canManage = access.canManage && !closed
+  const canDesign = access.canDesign && !closed
+
+  const [draft, setDraft] = useState<Draft | null>(null)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [collaboratorEmail, setCollaboratorEmail] = useState('')
+  const [collaboratorRole, setCollaboratorRole] = useState<StudyRole>('co_investigator')
   const [teamError, setTeamError] = useState('')
-  const [consentLang, setConsentLang] = useState<'pt' | 'en' | null>(null)
-  const [consentDraft, setConsentDraft] = useState('')
   const [questionEditor, setQuestionEditor] = useState<QuestionEditor | null>(null)
   const [questionError, setQuestionError] = useState('')
   const [dragId, setDragId] = useState<string | null>(null)
   const [endOpen, setEndOpen] = useState(false)
   const [endText, setEndText] = useState('')
-  const [terminated, setTerminated] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
-  function patch(values: Partial<StudySettings>) {
-    setSettings((current) => ({ ...current, ...values }))
+  useEffect(() => {
+    if (!study) {
+      return
+    }
+    setDraft({
+      title: study.title,
+      description: study.description ?? '',
+      endsOn: study.ends_on ?? '',
+      scheduleStyle: study.schedule_style,
+      maxDay: String(study.max_prompts_per_day),
+      maxSlot: String(study.max_prompts_per_slot),
+    })
+  }, [study])
+
+  function patch(values: Partial<Draft>) {
+    setDraft((current) => (current ? { ...current, ...values } : current))
     setSaved(false)
+    setSaveError('')
   }
 
-  function patchPoster(values: Partial<PosterOptions>) {
-    setSettings((current) => ({
-      ...current,
-      poster: { ...current.poster, ...values },
-    }))
-    setSaved(false)
+  function saveStudy() {
+    if (!draft || !canManage) {
+      return
+    }
+    const maxDay = Number.parseInt(draft.maxDay, 10)
+    const maxSlot = Number.parseInt(draft.maxSlot, 10)
+    if (!draft.title.trim() || !Number.isFinite(maxDay) || !Number.isFinite(maxSlot) || maxDay < 1 || maxSlot < 1) {
+      setSaveError(t('settings.plan.invalidLimits'))
+      return
+    }
+    updateStudy.mutate(
+      {
+        title: draft.title.trim(),
+        description: draft.description.trim() || null,
+        ends_on: draft.endsOn || null,
+        schedule_style: draft.scheduleStyle,
+        max_prompts_per_day: maxDay,
+        max_prompts_per_slot: maxSlot,
+      },
+      {
+        onSuccess: () => {
+          setSaved(true)
+          setSaveError('')
+        },
+      },
+    )
   }
 
   function addCollaborator() {
     const email = collaboratorEmail.trim()
-    if (!email) {
+    if (!email || !canManage) {
       return
     }
+    addMember.mutate(
+      { email, role: collaboratorRole },
+      {
+        onSuccess: () => {
+          setCollaboratorEmail('')
+          setTeamError('')
+        },
+      },
+    )
+  }
 
-    if (settings.team.some((member) => member.email.toLowerCase() === email.toLowerCase())) {
-      setTeamError(t('settings.team.duplicate'))
+  function removeTeamMember(userId: string) {
+    if (!canManage) {
       return
     }
-
-    const localPart = email.split('@')[0] ?? email
-    const words = localPart
-      .split(/[._-]+/)
-      .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    const name = words.join(' ') || email
-    const initials =
-      words
-        .map((word) => word.charAt(0))
-        .join('')
-        .slice(0, 2)
-        .toUpperCase() || 'NC'
-    const member: TeamMember = {
-      id: `u-${Date.now()}`,
-      initials,
-      name,
-      email,
-      note: t('settings.team.anonymous'),
-      role: 'collaborator',
-      tone: 'teal',
-    }
-
-    setSettings((current) => ({ ...current, team: [...current.team, member] }))
-    setCollaboratorEmail('')
-    setTeamError('')
-    setSaved(false)
-  }
-
-  function removeMember(memberId: string) {
-    setSettings((current) => ({
-      ...current,
-      team: current.team.filter((member) => member.id !== memberId),
-    }))
-    setSaved(false)
-  }
-
-  function openConsent(lang: 'pt' | 'en') {
-    setConsentLang(lang)
-    setConsentDraft(lang === 'pt' ? settings.consentPt : settings.consentEn)
-  }
-
-  function saveConsent() {
-    if (consentLang === 'pt') {
-      patch({ consentPt: consentDraft })
-    } else if (consentLang === 'en') {
-      patch({ consentEn: consentDraft })
-    }
-    setConsentLang(null)
+    removeMember.mutate(userId)
   }
 
   function openNewQuestion() {
-    setQuestionEditor({ id: null, text: '', type: 'single', optionsText: '' })
+    setQuestionEditor({ id: null, text: '', kind: 'single_choice', optionsText: '' })
     setQuestionError('')
   }
 
@@ -152,111 +249,137 @@ export default function StudySettingsPage() {
     setQuestionEditor({
       id: question.id,
       text: question.text,
-      type: question.type,
+      kind: question.kind,
       optionsText: question.options.join('\n'),
     })
     setQuestionError('')
   }
 
   function saveQuestion() {
-    if (!questionEditor) {
+    if (!questionEditor || !canDesign) {
       return
     }
-
     const editor = questionEditor
     const text = editor.text.trim()
-    const options =
-      editor.type === 'yesno'
-        ? [t('settings.questions.yes'), t('settings.questions.no')]
-        : editor.optionsText
-            .split('\n')
-            .map((option) => option.trim())
-            .filter(Boolean)
+    const options = isChoice(editor.kind)
+      ? editor.optionsText
+          .split('\n')
+          .map((option) => option.trim())
+          .filter(Boolean)
+      : []
 
-    if (!text || (editor.type !== 'yesno' && options.length < 2)) {
+    if (!text || (isChoice(editor.kind) && options.length < 2)) {
       setQuestionError(t('settings.questions.error'))
       return
     }
 
-    const nextQuestion: StudyQuestion = {
-      id: editor.id ?? `q-${Date.now()}`,
-      text,
-      type: editor.type,
-      options,
+    const onSuccess = () => {
+      setQuestionEditor(null)
+      setQuestionError('')
     }
 
-    setSettings((current) => {
-      const exists = current.questions.some((question) => question.id === editor.id)
-      return {
-        ...current,
-        questions: exists
-          ? current.questions.map((question) =>
-              question.id === editor.id ? nextQuestion : question,
-            )
-          : [...current.questions, nextQuestion],
-      }
-    })
-    setSaved(false)
-    setQuestionEditor(null)
-    setQuestionError('')
+    if (editor.id) {
+      updateQuestion.mutate(
+        {
+          questionId: editor.id,
+          body: { text, kind: editor.kind, options },
+        },
+        { onSuccess },
+      )
+    } else {
+      createQuestion.mutate({ text, kind: editor.kind, options }, { onSuccess })
+    }
   }
 
   function removeQuestion(questionId: string) {
-    setSettings((current) => ({
-      ...current,
-      questions: current.questions.filter((question) => question.id !== questionId),
-    }))
-    setSaved(false)
+    if (!canDesign) {
+      return
+    }
+    deleteQuestion.mutate(questionId)
   }
 
   function reorderQuestion(targetId: string) {
-    if (!dragId || dragId === targetId) {
+    if (!dragId || dragId === targetId || !canDesign) {
       setDragId(null)
       return
     }
-
-    setSettings((current) => {
-      const questions = [...current.questions]
-      const from = questions.findIndex((question) => question.id === dragId)
-      const to = questions.findIndex((question) => question.id === targetId)
-      if (from === -1 || to === -1) {
-        return current
-      }
-
-      const [moved] = questions.splice(from, 1)
-      questions.splice(to, 0, moved)
-      return { ...current, questions }
-    })
-    setSaved(false)
+    const ids = questions.map((question) => question.id)
+    const from = ids.indexOf(dragId)
+    const to = ids.indexOf(targetId)
+    if (from === -1 || to === -1) {
+      setDragId(null)
+      return
+    }
+    const [moved] = ids.splice(from, 1)
+    ids.splice(to, 0, moved)
+    reorderQuestions.mutate(ids)
     setDragId(null)
   }
 
-  async function copyCode() {
+  async function copyCode(code: StudyCodeOut) {
     try {
-      await navigator.clipboard.writeText(settings.poster.studyCode)
-      setCopied(true)
+      await navigator.clipboard.writeText(code.code)
+      setCopiedCode(code.id)
     } catch {
-      setCopied(false)
+      setCopiedCode(null)
     }
+  }
+
+  function toggleCode(code: StudyCodeOut, values: Parameters<typeof updateCode.mutate>[0]['payload']) {
+    if (!canManage) {
+      return
+    }
+    updateCode.mutate({ codeId: code.id, payload: values })
   }
 
   function confirmTerminate() {
-    if (endText.trim() !== settings.title.trim()) {
+    if (!study || endText.trim() !== study.title.trim()) {
       return
     }
-
-    setTerminated(true)
-    setEndOpen(false)
-    setEndText('')
+    closeStudy.mutate(undefined, {
+      onSuccess: () => {
+        setEndOpen(false)
+        setEndText('')
+      },
+    })
   }
 
-  const activeQuestion = questionEditor
-    ? editorIsNew(questionEditor)
-      ? t('settings.questions.addTitle')
-      : t('settings.questions.editTitle')
-    : ''
-  const requestsPerDay = activities.reduce(
-    (total, activity) => total + activity.requestsPerDay,
+  if (studyQuery.isLoading && !study) {
+    return (
+      <div className="ac-page">
+        <p className="ac-sub">{t('state.loading')}</p>
+      </div>
+    )
+  }
+
+  if (!study || !draft) {
+    return (
+      <div className="ac-page">
+        <div className="st-note st-note-error" role="alert">
+          <span>{studiesErrorMessage(studyQuery.error)}</span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => void studyQuery.refetch()}
+          >
+            {t('state.retry')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const statusNote =
+    status === 'draft'
+      ? 'settings.subtitleDraft'
+      : status === 'finished'
+        ? 'settings.subtitleClosed'
+        : 'settings.subtitleRunning'
+  const questionMutationError =
+    createQuestion.error ?? updateQuestion.error ?? deleteQuestion.error ?? reorderQuestions.error
+  const teamMutationError = addMember.error ?? changeRole.error ?? removeMember.error
+  const requestsPerDay = (activitiesQuery.data ?? []).reduce(
+    (total, activity) => total + activity.prompts_per_day,
     0,
   )
 
@@ -265,21 +388,48 @@ export default function StudySettingsPage() {
       <header className="ac-header">
         <div className="ac-header-copy">
           <h1 className="ac-title">{t('settings.title')}</h1>
-          <p className="ac-subtitle">{t('settings.subtitle', { study: settings.title })}</p>
+          <p className="ac-subtitle">
+            {t('settings.subtitle', { study: study.title })} {t(statusNote)}
+          </p>
         </div>
         <div className="ac-header-actions">
           <Link className="btn" to={`/estudos/${studyId}/visao-geral`}>
             {t('settings.cancel')}
           </Link>
-          <button type="button" className="btn btn-p" onClick={() => setSaved(true)}>
-            {t('settings.save')}
+          <button
+            type="button"
+            className="btn btn-p"
+            disabled={!canManage || updateStudy.isPending}
+            onClick={saveStudy}
+          >
+            {updateStudy.isPending ? t('settings.saving') : t('settings.save')}
           </button>
         </div>
       </header>
 
+      {!access.isLoading && !access.canManage ? (
+        <p className="ac-info-box" role="status">
+          <InfoIcon />
+          <span>{closed ? t('settings.closedNote') : t('settings.readOnly')}</span>
+        </p>
+      ) : null}
+
+      {closed && access.canManage ? (
+        <p className="ac-info-box" role="status">
+          <LockIcon width={16} height={16} />
+          <span>{t('settings.closedNote')}</span>
+        </p>
+      ) : null}
+
       {saved ? (
         <p className="ac-saved-note" role="status">
           {t('settings.saved')}
+        </p>
+      ) : null}
+
+      {saveError || updateStudy.error ? (
+        <p className="ac-field-error" role="alert">
+          {saveError || studiesErrorMessage(updateStudy.error)}
         </p>
       ) : null}
 
@@ -295,7 +445,8 @@ export default function StudySettingsPage() {
               <input
                 id="study-title"
                 className="ac-input"
-                value={settings.title}
+                value={draft.title}
+                disabled={!canManage}
                 onChange={(event) => patch({ title: event.target.value })}
               />
             </div>
@@ -308,7 +459,8 @@ export default function StudySettingsPage() {
                 id="study-description"
                 className="ac-textarea"
                 rows={2}
-                value={settings.description}
+                value={draft.description}
+                disabled={!canManage}
                 onChange={(event) => patch({ description: event.target.value })}
               />
               <span className="ac-sub">{t('settings.field.descriptionHint')}</span>
@@ -319,7 +471,7 @@ export default function StudySettingsPage() {
                 <span className="ac-label">{t('settings.field.start')}</span>
                 <div className="ac-locked-field">
                   <LockIcon width={16} height={16} />
-                  {settings.startDate}
+                  {study.starts_on ?? '–'}
                 </div>
                 <span className="ac-sub">{t('settings.field.started')}</span>
               </div>
@@ -330,8 +482,10 @@ export default function StudySettingsPage() {
                 <input
                   id="study-end"
                   className="ac-input"
-                  value={settings.endDate}
-                  onChange={(event) => patch({ endDate: event.target.value })}
+                  type="date"
+                  value={draft.endsOn}
+                  disabled={!canManage}
+                  onChange={(event) => patch({ endsOn: event.target.value })}
                 />
                 <span className="ac-sub">{t('settings.field.endHint')}</span>
               </div>
@@ -341,7 +495,7 @@ export default function StudySettingsPage() {
               <span className="ac-label">{t('settings.field.timezone')}</span>
               <div className="ac-locked-field">
                 <LockIcon width={16} height={16} />
-                {settings.timezone}
+                {study.timezone}
               </div>
               <span className="ac-sub">{t('settings.field.timezoneHint')}</span>
             </div>
@@ -363,13 +517,14 @@ export default function StudySettingsPage() {
                 aria-labelledby="schedule-style"
               >
                 {scheduleStyles.map((style) => {
-                  const selected = settings.scheduleStyle === style.id
+                  const selected = draft.scheduleStyle === style.id
                   return (
                     <button
                       key={style.id}
                       type="button"
                       role="radio"
                       aria-checked={selected}
+                      disabled={!canManage}
                       className={selected ? 'ac-segment ac-segment-on' : 'ac-segment'}
                       onClick={() => patch({ scheduleStyle: style.id })}
                     >
@@ -392,13 +547,9 @@ export default function StudySettingsPage() {
                   type="number"
                   min={1}
                   max={20}
-                  value={settings.maxRequestsPerDay}
-                  onChange={(event) =>
-                    patch({
-                      maxRequestsPerDay:
-                        Number.parseInt(event.target.value, 10) || settings.maxRequestsPerDay,
-                    })
-                  }
+                  value={draft.maxDay}
+                  disabled={!canManage}
+                  onChange={(event) => patch({ maxDay: event.target.value })}
                 />
                 <span className="ac-sub">
                   {t('settings.plan.maxPerDayHint', { count: requestsPerDay })}
@@ -414,14 +565,9 @@ export default function StudySettingsPage() {
                   type="number"
                   min={1}
                   max={20}
-                  value={settings.maxRequestsPerWindow}
-                  onChange={(event) =>
-                    patch({
-                      maxRequestsPerWindow:
-                        Number.parseInt(event.target.value, 10) ||
-                        settings.maxRequestsPerWindow,
-                    })
-                  }
+                  value={draft.maxSlot}
+                  disabled={!canManage}
+                  onChange={(event) => patch({ maxSlot: event.target.value })}
                 />
                 <span className="ac-sub">{t('settings.plan.maxPerWindowHint')}</span>
               </div>
@@ -433,31 +579,28 @@ export default function StudySettingsPage() {
               <div className="ac-section-heading">
                 <h2 className="h2">{t('settings.section.consent')}</h2>
                 <p className="ac-sub">
-                  {t('settings.consent.subtitle', {
-                    version: settings.consentVersion,
-                    count: settings.consentAcceptedBy,
-                  })}
+                  {consentQuery.data
+                    ? t('settings.consent.subtitle', {
+                        version: consentQuery.data.version,
+                        count: consentQuery.data.accepted,
+                      })
+                    : t('state.loading')}
                 </p>
               </div>
-              <span className="pill ok">
-                {t('settings.consent.pill', { version: settings.consentVersion })}
-              </span>
+              {consentQuery.data ? (
+                <span className="pill ok">
+                  {t('settings.consent.pill', { version: consentQuery.data.version })}
+                </span>
+              ) : null}
             </div>
 
             <div className="ac-info-box">
               <InfoIcon />
-              <span>{t('settings.consent.info', { version: settings.consentVersion })}</span>
-            </div>
-
-            <div className="ac-button-row">
-              <button type="button" className="btn" onClick={() => openConsent('pt')}>
-                <PencilIcon />
-                {t('settings.consent.editPt')}
-              </button>
-              <button type="button" className="btn" onClick={() => openConsent('en')}>
-                <PencilIcon />
-                {t('settings.consent.editEn')}
-              </button>
+              <span>
+                {consentQuery.data
+                  ? t('settings.consent.info', { version: consentQuery.data.version })
+                  : t('settings.consent.dialogHint')}
+              </span>
             </div>
           </section>
 
@@ -468,22 +611,28 @@ export default function StudySettingsPage() {
                 <p className="ac-sub">{t('settings.questions.subtitle')}</p>
               </div>
               <span className="pill ne">
-                {settings.questions.length === 1
+                {questions.length === 1
                   ? t('settings.questions.countOne')
-                  : t('settings.questions.count', { count: settings.questions.length })}
+                  : t('settings.questions.count', { count: questions.length })}
               </span>
             </div>
 
-            {settings.questions.length === 0 ? (
+            {!canDesign ? (
+              <p className="ac-sub">{t('settings.questions.permission')}</p>
+            ) : null}
+
+            {questionsQuery.isLoading ? (
+              <p className="ac-sub">{t('state.loading')}</p>
+            ) : questions.length === 0 ? (
               <p className="ac-sub">{t('settings.questions.empty')}</p>
             ) : (
               <ol className="ac-question-list">
-                {settings.questions.map((question, index) => (
+                {questions.map((question, index) => (
                   <li
                     key={question.id}
                     className="ac-question-item"
-                    draggable
-                    onDragStart={() => setDragId(question.id)}
+                    draggable={canDesign}
+                    onDragStart={() => canDesign && setDragId(question.id)}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={() => reorderQuestion(question.id)}
                     onDragEnd={() => setDragId(null)}
@@ -491,6 +640,7 @@ export default function StudySettingsPage() {
                     <button
                       type="button"
                       className="ac-grip"
+                      disabled={!canDesign}
                       aria-label={t('settings.questions.reorderAria', { number: index + 1 })}
                     >
                       <GripIcon />
@@ -500,8 +650,8 @@ export default function StudySettingsPage() {
                         <span className="ac-question-title">
                           {index + 1}. {question.text}
                         </span>
-                        <span className={`pill ${questionTypePills[question.type]}`}>
-                          {t(questionTypeLabels[question.type])}
+                        <span className={`pill ${questionTypePills[question.kind]}`}>
+                          {t(questionTypeLabels[question.kind])}
                         </span>
                       </div>
                       <span className="ac-sub">{question.options.join(' · ')}</span>
@@ -510,6 +660,7 @@ export default function StudySettingsPage() {
                       <button
                         type="button"
                         className="btn btn-sm ac-icon-only"
+                        disabled={!canDesign}
                         aria-label={t('settings.questions.editAria', { number: index + 1 })}
                         onClick={() => openQuestion(question)}
                       >
@@ -518,6 +669,7 @@ export default function StudySettingsPage() {
                       <button
                         type="button"
                         className="btn btn-sm ac-icon-only"
+                        disabled={!canDesign || deleteQuestion.isPending}
                         aria-label={t('settings.questions.removeAria', { number: index + 1 })}
                         onClick={() => removeQuestion(question.id)}
                       >
@@ -530,11 +682,17 @@ export default function StudySettingsPage() {
             )}
 
             <div>
-              <button type="button" className="btn" onClick={openNewQuestion}>
+              <button type="button" className="btn" disabled={!canDesign} onClick={openNewQuestion}>
                 <PlusIcon />
                 {t('settings.questions.add')}
               </button>
             </div>
+
+            {questionMutationError ? (
+              <p className="ac-field-error" role="alert">
+                {studiesErrorMessage(questionMutationError)}
+              </p>
+            ) : null}
 
             <div className="ac-info-box">
               <InfoIcon />
@@ -564,12 +722,6 @@ export default function StudySettingsPage() {
                     pillKey: 'settings.rules.later',
                     titleKey: 'settings.rules.plan',
                     hintKey: 'settings.rules.planHint',
-                  },
-                  {
-                    pill: 'pr',
-                    pillKey: 'settings.rules.later',
-                    titleKey: 'settings.rules.consent',
-                    hintKey: 'settings.rules.consentHint',
                   },
                   {
                     pill: 'pr',
@@ -607,59 +759,108 @@ export default function StudySettingsPage() {
           <section className="card ac-section" aria-label={t('settings.section.team')}>
             <h2 className="h2">{t('settings.section.team')}</h2>
             <div className="ac-team-list">
-              {settings.team.map((member) => (
-                <div className="ac-team-row" key={member.id}>
-                  <span className={`ac-avatar ac-avatar-${member.tone}`}>{member.initials}</span>
+              {members.length === 0 ? (
+                <p className="ac-sub">{t('settings.team.empty')}</p>
+              ) : null}
+              {members.map((member, index) => (
+                <div className="ac-team-row" key={member.user_id}>
+                  <span className={`ac-avatar ac-avatar-${avatarTones[index % avatarTones.length]}`}>
+                    {emailInitials(member.email)}
+                  </span>
                   <div className="ac-team-copy">
-                    <span className="ac-team-name">{member.name}</span>
-                    <span className="ac-team-note">{member.note || member.email}</span>
+                    <span className="ac-team-name">{emailName(member.email)}</span>
+                    <span className="ac-team-note">{member.email}</span>
                   </div>
-                  {member.role === 'owner' ? (
-                    <span className="pill pr">{t('settings.team.owner')}</span>
-                  ) : (
+                  {canManage ? (
                     <div className="ac-team-actions">
-                      <span className="pill ne">{t('settings.team.collaborator')}</span>
+                      <select
+                        className="ac-input ac-role-select"
+                        aria-label={t('settings.team.role')}
+                        value={member.role}
+                        disabled={changeRole.isPending}
+                        onChange={(event) =>
+                          changeRole.mutate({
+                            userId: member.user_id,
+                            role: event.target.value as StudyRole,
+                          })
+                        }
+                      >
+                        {(Object.keys(roleLabels) as StudyRole[]).map((role) => (
+                          <option key={role} value={role}>
+                            {t(roleLabels[role])}
+                          </option>
+                        ))}
+                      </select>
                       <button
                         type="button"
                         className="btn btn-sm ac-icon-only"
-                        aria-label={t('settings.team.removeAria', { name: member.name })}
-                        onClick={() => removeMember(member.id)}
+                        disabled={removeMember.isPending}
+                        aria-label={t('settings.team.removeAria', {
+                          name: emailName(member.email),
+                        })}
+                        onClick={() => removeTeamMember(member.user_id)}
                       >
                         <XIcon width={16} height={16} />
                       </button>
                     </div>
+                  ) : (
+                    <span className="pill ne">{t(roleLabels[member.role])}</span>
                   )}
                 </div>
               ))}
             </div>
 
-            <div className="ac-field">
-              <label className="ac-label" htmlFor="collaborator-email">
-                {t('settings.team.addLabel')}
-              </label>
-              <div className="ac-add-row">
-                <input
-                  id="collaborator-email"
-                  className="ac-input"
-                  type="email"
-                  placeholder={t('settings.team.addPlaceholder')}
-                  value={collaboratorEmail}
-                  onChange={(event) => {
-                    setCollaboratorEmail(event.target.value)
-                    setTeamError('')
-                  }}
-                />
-                <button type="button" className="btn btn-p" onClick={addCollaborator}>
-                  {t('settings.team.add')}
-                </button>
+            {canManage ? (
+              <div className="ac-field">
+                <label className="ac-label" htmlFor="collaborator-email">
+                  {t('settings.team.addLabel')}
+                </label>
+                <div className="ac-add-row">
+                  <input
+                    id="collaborator-email"
+                    className="ac-input"
+                    type="email"
+                    placeholder={t('settings.team.addPlaceholder')}
+                    value={collaboratorEmail}
+                    onChange={(event) => {
+                      setCollaboratorEmail(event.target.value)
+                      setTeamError('')
+                    }}
+                  />
+                  <select
+                    className="ac-input ac-role-select"
+                    aria-label={t('settings.team.addRole')}
+                    value={collaboratorRole}
+                    onChange={(event) => setCollaboratorRole(event.target.value as StudyRole)}
+                  >
+                    {(Object.keys(roleLabels) as StudyRole[]).map((role) => (
+                      <option key={role} value={role}>
+                        {t(roleLabels[role])}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-p"
+                    disabled={addMember.isPending}
+                    onClick={addCollaborator}
+                  >
+                    {t('settings.team.add')}
+                  </button>
+                </div>
+                {teamError ? (
+                  <span className="ac-field-error" role="alert">
+                    {teamError}
+                  </span>
+                ) : null}
+                {teamMutationError ? (
+                  <span className="ac-field-error" role="alert">
+                    {studiesErrorMessage(teamMutationError)}
+                  </span>
+                ) : null}
+                <span className="ac-sub">{t('settings.team.hint')}</span>
               </div>
-              {teamError ? (
-                <span className="ac-field-error" role="alert">
-                  {teamError}
-                </span>
-              ) : null}
-              <span className="ac-sub">{t('settings.team.hint')}</span>
-            </div>
+            ) : null}
           </section>
 
           <section className="card ac-section" aria-label={t('settings.section.codes')}>
@@ -668,44 +869,64 @@ export default function StudySettingsPage() {
               <p className="ac-sub">{t('settings.codes.subtitle')}</p>
             </div>
 
-            <div className="ac-field">
-              <span className="ac-label">{t('settings.codes.label')}</span>
-              <div className="ac-code-row">
-                <span className="ac-code-value mono">{settings.poster.studyCode}</span>
-                <button type="button" className="btn btn-sm" onClick={copyCode}>
-                  <CopyIcon width={16} height={16} />
-                  {copied ? t('settings.codes.copied') : t('settings.codes.copy')}
-                </button>
-              </div>
-            </div>
+            {codesQuery.isLoading ? (
+              <p className="ac-sub">{t('state.loading')}</p>
+            ) : codes.length === 0 ? (
+              <p className="ac-sub">{t('settings.codes.empty')}</p>
+            ) : (
+              codes.map((code) => (
+                <div className="ac-code-block" key={code.id}>
+                  <div className="ac-code-row">
+                    <span className="ac-code-value mono">{code.code}</span>
+                    <button type="button" className="btn btn-sm" onClick={() => void copyCode(code)}>
+                      <CopyIcon width={16} height={16} />
+                      {copiedCode === code.id ? t('settings.codes.copied') : t('settings.codes.copy')}
+                    </button>
+                  </div>
+                  <div className="ac-code-meta">
+                    <span>{code.name}</span>
+                    <span className={`pill ${code.state === 'active' ? 'ok' : 'ne'}`}>
+                      {codeStateLabels[code.state] ? t(codeStateLabels[code.state]) : code.state}
+                    </span>
+                  </div>
+                  <div className="ac-switch-list">
+                    <div className="ac-switch-item">
+                      <Toggle
+                        checked={code.active}
+                        disabled={!canManage || updateCode.isPending}
+                        onChange={(checked) => toggleCode(code, { active: checked })}
+                        label={t('settings.codes.active')}
+                      />
+                      <span>{t('settings.codes.active')}</span>
+                    </div>
+                    <div className="ac-switch-item">
+                      <Toggle
+                        checked={code.requires_approval}
+                        disabled={!canManage || updateCode.isPending}
+                        onChange={(checked) => toggleCode(code, { requires_approval: checked })}
+                        label={t('settings.codes.approval')}
+                      />
+                      <span>{t('settings.codes.approval')}</span>
+                    </div>
+                    <div className="ac-switch-item">
+                      <Toggle
+                        checked={code.requires_account}
+                        disabled={!canManage || updateCode.isPending}
+                        onChange={(checked) => toggleCode(code, { requires_account: checked })}
+                        label={t('settings.codes.account')}
+                      />
+                      <span>{t('settings.codes.account')}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
 
-            <div className="ac-switch-list">
-              <div className="ac-switch-item">
-                <Toggle
-                  checked={settings.poster.acceptCodeEntries}
-                  onChange={(checked) => patchPoster({ acceptCodeEntries: checked })}
-                  label={t('settings.codes.accept')}
-                />
-                <span>{t('settings.codes.accept')}</span>
-              </div>
-              <div className="ac-switch-item">
-                <Toggle
-                  checked={settings.poster.posterQr}
-                  onChange={(checked) => patchPoster({ posterQr: checked })}
-                  label={t('settings.codes.qr')}
-                />
-                <QrIcon width={16} height={16} />
-                <span>{t('settings.codes.qr')}</span>
-              </div>
-              <div className="ac-switch-item">
-                <Toggle
-                  checked={settings.poster.posterCode}
-                  onChange={(checked) => patchPoster({ posterCode: checked })}
-                  label={t('settings.codes.print')}
-                />
-                <span>{t('settings.codes.print')}</span>
-              </div>
-            </div>
+            {updateCode.error ? (
+              <p className="ac-field-error" role="alert">
+                {t('error.generic')}
+              </p>
+            ) : null}
 
             <p className="ac-sub">{t('settings.codes.hint')}</p>
           </section>
@@ -715,7 +936,7 @@ export default function StudySettingsPage() {
               <WarningIcon width={22} height={22} />
               <h2 className="ac-danger-title">{t('settings.section.end')}</h2>
             </div>
-            {terminated ? (
+            {closed ? (
               <div className="ac-end-done">
                 <span className="pill ok">{t('settings.end.donePill')}</span>
                 <span className="ac-sub">{t('settings.end.done')}</span>
@@ -726,51 +947,27 @@ export default function StudySettingsPage() {
                 <button
                   type="button"
                   className="btn btn-d ac-self-start"
+                  disabled={!access.canManage || status !== 'ongoing'}
                   onClick={() => setEndOpen(true)}
                 >
                   {t('settings.end.button')}
                 </button>
-                <p className="ac-sub">{t('settings.end.hint')}</p>
+                <p className="ac-sub">
+                  {status === 'ongoing' ? t('settings.end.hint') : t('settings.end.onlyRunning')}
+                </p>
               </>
             )}
           </section>
         </div>
       </div>
 
-      {consentLang ? (
-        <Modal
-          title={
-            consentLang === 'pt'
-              ? t('settings.consent.dialogPt')
-              : t('settings.consent.dialogEn')
-          }
-          closeLabel={t('common.close')}
-          onClose={() => setConsentLang(null)}
-          footer={
-            <>
-              <button type="button" className="btn" onClick={() => setConsentLang(null)}>
-                {t('common.cancel')}
-              </button>
-              <button type="button" className="btn btn-p" onClick={saveConsent}>
-                {t('settings.save')}
-              </button>
-            </>
-          }
-        >
-          <span className="ac-sub">{t('settings.consent.dialogHint')}</span>
-          <textarea
-            className="ac-textarea ac-modal-textarea"
-            rows={9}
-            placeholder={t('settings.consent.placeholder')}
-            value={consentDraft}
-            onChange={(event) => setConsentDraft(event.target.value)}
-          />
-        </Modal>
-      ) : null}
-
       {questionEditor ? (
         <Modal
-          title={activeQuestion}
+          title={
+            questionEditor.id
+              ? t('settings.questions.editTitle')
+              : t('settings.questions.addTitle')
+          }
           closeLabel={t('common.close')}
           onClose={() => setQuestionEditor(null)}
           footer={
@@ -778,7 +975,12 @@ export default function StudySettingsPage() {
               <button type="button" className="btn" onClick={() => setQuestionEditor(null)}>
                 {t('common.cancel')}
               </button>
-              <button type="button" className="btn btn-p" onClick={saveQuestion}>
+              <button
+                type="button"
+                className="btn btn-p"
+                disabled={createQuestion.isPending || updateQuestion.isPending}
+                onClick={saveQuestion}
+              >
                 {t('settings.questions.save')}
               </button>
             </>
@@ -807,31 +1009,24 @@ export default function StudySettingsPage() {
             <select
               id="question-type"
               className="ac-input"
-              value={questionEditor.type}
+              value={questionEditor.kind}
               onChange={(event) =>
                 setQuestionEditor((current) =>
                   current
-                    ? { ...current, type: event.target.value as QuestionType }
+                    ? { ...current, kind: event.target.value as QuestionKind }
                     : current,
                 )
               }
             >
-              {(['single', 'multiple', 'yesno'] as const).map((type) => (
-                <option key={type} value={type}>
-                  {t(questionTypeLabels[type])}
+              {(Object.keys(questionTypeLabels) as QuestionKind[]).map((kind) => (
+                <option key={kind} value={kind}>
+                  {t(questionTypeLabels[kind])}
                 </option>
               ))}
             </select>
           </div>
 
-          {questionEditor.type === 'yesno' ? (
-            <div className="ac-field">
-              <span className="ac-label">{t('settings.questions.options')}</span>
-              <p className="ac-sub">
-                {t('settings.questions.yes')} · {t('settings.questions.no')}
-              </p>
-            </div>
-          ) : (
+          {isChoice(questionEditor.kind) ? (
             <div className="ac-field">
               <label className="ac-label" htmlFor="question-options">
                 {t('settings.questions.options')}
@@ -849,11 +1044,12 @@ export default function StudySettingsPage() {
               />
               <span className="ac-sub">{t('settings.questions.optionsHint')}</span>
             </div>
-          )}
+          ) : null}
 
-          {questionError ? (
+          {questionError || createQuestion.error || updateQuestion.error ? (
             <span className="ac-field-error" role="alert">
-              {questionError}
+              {questionError ||
+                studiesErrorMessage(createQuestion.error ?? updateQuestion.error)}
             </span>
           ) : null}
         </Modal>
@@ -872,28 +1068,29 @@ export default function StudySettingsPage() {
               <button
                 type="button"
                 className="btn btn-d"
-                disabled={endText.trim() !== settings.title.trim()}
+                disabled={endText.trim() !== study.title.trim() || closeStudy.isPending}
                 onClick={confirmTerminate}
               >
-                {t('settings.end.dialogConfirm')}
+                {closeStudy.isPending ? t('settings.saving') : t('settings.end.dialogConfirm')}
               </button>
             </>
           }
         >
           <span className="ac-sub">{t('settings.end.dialogText')}</span>
-          <p className="ac-dialog-study-title">{settings.title}</p>
+          <p className="ac-dialog-study-title">{study.title}</p>
           <input
             className="ac-input"
             placeholder={t('settings.end.dialogPlaceholder')}
             value={endText}
             onChange={(event) => setEndText(event.target.value)}
           />
+          {closeStudy.error ? (
+            <span className="ac-field-error" role="alert">
+              {studiesErrorMessage(closeStudy.error)}
+            </span>
+          ) : null}
         </Modal>
       ) : null}
     </div>
   )
-}
-
-function editorIsNew(editor: QuestionEditor): boolean {
-  return editor.id === null
 }

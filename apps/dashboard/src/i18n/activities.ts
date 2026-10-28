@@ -154,11 +154,26 @@ const pt = {
     'A alteração aplica-se a partir do plano da próxima noite (03:00). O plano de hoje não muda.',
 
   'settings.title': 'Definições',
-  'settings.subtitle':
-    'Estudo {study}, em curso. Algumas coisas já não se mudam porque os participantes estão a responder.',
+  'settings.subtitle': 'Estudo {study}.',
+  'settings.subtitleDraft': 'Rascunho: ainda não foram enviados pedidos.',
+  'settings.subtitleRunning':
+    'Em curso. Algumas coisas já não se mudam porque os participantes estão a responder.',
+  'settings.subtitleClosed': 'Terminado. As definições ficam apenas para consulta.',
   'settings.cancel': 'Cancelar',
   'settings.save': 'Guardar alterações',
+  'settings.saving': 'A guardar…',
   'settings.saved': 'Alterações guardadas.',
+  'settings.readOnly':
+    'O seu papel neste estudo permite consultar as definições, mas não alterá-las.',
+  'settings.closedNote': 'O estudo está terminado e já não aceita alterações.',
+  'settings.questions.permission':
+    'Só a investigação principal e a co-investigação podem alterar as perguntas.',
+  'settings.team.empty': 'Ainda não há membros na equipa.',
+  'settings.team.role': 'Função',
+  'settings.team.addRole': 'Função de quem entra',
+  'settings.team.principal': 'Investigação principal',
+  'settings.team.coInvestigator': 'Co-investigação',
+  'settings.team.member': 'Membro',
   'settings.section.data': 'Dados do estudo',
   'settings.field.title': 'Título',
   'settings.field.description': 'Descrição',
@@ -185,7 +200,8 @@ const pt = {
   'settings.plan.maxPerDayHint': 'Hoje as atividades somam {count} pedidos por dia.',
   'settings.plan.maxPerWindow': 'Máximo de pedidos por intervalo de 15 min',
   'settings.plan.maxPerWindowHint':
-    'Sugerido: 3, para 22 participantes ativos e as horas que indicaram. Hoje 1 pedido ficou por planear por este limite.',
+    'Limita quantos pedidos de todo o estudo saem ao mesmo tempo.',
+  'settings.plan.invalidLimits': 'Os limites têm de ser números inteiros maiores do que zero.',
   'settings.section.consent': 'Texto de consentimento',
   'settings.consent.subtitle':
     'Versão {version}, em português e inglês. Foi aceite pelos {count} participantes ativos.',
@@ -208,6 +224,7 @@ const pt = {
   'settings.questions.single': 'Escolha única',
   'settings.questions.multiple': 'Escolha múltipla',
   'settings.questions.yesno': 'Sim ou não',
+  'settings.questions.shortText': 'Resposta curta',
   'settings.questions.editAria': 'Editar a pergunta {number}',
   'settings.questions.removeAria': 'Remover a pergunta {number}',
   'settings.questions.reorderAria': 'Mudar a ordem da pergunta {number}',
@@ -262,11 +279,20 @@ const pt = {
   'settings.codes.print': 'Imprimir o código no cartaz',
   'settings.codes.hint':
     'Cada participante recebe um código de uso único, que lê com o QR ou escreve na app. Gera os códigos em Participantes, depois de guardar.',
+  'settings.codes.empty': 'Ainda não há códigos de estudo. Crie-os em Participantes.',
+  'settings.codes.active': 'Aceitar entradas com este código',
+  'settings.codes.approval': 'Pedir aprovação a quem entra',
+  'settings.codes.account': 'Exigir conta na plataforma',
+  'settings.codes.state.active': 'Ativo',
+  'settings.codes.state.off': 'Desligado',
+  'settings.codes.state.ended': 'Terminado',
+  'settings.codes.state.limit_reached': 'Limite de utilizações atingido',
   'settings.section.end': 'Terminar estudo',
   'settings.end.text':
     'Ao terminar, deixam de ser planeados e enviados pedidos. Os registos que ainda estejam à espera de rede nos telemóveis continuam a ser recebidos e pode exportar tudo.',
   'settings.end.button': 'Terminar estudo',
   'settings.end.hint': 'Vai pedir uma confirmação com o título do estudo.',
+  'settings.end.onlyRunning': 'Só pode terminar um estudo que já tenha começado.',
   'settings.end.dialogTitle': 'Terminar estudo',
   'settings.end.dialogText':
     'Esta ação não se anula. Escreva o título do estudo para confirmar:',

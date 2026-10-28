@@ -1,4 +1,9 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { client, refreshSession } from './client'
@@ -212,6 +217,55 @@ export function useTags(studyId: string | undefined) {
         return data
       }
       throw toApiError(error, response)
+    },
+  })
+}
+
+export function useCreateTag(studyId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (name: string): Promise<TagOut> => {
+      const { data, error, response } = await client.POST('/studies/{study_id}/tags', {
+        params: { path: { study_id: studyId } },
+        body: { name },
+      })
+      if (data) {
+        return data
+      }
+      throw toApiError(error, response)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: entryKeys.tags(studyId) })
+    },
+  })
+}
+
+export function useSetEntryTags(studyId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      entryId,
+      tagIds,
+    }: {
+      entryId: string
+      tagIds: string[]
+    }): Promise<components['schemas']['EntryTagsOut']> => {
+      const { data, error, response } = await client.PUT(
+        '/studies/{study_id}/entries/{entry_id}/tags',
+        {
+          params: { path: { study_id: studyId, entry_id: entryId } },
+          body: { tag_ids: tagIds },
+        },
+      )
+      if (data) {
+        return data
+      }
+      throw toApiError(error, response)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: entryKeys.all(studyId) })
     },
   })
 }

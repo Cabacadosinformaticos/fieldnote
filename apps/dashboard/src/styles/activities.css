@@ -1310,11 +1310,45 @@
 
 .ac-add-row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--fn-space-8);
+}
+
+.ac-add-row .ac-input {
+  flex: 1 1 180px;
 }
 
 .ac-add-row .btn {
   flex-shrink: 0;
+}
+
+.ac-role-select {
+  width: auto;
+  min-width: 150px;
+  height: 36px;
+  padding: 0 var(--fn-space-8);
+}
+
+.ac-code-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fn-space-10);
+  padding-bottom: var(--fn-space-14);
+  border-bottom: 1px solid var(--fn-color-border);
+}
+
+.ac-code-block:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ac-code-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fn-space-8);
+  color: var(--fn-color-text-muted);
+  font-size: var(--fn-text-13);
 }
 
 .ac-field-error {

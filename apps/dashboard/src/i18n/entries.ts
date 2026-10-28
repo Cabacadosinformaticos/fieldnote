@@ -92,8 +92,9 @@ const pt = {
   'detail.tagInput': 'Criar ou escolher etiqueta',
   'detail.removeTag': 'Remover etiqueta {tag}',
   'detail.allTagsUsed': 'Todas as etiquetas já estão neste registo.',
-  'detail.tagsLocal':
-    'Local: a API ainda não permite associar etiquetas a registos, por isso esta alteração fica só nesta sessão.',
+  'detail.tagsSaved':
+    'As etiquetas ficam guardadas no estudo e podem ser usadas para filtrar e exportar.',
+  'detail.tagsError': 'Não foi possível guardar as etiquetas. Tente novamente.',
   'detail.auditNote':
     'Ver este ficheiro fica registado na auditoria. As etiquetas não alteram o registo.',
   'detail.play': 'Reproduzir',

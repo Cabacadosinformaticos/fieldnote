@@ -35,6 +35,7 @@ type EntryDetailPanelProps = {
   knownTags: TagOut[]
   timeZone: string
   busy?: boolean
+  tagError?: boolean
   onAddTag: (name: string) => void
   onRemoveTag: (tagId: string) => void
 }
@@ -45,6 +46,7 @@ export default function EntryDetailPanel({
   knownTags,
   timeZone,
   busy,
+  tagError,
   onAddTag,
   onRemoveTag,
 }: EntryDetailPanelProps) {
@@ -55,7 +57,18 @@ export default function EntryDetailPanel({
   const status = entryStatusOf(entry)
   const statusMeta = entryStatusMeta[status]
   const scale = scaleAnswer(entry)
-  const media = entry.media?.[0]
+  const mediaPrefix =
+    entry.entry_type === 'photo'
+      ? 'image/'
+      : entry.entry_type === 'video'
+        ? 'video/'
+        : entry.entry_type === 'audio'
+          ? 'audio/'
+          : null
+  const media =
+    (mediaPrefix
+      ? entry.media?.find((item) => item.mime_type.startsWith(mediaPrefix))
+      : undefined) ?? entry.media?.[0]
   const availableTags = knownTags.filter(
     (tag) => !tags.some((current) => current.name === tag.name),
   )
@@ -361,7 +374,14 @@ export default function EntryDetailPanel({
             onKeyDown={submitTag}
           />
         </label>
-        <p className="sub en-detail-note">{t('detail.tagsLocal')}</p>
+        {tagError ? (
+          <p className="sub en-detail-note" role="alert">
+            <AlertTriangleIcon width={16} height={16} />
+            {t('detail.tagsError')}
+          </p>
+        ) : (
+          <p className="sub en-detail-note">{t('detail.tagsSaved')}</p>
+        )}
       </div>
 
       {status === 'failed' ? (

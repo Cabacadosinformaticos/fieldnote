@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   useActivities,
+  useCreateTag,
   useEntries,
   useEntry,
   useParticipants,
+  useSetEntryTags,
   useStudy,
   useStudyEvents,
   useTags,
@@ -12,7 +14,6 @@ import {
   type EntryOut,
   type EntryType,
   type StudyOut,
-  type TagOut,
 } from '../../api/entries'
 import EntryCard from '../../components/entries/EntryCard'
 import EntryDetailPanel from '../../components/entries/EntryDetailPanel'
@@ -122,13 +123,14 @@ export default function EntriesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(() =>
     searchParams.get('registo'),
   )
-  const [tagOverrides, setTagOverrides] = useState<Record<string, TagOut[]>>({})
 
   const studyQuery = useStudy(studyId)
   const timeZone = studyQuery.data?.timezone ?? 'Europe/Lisbon'
   const activitiesQuery = useActivities(studyId)
   const participantsQuery = useParticipants(studyId)
   const tagsQuery = useTags(studyId)
+  const createTag = useCreateTag(studyId)
+  const setEntryTags = useSetEntryTags(studyId)
   const eventStatus = useStudyEvents(studyId)
 
   const dateOptions = useMemo(
@@ -172,9 +174,7 @@ export default function EntriesPage() {
   const detailQuery = useEntry(studyId, selectedEntryId)
   const selectedEntry =
     detailQuery.data ?? items.find((entry) => entry.id === selectedEntryId) ?? null
-  const selectedTags = selectedEntry
-    ? (tagOverrides[selectedEntry.id] ?? selectedEntry.tags ?? [])
-    : []
+  const selectedTags = selectedEntry?.tags ?? []
 
   function resetPagination() {
     setCursorStack([null])
@@ -185,32 +185,37 @@ export default function EntriesPage() {
     resetPagination()
   }
 
-  function addTag(name: string) {
+  async function addTag(name: string) {
     if (!selectedEntry) {
       return
     }
-    setTagOverrides((current) => {
-      const existing = current[selectedEntry.id] ?? selectedEntry.tags ?? []
-      if (existing.some((tag) => tag.name.toLowerCase() === name.toLowerCase())) {
-        return current
-      }
-      return {
-        ...current,
-        [selectedEntry.id]: [...existing, { id: `local-${name}`, name }],
-      }
-    })
+    const current = selectedEntry.tags ?? []
+    if (current.some((tag) => tag.name.toLowerCase() === name.toLowerCase())) {
+      return
+    }
+    const known = (tagsQuery.data ?? []).find(
+      (tag) => tag.name.toLowerCase() === name.toLowerCase(),
+    )
+    try {
+      const tag = known ?? (await createTag.mutateAsync(name))
+      setEntryTags.mutate({
+        entryId: selectedEntry.id,
+        tagIds: [...current.map((item) => item.id), tag.id],
+      })
+    } catch {
+      // The mutation error is rendered by the detail panel.
+    }
   }
 
   function removeTag(tagId: string) {
     if (!selectedEntry) {
       return
     }
-    setTagOverrides((current) => {
-      const existing = current[selectedEntry.id] ?? selectedEntry.tags ?? []
-      return {
-        ...current,
-        [selectedEntry.id]: existing.filter((tag) => tag.id !== tagId),
-      }
+    setEntryTags.mutate({
+      entryId: selectedEntry.id,
+      tagIds: (selectedEntry.tags ?? [])
+        .filter((tag) => tag.id !== tagId)
+        .map((tag) => tag.id),
     })
   }
 
@@ -452,7 +457,7 @@ export default function EntriesPage() {
                 <EntryCard
                   key={entry.id}
                   entry={entry}
-                  tags={tagOverrides[entry.id] ?? entry.tags ?? []}
+                  tags={entry.tags ?? []}
                   timeZone={timeZone}
                   selected={entry.id === selectedEntry?.id}
                   layout={viewMode}
@@ -503,6 +508,7 @@ export default function EntriesPage() {
             knownTags={tagsQuery.data ?? []}
             timeZone={timeZone}
             busy={detailQuery.isLoading && !detailQuery.data}
+            tagError={Boolean(createTag.error ?? setEntryTags.error)}
             onAddTag={addTag}
             onRemoveTag={removeTag}
           />
