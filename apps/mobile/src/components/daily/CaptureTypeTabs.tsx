@@ -3,8 +3,8 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { captureTypeIcons, captureTypeLabelKeys } from '@/components/daily/captureType';
-import type { CaptureType } from '@/fake/daily';
 import { td } from '@/i18n/td';
+import type { CaptureType } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const recordRoutes: Record<

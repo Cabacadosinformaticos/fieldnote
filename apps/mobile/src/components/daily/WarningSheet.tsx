@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { WarningId } from '@/fake/daily';
 import { td, type DailyTranslationKey } from '@/i18n/td';
+import type { WarningId } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];

@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { dailyWaitingCount } from '@/fake/daily';
 import { td } from '@/i18n/td';
+import { useOutboxSummary } from '@/queue/hooks';
+import { retryOutbox } from '@/queue/sender';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const waitingColors = {
@@ -14,33 +15,55 @@ const waitingColors = {
 
 export function SyncStatus() {
   const [open, setOpen] = useState(false);
-  const waiting = dailyWaitingCount > 0;
+  const [retrying, setRetrying] = useState(false);
+  const { waiting, failed } = useOutboxSummary();
+  const attention = failed > 0;
+  const badge = waiting + failed;
+
+  const icon = attention
+    ? 'alert-circle-outline'
+    : waiting > 0
+      ? 'cloud-offline-outline'
+      : 'cloud-done-outline';
+  const iconColor = attention
+    ? '#9B1C1C'
+    : waiting > 0
+      ? waitingColors.text
+      : colors.successText;
+
+  const retry = async () => {
+    setRetrying(true);
+    await retryOutbox().catch(() => undefined);
+    setRetrying(false);
+  };
 
   return (
     <>
       <Pressable
         accessibilityHint={td('today.syncOpenHint')}
         accessibilityLabel={
-          waiting
-            ? td('today.syncWaiting', { count: dailyWaitingCount })
-            : td('today.syncSent')
+          attention
+            ? td('today.syncFailed', { count: failed })
+            : waiting > 0
+              ? td('today.syncWaiting', { count: waiting })
+              : td('today.syncSent')
         }
         accessibilityRole="button"
         onPress={() => setOpen(true)}
         style={({ pressed }) => [
           styles.button,
-          waiting ? styles.buttonWaiting : styles.buttonSent,
+          attention
+            ? styles.buttonFailed
+            : waiting > 0
+              ? styles.buttonWaiting
+              : styles.buttonSent,
           pressed && styles.pressed,
         ]}
       >
-        <Ionicons
-          name={waiting ? 'cloud-offline-outline' : 'cloud-done-outline'}
-          size={24}
-          color={waiting ? waitingColors.text : colors.successText}
-        />
-        {waiting ? (
+        <Ionicons name={icon} size={24} color={iconColor} />
+        {badge > 0 ? (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{dailyWaitingCount}</Text>
+            <Text style={styles.badgeText}>{badge}</Text>
           </View>
         ) : null}
       </Pressable>
@@ -63,28 +86,55 @@ export function SyncStatus() {
               <View
                 style={[
                   styles.sheetIcon,
-                  waiting ? styles.sheetIconWaiting : styles.sheetIconSent,
+                  attention
+                    ? styles.sheetIconFailed
+                    : waiting > 0
+                      ? styles.sheetIconWaiting
+                      : styles.sheetIconSent,
                 ]}
               >
-                <Ionicons
-                  name={waiting ? 'cloud-offline-outline' : 'cloud-done-outline'}
-                  size={24}
-                  color={waiting ? waitingColors.text : colors.successText}
-                />
+                <Ionicons name={icon} size={24} color={iconColor} />
               </View>
               <Text style={styles.sheetTitle}>
-                {waiting ? td('sync.waitingTitle') : td('sync.sentTitle')}
+                {attention
+                  ? td('sync.failedTitle')
+                  : waiting > 0
+                    ? td('sync.waitingTitle')
+                    : td('sync.sentTitle')}
               </Text>
             </View>
 
             <Text style={styles.sheetBody}>
-              {waiting
-                ? td('sync.waitingBody', { count: dailyWaitingCount })
-                : td('sync.sentBody')}
+              {attention
+                ? td('sync.failedBody', { failed, waiting })
+                : waiting > 0
+                  ? td('sync.waitingBody', { count: waiting })
+                  : td('sync.sentBody')}
             </Text>
 
-            {waiting ? (
+            {attention ? (
+              <Text style={styles.failureNote}>{td('sync.failedNote')}</Text>
+            ) : waiting > 0 ? (
               <Text style={styles.sheetWarning}>{td('sync.waitingNote')}</Text>
+            ) : null}
+
+            {waiting > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={retrying}
+                onPress={() => {
+                  void retry();
+                }}
+                style={({ pressed }) => [
+                  styles.retry,
+                  pressed && styles.pressed,
+                  retrying && styles.retryDisabled,
+                ]}
+              >
+                <Text style={styles.retryLabel}>
+                  {retrying ? td('sync.retrying') : td('sync.retry')}
+                </Text>
+              </Pressable>
             ) : null}
 
             <Pressable
@@ -116,6 +166,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: waitingColors.border,
     backgroundColor: waitingColors.background,
+  },
+  buttonFailed: {
+    borderWidth: 1,
+    borderColor: '#EDB4B4',
+    backgroundColor: '#FDECEC',
   },
   pressed: {
     opacity: 0.75,
@@ -175,6 +230,11 @@ const styles = StyleSheet.create({
     borderColor: waitingColors.border,
     backgroundColor: waitingColors.background,
   },
+  sheetIconFailed: {
+    borderWidth: 1,
+    borderColor: '#EDB4B4',
+    backgroundColor: '#FDECEC',
+  },
   sheetTitle: {
     fontFamily: fonts.extrabold,
     fontSize: 20,
@@ -198,6 +258,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     color: waitingColors.text,
+  },
+  failureNote: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: 14,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#EDB4B4',
+    backgroundColor: '#FDECEC',
+    fontFamily: fonts.extrabold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: '#9B1C1C',
+  },
+  retry: {
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.xl,
+    backgroundColor: colors.primary,
+  },
+  retryDisabled: {
+    opacity: 0.6,
+  },
+  retryLabel: {
+    fontFamily: fonts.extrabold,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.white,
   },
   close: {
     height: 52,

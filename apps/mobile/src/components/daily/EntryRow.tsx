@@ -4,21 +4,19 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { EntryStatusPill } from '@/components/daily/EntryStatusPill';
 import { captureTypeIcons } from '@/components/daily/captureType';
-import type { DailyEntry } from '@/fake/daily';
+import { formatRecorded } from '@/components/daily/entryFormat';
 import { td } from '@/i18n/td';
+import type { OutboxEntry } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 type EntryRowProps = {
-  entry: DailyEntry;
+  entry: OutboxEntry;
 };
 
 export function EntryRow({ entry }: EntryRowProps) {
-  const when = entry.recordedDate
-    ? td('entries.recordedOn', { date: entry.recordedDate, time: entry.recordedTime })
-    : td('entries.recordedAt', { time: entry.recordedTime });
-
-  const isPhoto = entry.type === 'photo';
-  const failed = entry.status === 'failed';
+  const isPhoto = entry.entryType === 'photo';
+  const failed = entry.state === 'failed';
+  const scaleValue = entry.payload.value;
 
   return (
     <View style={[styles.card, failed && styles.cardFailed]}>
@@ -30,11 +28,11 @@ export function EntryRow({ entry }: EntryRowProps) {
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
         <View style={[styles.tile, isPhoto ? styles.tilePhoto : styles.tileLight]}>
-          {entry.type === 'scale' ? (
-            <Text style={styles.scaleValue}>{entry.scaleValue}</Text>
+          {entry.entryType === 'scale' ? (
+            <Text style={styles.scaleValue}>{scaleValue ?? '–'}</Text>
           ) : (
             <Ionicons
-              name={captureTypeIcons[entry.type]}
+              name={captureTypeIcons[entry.entryType]}
               size={22}
               color={isPhoto ? colors.white : colors.primaryDark}
             />
@@ -43,23 +41,23 @@ export function EntryRow({ entry }: EntryRowProps) {
 
         <View style={styles.text}>
           <Text numberOfLines={1} style={styles.title}>
-            {td(entry.titleKey)}
+            {entry.activityTitle}
           </Text>
           <View style={styles.metaRow}>
             <Text numberOfLines={1} style={styles.when}>
-              {when}
+              {formatRecorded(entry.recordedAt)}
             </Text>
-            <EntryStatusPill status={entry.status} />
+            <EntryStatusPill state={entry.state} />
           </View>
         </View>
 
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </Pressable>
 
-      {failed && entry.failureKey ? (
+      {failed ? (
         <View style={styles.failure}>
           <Ionicons name="warning-outline" size={18} color="#9B1C1C" />
-          <Text style={styles.failureText}>{td(entry.failureKey)}</Text>
+          <Text style={styles.failureText}>{td('entries.failed')}</Text>
         </View>
       ) : null}
     </View>

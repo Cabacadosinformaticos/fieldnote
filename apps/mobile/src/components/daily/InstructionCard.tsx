@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { WarningSheet } from '@/components/daily/WarningSheet';
-import type { WarningId } from '@/fake/daily';
 import { td } from '@/i18n/td';
+import type { WarningId } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 type InstructionCardProps = {

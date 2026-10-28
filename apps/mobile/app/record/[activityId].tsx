@@ -1,56 +1,72 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { InstructionCard } from '@/components/daily/InstructionCard';
 import { RecordHeader } from '@/components/daily/RecordHeader';
 import { captureTypeIcons, captureTypeLabelKeys } from '@/components/daily/captureType';
-import { getActivity, type CaptureType } from '@/fake/daily';
 import { td } from '@/i18n/td';
+import { useCachedActivity } from '@/queue/hooks';
+import type { CaptureType } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const recordRoutes: Record<
-  Exclude<CaptureType, 'scale'>,
-  '/record/photo' | '/record/text' | '/record/video' | '/record/audio'
+  CaptureType,
+  '/record/photo' | '/record/text' | '/record/video' | '/record/audio' | '/record/scale'
 > = {
   photo: '/record/photo',
   text: '/record/text',
   video: '/record/video',
   audio: '/record/audio',
+  scale: '/record/scale',
 };
 
 export default function ActivityScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const activity = getActivity(activityId);
+  const { activity, loading } = useCachedActivity(activityId);
+
+  if (loading) {
+    return (
+      <Screen contentStyle={styles.content} edges={['top']}>
+        <StatusBar style="dark" />
+        <RecordHeader eyebrow={td('tabs.today')} title={td('record.loading')} />
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.primaryDark} />
+        </View>
+      </Screen>
+    );
+  }
 
   if (!activity) {
     return (
       <Screen contentStyle={styles.content} edges={['top']}>
         <StatusBar style="dark" />
         <RecordHeader eyebrow={td('tabs.today')} title={td('record.notFound')} />
+        <View style={styles.body}>
+          <Text style={styles.message}>{td('record.notFoundBody')}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (activity.captureTypes.length === 0) {
+    return (
+      <Screen contentStyle={styles.content} edges={['top']}>
+        <StatusBar style="dark" />
+        <RecordHeader
+          eyebrow={activity.studyTitle}
+          title={td('record.unsupportedTitle')}
+        />
+        <View style={styles.body}>
+          <Text style={styles.message}>{td('record.unsupportedBody')}</Text>
+        </View>
       </Screen>
     );
   }
 
   const openType = (type: CaptureType) => {
-    if (type === 'scale') {
-      const scale = activity.scale;
-      router.push({
-        pathname: '/record/scale',
-        params: {
-          activityId: activity.id,
-          kind: scale?.kind ?? 'numbers',
-          points: String(scale?.points ?? 7),
-          low: scale ? td(scale.lowKey) : td('scale.low'),
-          high: scale ? td(scale.highKey) : td('scale.high'),
-          ...(scale?.midKey ? { mid: td(scale.midKey) } : {}),
-        },
-      });
-      return;
-    }
-
     router.push({
       pathname: recordRoutes[type],
       params: { activityId: activity.id },
@@ -61,14 +77,11 @@ export default function ActivityScreen() {
     <Screen contentStyle={styles.content} edges={['top']}>
       <StatusBar style="dark" />
 
-      <RecordHeader
-        eyebrow={td(activity.contextKey)}
-        title={td(activity.titleKey)}
-      />
+      <RecordHeader eyebrow={activity.studyTitle} title={activity.title} />
 
       <View style={styles.body}>
         <InstructionCard
-          instruction={td(activity.instructionKey)}
+          instruction={activity.instructions || td('record.noInstructions')}
           warnings={activity.warnings}
         />
 
@@ -107,6 +120,17 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  message: {
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textBody,
   },
   choose: {
     fontFamily: fonts.extrabold,

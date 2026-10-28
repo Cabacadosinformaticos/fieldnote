@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 
-import type { CaptureType } from '@/fake/daily';
 import type { DailyTranslationKey } from '@/i18n/daily';
+import type { CaptureType } from '@/queue/types';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 

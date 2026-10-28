@@ -15,8 +15,9 @@ import {
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Sparkles } from '@/components/daily/Sparkles';
-import { dailyWaitingCount } from '@/fake/daily';
 import { td } from '@/i18n/td';
+import { useOutboxEntries } from '@/queue/hooks';
+import { summaryOf } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const waitingColors = {
@@ -27,6 +28,11 @@ const waitingColors = {
 
 export default function SavedScreen() {
   const progress = useAnimatedValue(0);
+  const { entries } = useOutboxEntries();
+  const summary = summaryOf(entries);
+  const latest = entries[0];
+  const failed = latest?.state === 'failed';
+  const sent = latest?.state === 'sent' || (!latest && summary.waiting === 0);
 
   useEffect(() => {
     let mounted = true;
@@ -89,29 +95,57 @@ export default function SavedScreen() {
           </View>
         </Animated.View>
 
-        <Text style={styles.title}>{td('saved.title')}</Text>
-        <Text style={styles.body}>{td('saved.body')}</Text>
+        <Text style={styles.title}>
+          {failed
+            ? td('saved.failedTitle')
+            : sent
+              ? td('saved.sentTitle')
+              : td('saved.title')}
+        </Text>
+        <Text style={styles.body}>
+          {failed
+            ? td('saved.failedBody')
+            : sent
+              ? td('saved.sentBody')
+              : td('saved.body')}
+        </Text>
 
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <View style={styles.statusIcon}>
-              <Ionicons
-                name="cloud-offline-outline"
-                size={24}
-                color={waitingColors.text}
-              />
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>{dailyWaitingCount}</Text>
-              </View>
-            </View>
-            <Text style={styles.statusTitle}>
-              {td('saved.waiting', { count: dailyWaitingCount })}
-            </Text>
+        {failed ? (
+          <View style={styles.failedCard}>
+            <Ionicons name="warning-outline" size={22} color="#9B1C1C" />
+            <Text style={styles.failedText}>{td('saved.failedBody')}</Text>
           </View>
+        ) : sent ? (
+          <View style={styles.sentCard}>
+            <Ionicons
+              name="cloud-done-outline"
+              size={22}
+              color={colors.successText}
+            />
+            <Text style={styles.sentText}>{td('saved.sentBody')}</Text>
+          </View>
+        ) : (
+          <View style={styles.statusCard}>
+            <View style={styles.statusHeader}>
+              <View style={styles.statusIcon}>
+                <Ionicons
+                  name="cloud-offline-outline"
+                  size={24}
+                  color={waitingColors.text}
+                />
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>{summary.waiting}</Text>
+                </View>
+              </View>
+              <Text style={styles.statusTitle}>
+                {td('saved.waiting', { count: summary.waiting })}
+              </Text>
+            </View>
 
-          <Text style={styles.warningText}>{td('saved.warning')}</Text>
-          <Text style={styles.statusNote}>{td('saved.note')}</Text>
-        </View>
+            <Text style={styles.warningText}>{td('saved.warning')}</Text>
+            <Text style={styles.statusNote}>{td('saved.note')}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.spacer} />
@@ -243,6 +277,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     color: colors.textMuted,
+  },
+  failedCard: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: '#EDB4B4',
+    backgroundColor: '#FDECEC',
+  },
+  failedText: {
+    flex: 1,
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#7A1A1A',
+  },
+  sentCard: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.successBackground,
+    backgroundColor: colors.successBackground,
+  },
+  sentText: {
+    flex: 1,
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.successText,
   },
   spacer: {
     flexGrow: 1,

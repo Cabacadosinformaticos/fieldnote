@@ -3,7 +3,6 @@ import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { dailyToday } from '@/fake/daily';
 import { td } from '@/i18n/td';
 import { colors, fonts, radii, spacing } from '@/theme';
 
@@ -36,7 +35,6 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
         }
 
         const focused = state.index === index;
-        const badge = route.name === 'studies' ? dailyToday.otherStudyRequests : 0;
 
         return (
           <Pressable
@@ -53,11 +51,6 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
                 size={22}
                 color={focused ? colors.primaryDark : colors.textMuted}
               />
-              {badge > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{badge}</Text>
-                </View>
-              ) : null}
             </View>
             <Text style={[styles.label, focused ? styles.labelActive : styles.labelIdle]}>
               {presentation.label}

@@ -1,11 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { EntryStatus } from '@/fake/daily';
-import { td, type DailyTranslationKey } from '@/i18n/td';
+import type { DailyTranslationKey } from '@/i18n/daily';
+import { td } from '@/i18n/td';
+import type { OutboxState } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
+type DisplayStatus = 'sent' | 'waiting' | 'failed';
+
 const presentation: Record<
-  EntryStatus,
+  DisplayStatus,
   { labelKey: DailyTranslationKey; background: string; color: string }
 > = {
   sent: {
@@ -25,12 +28,22 @@ const presentation: Record<
   },
 };
 
+function displayStatus(state: OutboxState): DisplayStatus {
+  if (state === 'sent') {
+    return 'sent';
+  }
+  if (state === 'failed') {
+    return 'failed';
+  }
+  return 'waiting';
+}
+
 type EntryStatusPillProps = {
-  status: EntryStatus;
+  state: OutboxState;
 };
 
-export function EntryStatusPill({ status }: EntryStatusPillProps) {
-  const item = presentation[status];
+export function EntryStatusPill({ state }: EntryStatusPillProps) {
+  const item = presentation[displayStatus(state)];
 
   return (
     <View style={[styles.pill, { backgroundColor: item.background }]}>

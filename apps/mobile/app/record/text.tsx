@@ -1,31 +1,91 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { CaptureTypeTabs } from '@/components/daily/CaptureTypeTabs';
 import { InstructionCard } from '@/components/daily/InstructionCard';
 import { RecordHeader } from '@/components/daily/RecordHeader';
-import { dailyActivities, getActivity } from '@/fake/daily';
 import { td } from '@/i18n/td';
+import { useCachedActivity } from '@/queue/hooks';
+import { saveEntry } from '@/queue/save';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 export default function TextRecordScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const activity = getActivity(activityId) ?? dailyActivities[0];
+  const { activity, loading } = useCachedActivity(activityId);
   const [answer, setAnswer] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (loading) {
+    return (
+      <Screen contentStyle={styles.content} edges={['top']}>
+        <StatusBar style="dark" />
+        <RecordHeader eyebrow={td('tabs.today')} title={td('record.loading')} />
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.primaryDark} />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!activity) {
+    return (
+      <Screen contentStyle={styles.content} edges={['top']}>
+        <StatusBar style="dark" />
+        <RecordHeader eyebrow={td('tabs.today')} title={td('record.notFound')} />
+        <View style={styles.body}>
+          <Text style={styles.message}>{td('record.notFoundBody')}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!activity.captureTypes.includes('text')) {
+    return (
+      <Screen contentStyle={styles.content} edges={['top']}>
+        <StatusBar style="dark" />
+        <RecordHeader eyebrow={activity.studyTitle} title={activity.title} />
+        <View style={styles.body}>
+          <Text style={styles.message}>{td('record.typeUnavailable')}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const save = async () => {
+    if (saving || !answer.trim()) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await saveEntry({ activity, type: 'text', body: answer });
+      router.replace('/record/saved');
+    } catch {
+      setError(td('record.saveError'));
+      setSaving(false);
+    }
+  };
 
   return (
     <Screen contentStyle={styles.content} edges={['top']}>
       <StatusBar style="dark" />
 
-      <RecordHeader eyebrow={td(activity.contextKey)} title={td(activity.titleKey)} />
+      <RecordHeader eyebrow={activity.studyTitle} title={activity.title} />
 
       <View style={styles.body}>
         <InstructionCard
-          instruction={td(activity.instructionKey)}
+          instruction={activity.instructions || td('record.noInstructions')}
           warnings={activity.warnings}
         />
 
@@ -39,6 +99,7 @@ export default function TextRecordScreen() {
           <Text style={styles.label}>{td('record.text.label')}</Text>
           <TextInput
             accessibilityLabel={td('record.text.label')}
+            maxLength={100000}
             multiline
             onChangeText={setAnswer}
             placeholder={td('record.text.placeholder')}
@@ -53,9 +114,13 @@ export default function TextRecordScreen() {
       <View style={styles.spacer} />
 
       <View style={styles.footer}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
         <Button
-          label={td('record.save')}
-          onPress={() => router.replace('/record/saved')}
+          disabled={!answer.trim() || saving}
+          label={saving ? td('record.saving') : td('record.save')}
+          onPress={() => {
+            void save();
+          }}
         />
         <Text style={styles.offline}>{td('record.offlineNote')}</Text>
       </View>
@@ -71,6 +136,17 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  message: {
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textBody,
   },
   field: {
     gap: 6,
@@ -101,6 +177,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     gap: spacing.sm,
+  },
+  error: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   offline: {
     fontFamily: fonts.regular,
