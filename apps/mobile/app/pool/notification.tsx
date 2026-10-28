@@ -4,12 +4,26 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
-import { accountHref } from '@/components/account/navigation';
-import { poolNotification } from '@/fake/account';
 import { ta } from '@/i18n/ta';
+import { getPoolCredential, listPoolInvitations } from '@/state/actions';
 import { colors, fonts, radii, spacing } from '@/theme';
 
+const NOTIFICATION_TIME = '10:05';
+
 export default function PoolNotificationScreen() {
+  const openInvitation = async () => {
+    const credential = await getPoolCredential().catch(() => null);
+    if (!credential) {
+      return;
+    }
+
+    const { data } = await listPoolInvitations(credential);
+    const next = data?.find((invitation) => invitation.status === 'sent');
+    if (next) {
+      router.push({ pathname: '/pool/invite', params: { id: next.id } });
+    }
+  };
+
   return (
     <Screen
       backgroundColor="#131A2A"
@@ -27,7 +41,9 @@ export default function PoolNotificationScreen() {
       <Pressable
         accessibilityLabel={ta('poolNotification.label')}
         accessibilityRole="button"
-        onPress={() => router.push(accountHref('/pool/invite'))}
+        onPress={() => {
+          void openInvitation();
+        }}
         style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       >
         <View style={styles.metaRow}>
@@ -36,7 +52,7 @@ export default function PoolNotificationScreen() {
           </View>
           <Text style={styles.meta}>{ta('poolNotification.brand')}</Text>
           <Text style={styles.meta}>·</Text>
-          <Text style={styles.meta}>{poolNotification.time}</Text>
+          <Text style={styles.meta}>{NOTIFICATION_TIME}</Text>
         </View>
         <Text style={styles.body}>{ta('poolNotification.body')}</Text>
       </Pressable>

@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { apiErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
@@ -11,37 +12,74 @@ import { FieldSelect } from '@/components/account/FieldSelect';
 import { SelectSheet } from '@/components/account/SelectSheet';
 import { accountHref } from '@/components/account/navigation';
 import {
-  poolAgeGroups,
+  ageLabel,
+  ageValue,
+  genderLabel,
+  genderValue,
+  languageLabels,
+  languageValues,
+  poolAgeLabels,
   poolConcelhos,
   poolFreguesias,
-  poolGenders,
-  poolLanguages,
-  poolProfileDefaults,
-  poolSituations,
-  poolTransports,
-} from '@/fake/account';
+  poolGenderLabels,
+  poolLanguageLabels,
+  poolSituationLabels,
+  poolTransportLabels,
+  situationLabel,
+  situationValue,
+  transportLabel,
+  transportValue,
+} from '@/components/account/poolOptions';
 import { ta } from '@/i18n/ta';
+import {
+  getPoolCredential,
+  getPoolMember,
+  joinPool,
+  savePoolCredential,
+  updatePoolMember,
+} from '@/state/actions';
 import { colors, fonts, spacing } from '@/theme';
 
 type SheetKind = 'concelho' | 'freguesia';
 
 export default function PoolProfileScreen() {
-  const [concelho, setConcelho] = useState<string>(poolProfileDefaults.concelho);
-  const [freguesia, setFreguesia] = useState<string>(
-    poolProfileDefaults.freguesia,
-  );
-  const [age, setAge] = useState<string>(poolProfileDefaults.age);
+  const [credential, setCredential] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [concelho, setConcelho] = useState('');
+  const [freguesia, setFreguesia] = useState('');
+  const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
-  const [situation, setSituation] = useState<string>(
-    poolProfileDefaults.situation,
-  );
-  const [transport, setTransport] = useState<string>(
-    poolProfileDefaults.transport,
-  );
-  const [languages, setLanguages] = useState<string[]>([
-    ...poolProfileDefaults.languages,
-  ]);
+  const [situation, setSituation] = useState('');
+  const [transport, setTransport] = useState('');
+  const [languages, setLanguages] = useState<string[]>([]);
   const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const stored = await getPoolCredential().catch(() => null);
+      if (!stored) {
+        setReady(true);
+        return;
+      }
+
+      const { data } = await getPoolMember(stored);
+      if (data) {
+        setCredential(stored);
+        setConcelho(data.concelho);
+        setFreguesia(data.freguesia ?? '');
+        setAge(ageLabel(data.age_band));
+        setGender(genderLabel(data.gender));
+        setSituation(situationLabel(data.occupation));
+        setTransport(transportLabel(data.usual_transport));
+        setLanguages(languageLabels(data.languages));
+      }
+      setReady(true);
+    };
+
+    void load();
+  }, []);
 
   const toggleLanguage = (option: string) => {
     setLanguages((current) =>
@@ -50,6 +88,53 @@ export default function PoolProfileScreen() {
         : [...current, option],
     );
   };
+
+  const save = async () => {
+    if (!concelho) {
+      setError(ta('account.error'));
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const body = {
+      concelho,
+      freguesia: freguesia || null,
+      age_band: ageValue(age),
+      gender: genderValue(gender),
+      occupation: situationValue(situation),
+      usual_transport: transportValue(transport),
+      languages: languageValues(languages),
+    };
+    const result = credential
+      ? await updatePoolMember(credential, body)
+      : await joinPool(body);
+    setBusy(false);
+
+    if (!result.data) {
+      setError(apiErrorMessage(result.error));
+      return;
+    }
+
+    if (
+      !credential &&
+      'credential' in result.data &&
+      typeof result.data.credential === 'string'
+    ) {
+      await savePoolCredential(result.data.credential);
+    }
+
+    router.replace(accountHref('/pool/settings'));
+  };
+
+  if (!ready) {
+    return (
+      <Screen contentStyle={styles.loading}>
+        <StatusBar style="dark" />
+        <Text style={styles.loadingText}>{ta('account.loading')}</Text>
+      </Screen>
+    );
+  }
 
   const freguesiaOptions = poolFreguesias[concelho] ?? [];
 
@@ -74,6 +159,7 @@ export default function PoolProfileScreen() {
           hint={ta('poolProfile.concelhoHint')}
           label={ta('poolProfile.concelho')}
           onPress={() => setSheet('concelho')}
+          placeholder={ta('poolProfile.choose')}
           required
           value={concelho}
         />
@@ -111,40 +197,44 @@ export default function PoolProfileScreen() {
         <ChoiceGroup
           label={ta('poolProfile.age')}
           onChange={setAge}
-          options={poolAgeGroups}
+          options={poolAgeLabels}
           value={age}
         />
         <ChoiceGroup
           label={ta('poolProfile.gender')}
           onChange={setGender}
-          options={poolGenders}
+          options={poolGenderLabels}
           value={gender}
         />
         <ChoiceGroup
           label={ta('poolProfile.situation')}
           onChange={setSituation}
-          options={poolSituations}
+          options={poolSituationLabels}
           value={situation}
         />
         <ChoiceGroup
           label={ta('poolProfile.transport')}
           onChange={setTransport}
-          options={poolTransports}
+          options={poolTransportLabels}
           value={transport}
         />
         <ChoiceGroup
           hint={ta('poolProfile.languagesHint')}
           label={ta('poolProfile.languages')}
           onChange={toggleLanguage}
-          options={poolLanguages}
+          options={poolLanguageLabels}
           value={languages}
         />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
       <View style={styles.footer}>
         <Button
-          label={ta('poolProfile.save')}
-          onPress={() => router.replace(accountHref('/pool/settings'))}
+          disabled={busy}
+          label={busy ? ta('account.busy') : ta('poolProfile.save')}
+          onPress={() => {
+            void save();
+          }}
         />
       </View>
 
@@ -179,6 +269,15 @@ export default function PoolProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: colors.textMuted,
+  },
   header: {
     paddingTop: spacing.lg,
     paddingHorizontal: spacing.xl,
@@ -234,6 +333,12 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.8,
+  },
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#9B1C1C',
   },
   footer: {
     borderTopWidth: 1,

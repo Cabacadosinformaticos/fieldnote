@@ -2,12 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { ComponentProps } from 'react';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { accountHref } from '@/components/account/navigation';
+import { getPoolCredential } from '@/state/actions';
 import { ta, type AccountKey } from '@/i18n/ta';
 import { colors, fonts, radii, spacing } from '@/theme';
 
@@ -41,6 +43,16 @@ const reasons: {
 ];
 
 export default function PoolIntroScreen() {
+  useEffect(() => {
+    void getPoolCredential()
+      .then((credential) => {
+        if (credential) {
+          router.replace(accountHref('/pool/settings'));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
     <Screen contentStyle={styles.content}>
       <StatusBar style="dark" />
