@@ -28,7 +28,11 @@ x-api-environment: &api-environment
   FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
   FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
   FIELDNOTE_S3_REGION: garage
-  FIELDNOTE_RABBITMQ_URL: "amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq1:5672/,amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq2:5672/,amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq3:5672/"
+  # All three brokers answer to the "rabbitmq" alias, so DNS returns one record
+  # per live member and the client (pika) tries them in turn. pika does not
+  # parse a comma-separated multi-host URL: it would read the rest of the
+  # string as the virtual host.
+  FIELDNOTE_RABBITMQ_URL: "amqp://${RABBITMQ_USER:-fieldnote}:${RABBITMQ_PASSWORD:-fieldnote}@rabbitmq:5672/"
   # Origin of the node 1 gateway as the phones see it.
   FIELDNOTE_MEDIA_PUBLIC_ENDPOINT: ${FIELDNOTE_MEDIA_PUBLIC_ENDPOINT:-http://10.0.2.2:8090}
 
@@ -40,6 +44,9 @@ x-garage-environment: &garage-environment
   GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-garage-rpc-secret-dev}
   GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-garage-admin-token-dev}
   GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-garage-metrics-token-dev}
+  # Every node knows the full member list; the entrypoint reconnects to the
+  # peers that are reachable, so no one-shot has to do it after a restart.
+  GARAGE_PEERS: garage1,garage2,garage3
   # The daemon and the CLI both read this rendered copy, so `garage status`
   # inside the container works without repeating -c.
   GARAGE_CONFIG_FILE: /tmp/garage.toml
@@ -157,7 +164,9 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - cluster
+      cluster:
+        aliases:
+          - rabbitmq
 
   garage1:
     profiles: ["cluster", "node1"]
@@ -414,7 +423,9 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - cluster
+      cluster:
+        aliases:
+          - rabbitmq
 
   garage2:
     profiles: ["cluster", "node2"]
@@ -651,7 +662,9 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - cluster
+      cluster:
+        aliases:
+          - rabbitmq
 
   garage3:
     profiles: ["cluster", "node3"]
