@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     s3_secret_key: str = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
     s3_region: str = "garage"
 
+    # One broker URL, or a comma-separated list of cluster addresses; readiness needs any.
     rabbitmq_url: str = "amqp://fieldnote:fieldnote@127.0.0.1:5672/"
 
     # Origin of the gateway as the phones see it; signed upload URLs are built on it.

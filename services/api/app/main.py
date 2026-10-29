@@ -79,15 +79,21 @@ def _database_ok() -> bool:
 
 
 def _broker_ok() -> bool:
-    parameters = pika.URLParameters(settings.rabbitmq_url)
-    parameters.socket_timeout = 2
-    parameters.blocked_connection_timeout = 2
-    parameters.connection_attempts = 1
-    try:
-        pika.BlockingConnection(parameters).close()
-    except Exception:
-        return False
-    return True
+    """Ready when any broker address of the cluster accepts a connection."""
+    for address in settings.rabbitmq_url.split(","):
+        url = address.strip()
+        if not url:
+            continue
+        parameters = pika.URLParameters(url)
+        parameters.socket_timeout = 2
+        parameters.blocked_connection_timeout = 2
+        parameters.connection_attempts = 1
+        try:
+            pika.BlockingConnection(parameters).close()
+        except Exception:
+            continue
+        return True
+    return False
 
 
 app.include_router(router)
