@@ -1416,6 +1416,11 @@
   min-width: 640px;
 }
 
+/* The day header labels switch to every second hour when the track is narrow. */
+.en-timechart {
+  container-type: inline-size;
+}
+
 .en-now-row {
   display: flex;
   height: 22px;
@@ -1455,9 +1460,17 @@
 .en-ticks span {
   position: absolute;
   top: 2px;
+  min-width: 44px;
+  text-align: center;
   color: var(--fn-color-text-muted);
   font-size: var(--fn-text-12);
   transform: translateX(-50%);
+}
+
+@container (max-width: 820px) {
+  .en-ticks.is-day span:nth-child(even) {
+    display: none;
+  }
 }
 
 .en-ticks span.is-half {

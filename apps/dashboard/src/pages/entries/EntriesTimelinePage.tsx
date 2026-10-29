@@ -485,7 +485,7 @@ export default function EntriesTimelinePage() {
         </div>
         <div className="en-ticks-row">
           <div className="en-axis-spacer" />
-          <div className="en-track en-ticks">
+          <div className="en-track en-ticks is-day">
             {dayTicks.map((hour) => (
               <span
                 key={hour}

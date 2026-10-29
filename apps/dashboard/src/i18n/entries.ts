@@ -195,7 +195,7 @@ const pt = {
   'export.column.received': 'Recebido',
   'export.column.tags': 'Etiquetas',
   'export.preview.note':
-    'Pré-visualização de 4 linhas do entries.csv. O ZIP inclui ainda study_answers.csv e um README.',
+    'Pré-visualização de {shown} de {total} registos do entries.csv. O ZIP inclui ainda study_answers.csv e um README.',
   'export.preview.noFile': '(sem ficheiro)',
   'export.options.title': 'Opções',
   'export.options.sub':
