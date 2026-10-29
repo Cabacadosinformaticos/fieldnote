@@ -1,12 +1,13 @@
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AuditLog, Study, StudyMember, StudyQuestion, Tag, UserAccount
-from app.models.enums import StudyRole, StudyStatus, UserRole
+from app.models import AuditLog, Entry, Study, StudyMember, StudyQuestion, Tag, UserAccount
+from app.models.enums import EntryType, ParticipantStatus, StudyRole, StudyStatus, UserRole
 
 STUDIES = "/api/v1/studies"
 
@@ -113,6 +114,50 @@ def test_list_shows_only_the_studies_where_the_user_is_a_member(
 
     everything = client.get(STUDIES, headers=bearer_headers(admin))
     assert [row["title"] for row in everything.json()] == ["Mine", "Other"]
+
+
+def _add_entry(session: Session, participant) -> None:
+    session.add(
+        Entry(
+            participant_id=participant.id,
+            entry_type=EntryType.TEXT,
+            content_sha256="a" * 64,
+            recorded_at=datetime.now(UTC),
+        )
+    )
+    session.commit()
+
+
+def test_list_includes_entry_and_active_participant_counts(
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    counted = make_study(title="Counted")
+    empty = make_study(title="Empty")
+    researcher = make_user(email="counts@example.org")
+    _add_member(session, counted.id, researcher, StudyRole.MEMBER)
+    _add_member(session, empty.id, researcher, StudyRole.MEMBER)
+    active = make_participant(counted, alias="P-01")
+    make_participant(counted, alias="P-02")
+    withdrawn = make_participant(counted, alias="P-03")
+    withdrawn.status = ParticipantStatus.WITHDRAWN
+    session.commit()
+    _add_entry(session, active)
+    _add_entry(session, active)
+    _add_entry(session, withdrawn)
+
+    response = client.get(STUDIES, headers=bearer_headers(researcher))
+
+    assert response.status_code == 200
+    rows = {row["title"]: row for row in response.json()}
+    assert rows["Counted"]["entry_count"] == 3
+    assert rows["Counted"]["participant_count"] == 2
+    assert rows["Empty"]["entry_count"] == 0
+    assert rows["Empty"]["participant_count"] == 0
 
 
 def test_get_a_study_checks_membership_and_administration(

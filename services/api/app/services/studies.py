@@ -8,7 +8,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
-from app.models import Consent, Participant, Study, StudyMember, StudyQuestion, Tag, UserAccount
+from app.models import (
+    Consent,
+    Entry,
+    Participant,
+    Study,
+    StudyMember,
+    StudyQuestion,
+    Tag,
+    UserAccount,
+)
 from app.models.enums import ParticipantStatus, StudyRole, StudyStatus, UserRole
 from app.schemas.studies import (
     StudyCreate,
@@ -37,13 +46,39 @@ def ensure_writable(study: Study) -> None:
         raise ApiError(409, "study_closed", STUDY_CLOSED)
 
 
-def list_studies(session: Session, user: UserAccount) -> list[Study]:
-    statement = select(Study).order_by(Study.title)
+def list_studies(session: Session, user: UserAccount) -> list[tuple[Study, int, int]]:
+    """The studies the user may see, with entry and active-participant counts.
+
+    Both counts come from grouped subqueries joined in this one statement, so the list never
+    issues a query per study.
+    """
+    entry_totals = (
+        select(Participant.study_id, func.count(Entry.id).label("entry_count"))
+        .join(Entry, Entry.participant_id == Participant.id)
+        .group_by(Participant.study_id)
+        .subquery()
+    )
+    participant_totals = (
+        select(Participant.study_id, func.count(Participant.id).label("participant_count"))
+        .where(Participant.status == ParticipantStatus.ACTIVE)
+        .group_by(Participant.study_id)
+        .subquery()
+    )
+    statement = (
+        select(
+            Study,
+            func.coalesce(entry_totals.c.entry_count, 0),
+            func.coalesce(participant_totals.c.participant_count, 0),
+        )
+        .outerjoin(entry_totals, entry_totals.c.study_id == Study.id)
+        .outerjoin(participant_totals, participant_totals.c.study_id == Study.id)
+        .order_by(Study.title)
+    )
     if user.role != UserRole.ADMIN:
         statement = statement.join(StudyMember, StudyMember.study_id == Study.id).where(
             StudyMember.user_id == user.id
         )
-    return list(session.scalars(statement).all())
+    return [tuple(row) for row in session.execute(statement).all()]
 
 
 def create_study(session: Session, user: UserAccount, payload: StudyCreate) -> Study:

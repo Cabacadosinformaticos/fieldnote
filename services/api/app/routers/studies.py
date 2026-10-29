@@ -12,6 +12,7 @@ from app.models.enums import StudyRole
 from app.schemas.studies import (
     StudyConsentOut,
     StudyCreate,
+    StudyListItemOut,
     StudyMemberCreate,
     StudyMemberOut,
     StudyMemberUpdate,
@@ -52,12 +53,19 @@ def create_study(
     return studies.create_study(session, user, payload)
 
 
-@router.get("", response_model=list[StudyOut])
+@router.get("", response_model=list[StudyListItemOut])
 def list_my_studies(
     user: Annotated[UserAccount, Depends(current_user)],
     session: SessionDep,
-) -> list[StudyOut]:
-    return studies.list_studies(session, user)
+) -> list[StudyListItemOut]:
+    return [
+        StudyListItemOut(
+            **StudyOut.model_validate(study).model_dump(),
+            entry_count=entry_count,
+            participant_count=participant_count,
+        )
+        for study, entry_count, participant_count in studies.list_studies(session, user)
+    ]
 
 
 @router.get("/{study_id}", response_model=StudyOut)

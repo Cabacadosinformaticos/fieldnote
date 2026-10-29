@@ -98,6 +98,13 @@ class StudyOut(BaseModel):
     schedule_style: ScheduleStyle
 
 
+class StudyListItemOut(StudyOut):
+    """A study on the dashboard list, with the counts the cards show."""
+
+    entry_count: int
+    participant_count: int
+
+
 class StudyMemberCreate(BaseModel):
     email: str = Field(min_length=3)
     role: StudyRole
