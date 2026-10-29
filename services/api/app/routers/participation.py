@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db import get_session
 from app.models import Participant, Study
 from app.models.enums import ParticipantStatus
+from app.routers.account import AccountAuth, _resolve_account
 from app.schemas.participation import (
     ApprovalStatusOut,
     AvailabilityIntervalOut,
@@ -19,6 +20,7 @@ from app.schemas.participation import (
     AvailabilityUpdate,
     ErasureRequest,
     ExistingParticipationOut,
+    FreeEntryActivityOut,
     InvitationAcceptRequest,
     InvitationAcceptResponse,
     InvitationLookupRequest,
@@ -44,6 +46,21 @@ def _device_token(request: Request) -> str | None:
     scheme, _, raw = request.headers.get("Authorization", "").partition(" ")
     token = raw.strip()
     return token if scheme.lower() == "device" and token else None
+
+
+def _optional_account(
+    request: Request,
+    session: SessionDep,
+) -> AccountAuth | None:
+    """Resolve an ``Authorization: Account`` header; a device token is not an account."""
+    authorization = request.headers.get("Authorization")
+    scheme, _, _ = (authorization or "").partition(" ")
+    if scheme.lower() != "account":
+        return None
+    return _resolve_account(session, authorization)
+
+
+OptionalAccount = Annotated[AccountAuth | None, Depends(_optional_account)]
 
 
 def _study_summary(study: Study) -> StudySummaryOut:
@@ -121,6 +138,7 @@ def accept_invitation(
     payload: InvitationAcceptRequest,
     request: Request,
     session: SessionDep,
+    auth: OptionalAccount,
 ) -> InvitationAcceptResponse:
     result = service.accept_invitation(
         session,
@@ -130,6 +148,7 @@ def accept_invitation(
         consent_version=payload.consent_version,
         answers=[(answer.question_id, answer.answer) for answer in payload.answers],
         presented_token=_device_token(request),
+        account=auth.account if auth is not None else None,
     )
     return InvitationAcceptResponse(
         outcome=result.outcome,
@@ -231,6 +250,27 @@ def list_open_prompts(
             for item in prompts
         ],
     )
+
+
+@router.get("/me/activities", response_model=list[FreeEntryActivityOut])
+def list_free_entry_activities(
+    participant: ParticipantDep,
+    session: SessionDep,
+) -> list[FreeEntryActivityOut]:
+    return [
+        FreeEntryActivityOut(
+            id=item.activity.id,
+            title=item.activity.title,
+            instructions=item.activity.instructions,
+            entry_types=list(item.activity.entry_types),
+            options=item.activity.options,
+            capture_location=item.activity.capture_location,
+            allow_free_entries=item.activity.allow_free_entries,
+            max_free_entries_per_day=item.activity.max_free_entries_per_day,
+            free_entries_used_today=item.used_today,
+        )
+        for item in service.free_entry_activities(session, participant)
+    ]
 
 
 @router.post("/me/leave", response_model=ParticipantMeOut)

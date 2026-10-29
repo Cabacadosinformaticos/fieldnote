@@ -1937,6 +1937,86 @@
         "title": "ExistingParticipationOut",
         "type": "object"
       },
+      "FreeEntryActivityOut": {
+        "description": "An activity the app can present for a free entry (FR-13, FR-108).",
+        "properties": {
+          "allow_free_entries": {
+            "title": "Allow Free Entries",
+            "type": "boolean"
+          },
+          "capture_location": {
+            "title": "Capture Location",
+            "type": "boolean"
+          },
+          "entry_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Entry Types",
+            "type": "array"
+          },
+          "free_entries_used_today": {
+            "title": "Free Entries Used Today",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "max_free_entries_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Free Entries Per Day"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "instructions",
+          "entry_types",
+          "options",
+          "capture_location",
+          "allow_free_entries",
+          "max_free_entries_per_day",
+          "free_entries_used_today"
+        ],
+        "title": "FreeEntryActivityOut",
+        "type": "object"
+      },
       "Gender": {
         "enum": [
           "female",
@@ -4595,6 +4675,97 @@
         "title": "StudyCreate",
         "type": "object"
       },
+      "StudyListItemOut": {
+        "description": "A study on the dashboard list, with the counts the cards show.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "entry_count": {
+            "title": "Entry Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "max_prompts_per_day": {
+            "title": "Max Prompts Per Day",
+            "type": "integer"
+          },
+          "max_prompts_per_slot": {
+            "title": "Max Prompts Per Slot",
+            "type": "integer"
+          },
+          "participant_count": {
+            "title": "Participant Count",
+            "type": "integer"
+          },
+          "schedule_style": {
+            "$ref": "#/components/schemas/ScheduleStyle"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudyStatus"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "starts_on",
+          "ends_on",
+          "timezone",
+          "max_prompts_per_day",
+          "max_prompts_per_slot",
+          "schedule_style",
+          "entry_count",
+          "participant_count"
+        ],
+        "title": "StudyListItemOut",
+        "type": "object"
+      },
       "StudyMemberCreate": {
         "properties": {
           "email": {
@@ -7056,6 +7227,59 @@
         ]
       }
     },
+    "/api/v1/participation/me/activities": {
+      "get": {
+        "operationId": "list_free_entry_activities_api_v1_participation_me_activities_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FreeEntryActivityOut"
+                  },
+                  "title": "Response List Free Entry Activities Api V1 Participation Me Activities Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Free Entry Activities",
+        "tags": [
+          "participation"
+        ]
+      }
+    },
     "/api/v1/participation/me/approval": {
       "get": {
         "operationId": "approval_status_api_v1_participation_me_approval_get",
@@ -7954,7 +8178,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/StudyOut"
+                    "$ref": "#/components/schemas/StudyListItemOut"
                   },
                   "title": "Response List My Studies Api V1 Studies Get",
                   "type": "array"

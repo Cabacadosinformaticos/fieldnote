@@ -23,6 +23,7 @@ from app.models import (
     Consent,
     InviteCode,
     Participant,
+    ParticipantAccount,
     Prompt,
     Study,
     StudyAnswer,
@@ -39,6 +40,8 @@ from app.models.enums import (
 )
 from app.security import codes
 from app.security.audit import record
+from app.services import account as account_service
+from app.services.entries_upload import free_entries_used_today
 
 CONSENT_VERSION = "1.0"
 ERASURE_DELAY = timedelta(days=7)
@@ -82,6 +85,12 @@ class OpenPrompt:
     prompt: Prompt
     activity: Activity
     closes_at: datetime
+
+
+@dataclass(frozen=True)
+class FreeEntryActivity:
+    activity: Activity
+    used_today: int
 
 
 @dataclass(frozen=True)
@@ -401,6 +410,20 @@ def lookup_invitation(session: Session, raw_code: str, android_id: str | None) -
     )
 
 
+def _require_confirmed_account(account: ParticipantAccount | None) -> None:
+    if account is not None and account.confirmed_at is None:
+        raise ApiError(
+            409,
+            "account_unconfirmed",
+            "Confirm that the recovery code was saved before joining with an account.",
+        )
+
+
+def _link_account(session: Session, account: ParticipantAccount | None, device_token: str) -> None:
+    if account is not None:
+        account_service.link_to_account(session, account, [device_token], None)
+
+
 def accept_invitation(
     session: Session,
     *,
@@ -410,6 +433,7 @@ def accept_invitation(
     consent_version: str,
     answers: list[tuple[uuid.UUID, str | list[str]]],
     presented_token: str | None,
+    account: ParticipantAccount | None = None,
 ) -> Acceptance:
     canonical = codes.normalize_code(raw_code)
     if canonical is None:
@@ -460,6 +484,7 @@ def accept_invitation(
         if participant.status == ParticipantStatus.DECLINED:
             raise ApiError(409, "entry_declined", "The entry in this study was not accepted.")
 
+        _require_confirmed_account(account)
         prepared = _prepare_answers(session, study, answers)
         raw = _rotate_token(participant)
         participant.device_hash = digest
@@ -472,6 +497,7 @@ def accept_invitation(
         _add_consent(session, participant, consent_version, now)
         _store_answers(session, participant, prepared, now)
         session.commit()
+        _link_account(session, account, raw)
         return Acceptance("joined", raw, participant)
 
     # Only a switched-off code is refused before the device check: a person already in the study
@@ -482,12 +508,13 @@ def accept_invitation(
         return _resume_participation(session, matched, digest, presented_token, locale)
 
     _check_code_available(session, code, study, now, check_limits=True, check_per_hour=True)
-    if code.requires_account:
+    if code.requires_account and account is None:
         raise ApiError(
             409,
             "account_required",
-            "This study code requires an account, and participant accounts are not available yet.",
+            "This study code requires a participant account.",
         )
+    _require_confirmed_account(account)
 
     prepared = _prepare_answers(session, study, answers)
     pending = bool(code.requires_approval)
@@ -516,6 +543,7 @@ def accept_invitation(
         details={"study_id": str(study.id)},
     )
     session.commit()
+    _link_account(session, account, raw)
     return Acceptance("pending_approval" if pending else "joined", raw, participant)
 
 
@@ -680,6 +708,29 @@ def open_prompts(session: Session, participant: Participant) -> tuple[date, list
             closes_at=datetime.combine(today, activity.window_end, tzinfo=zone),
         )
         for prompt, activity in rows
+    ]
+
+
+def free_entry_activities(session: Session, participant: Participant) -> list[FreeEntryActivity]:
+    """The activities of the study with what is left of each daily free-entry cap (FR-13)."""
+    if participant.status != ParticipantStatus.ACTIVE:
+        raise ApiError(
+            403,
+            "participant_not_active",
+            "Only an active participant can record entries.",
+        )
+    now = datetime.now(UTC)
+    activities = session.scalars(
+        select(Activity)
+        .where(Activity.study_id == participant.study_id)
+        .order_by(Activity.title, Activity.id)
+    )
+    return [
+        FreeEntryActivity(
+            activity=activity,
+            used_today=free_entries_used_today(session, participant, activity, now),
+        )
+        for activity in activities
     ]
 
 

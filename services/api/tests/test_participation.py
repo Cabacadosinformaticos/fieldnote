@@ -9,12 +9,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import (
+    AccountParticipation,
     Activity,
     AuditLog,
     Availability,
     Consent,
+    Entry,
     InviteCode,
     Participant,
+    ParticipantAccount,
     Prompt,
     Study,
     StudyAnswer,
@@ -23,6 +26,7 @@ from app.models import (
 )
 from app.models.enums import (
     AuditActorType,
+    EntryType,
     InviteCodeKind,
     ParticipantStatus,
     PromptStatus,
@@ -39,6 +43,9 @@ APPROVAL = "/api/v1/participation/me/approval"
 AVAILABILITY = "/api/v1/participation/me/availability"
 PUSH_TOKEN = "/api/v1/participation/me/push-token"
 PROMPTS = "/api/v1/participation/me/prompts"
+ACTIVITIES = "/api/v1/participation/me/activities"
+ACCOUNT_RECOVERY = "/api/v1/account/recovery"
+ACCOUNT_CONFIRM = "/api/v1/account/confirm"
 LEAVE = "/api/v1/participation/me/leave"
 RETURN = "/api/v1/participation/me/return"
 ERASURE = "/api/v1/participation/me/erasure"
@@ -60,17 +67,23 @@ def _add_activity(
     prompts_per_day: int = 2,
     expected_minutes: int = 5,
     capture_location: bool = True,
+    allow_free_entries: bool = False,
+    max_free_entries_per_day: int | None = None,
+    options: dict[str, object] | None = None,
 ) -> Activity:
     activity = Activity(
         study_id=study.id,
         title=title,
         instructions="Record what happened.",
         entry_types=entry_types or ["text", "photo"],
+        options=options,
         prompts_per_day=prompts_per_day,
         window_start=time(8),
         window_end=time(20),
         min_gap_minutes=60,
         capture_location=capture_location,
+        allow_free_entries=allow_free_entries,
+        max_free_entries_per_day=max_free_entries_per_day,
         expected_minutes=expected_minutes,
     )
     session.add(activity)
@@ -177,8 +190,11 @@ def _accept(
     consent_version: str = "1.0",
     answers: list[dict[str, object]] | None = None,
     token: str | None = None,
+    account_token: str | None = None,
 ):
     headers = _device(token) if token else {}
+    if account_token is not None:
+        headers = {"Authorization": f"Account {account_token}"}
     return client.post(
         ACCEPT,
         json={
@@ -190,6 +206,19 @@ def _accept(
         },
         headers=headers,
     )
+
+
+def _confirmed_account(client: TestClient) -> str:
+    created = client.post(ACCOUNT_RECOVERY)
+    assert created.status_code == 201
+    token = created.json()["account_token"]
+    confirmed = client.post(
+        ACCOUNT_CONFIRM,
+        json={"device_tokens": [], "pool_credential": None},
+        headers={"Authorization": f"Account {token}"},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    return token
 
 
 def _participant_with_token(
@@ -691,6 +720,158 @@ def test_study_code_that_requires_an_account_refuses_acceptance(
     session.refresh(code)
     assert code.uses == 0
     assert session.scalar(select(Participant).where(Participant.study_id == study.id)) is None
+
+
+def test_account_required_code_accepts_a_signed_in_phone_and_links_it(
+    client: TestClient, session: Session, make_study
+) -> None:
+    study = make_study()
+    raw, code = _study_code(session, study, requires_account=True, approval=False)
+    account_token = _confirmed_account(client)
+
+    response = _accept(client, raw, android_id="android-1", account_token=account_token)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["outcome"] == "joined"
+    participant = session.scalar(select(Participant).where(Participant.study_id == study.id))
+    assert participant is not None
+    account = session.scalar(select(ParticipantAccount))
+    link = session.get(AccountParticipation, participant.id)
+    assert link is not None
+    assert link.account_id == account.id
+    assert link.study_id == study.id
+    session.refresh(code)
+    assert code.uses == 1
+    token = response.json()["device_token"]
+    assert client.get(ME, headers=_device(token)).status_code == 200
+
+
+def test_account_required_code_refuses_an_unconfirmed_account(
+    client: TestClient, session: Session, make_study
+) -> None:
+    study = make_study()
+    raw, code = _study_code(session, study, requires_account=True)
+    created = client.post(ACCOUNT_RECOVERY)
+    assert created.status_code == 201
+
+    response = _accept(
+        client,
+        raw,
+        android_id="android-1",
+        account_token=created.json()["account_token"],
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "account_unconfirmed"
+    session.refresh(code)
+    assert code.uses == 0
+    assert session.scalar(select(Participant).where(Participant.study_id == study.id)) is None
+
+
+def test_accept_refuses_an_invalid_account_token(
+    client: TestClient, session: Session, make_study
+) -> None:
+    study = make_study()
+    raw, _code = _study_code(session, study, requires_account=True)
+
+    response = _accept(client, raw, android_id="android-1", account_token="not-a-token")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_account_token"
+
+
+def test_a_code_without_the_option_links_the_participation_when_signed_in(
+    client: TestClient, session: Session, make_study
+) -> None:
+    study = make_study()
+    raw, _code = _study_code(session, study, requires_account=False, approval=False)
+    account_token = _confirmed_account(client)
+
+    response = _accept(client, raw, android_id="android-1", account_token=account_token)
+
+    assert response.status_code == 200
+    participant = session.scalar(select(Participant).where(Participant.study_id == study.id))
+    assert participant is not None
+    assert session.get(AccountParticipation, participant.id) is not None
+
+
+def _add_entry(
+    session: Session,
+    participant: Participant,
+    activity: Activity,
+    recorded_at: datetime,
+    *,
+    prompt: Prompt | None = None,
+) -> Entry:
+    entry = Entry(
+        participant_id=participant.id,
+        activity_id=activity.id,
+        prompt_id=prompt.id if prompt is not None else None,
+        entry_type=EntryType.TEXT,
+        content_sha256="a" * 64,
+        recorded_at=recorded_at,
+        body="A note",
+    )
+    session.add(entry)
+    session.commit()
+    return entry
+
+
+def test_activities_return_what_the_app_needs_and_count_todays_free_entries(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    participant = _participant_with_token(session, make_participant, study, "activities-token")
+    scale = {"scale_type": "numbers", "points": 5, "start_label": "Low", "end_label": "High"}
+    diary = _add_activity(
+        session,
+        study,
+        title="Diary",
+        entry_types=["text", "scale"],
+        allow_free_entries=True,
+        max_free_entries_per_day=2,
+        options=scale,
+    )
+    closed = _add_activity(session, study, title="Poster", allow_free_entries=False)
+
+    today = datetime.now(LISBON)
+    _add_entry(session, participant, diary, today)
+    _add_entry(session, participant, diary, today - timedelta(days=1))
+    answered = _add_prompt(session, participant, diary, status=PromptStatus.ANSWERED)
+    _add_entry(session, participant, diary, today, prompt=answered)
+
+    response = client.get(ACTIVITIES, headers=_device("activities-token"))
+
+    assert response.status_code == 200
+    by_id = {row["id"]: row for row in response.json()}
+    assert set(by_id) == {str(diary.id), str(closed.id)}
+    row = by_id[str(diary.id)]
+    assert row["title"] == "Diary"
+    assert row["instructions"] == "Record what happened."
+    assert row["entry_types"] == ["text", "scale"]
+    assert row["options"] == scale
+    assert row["capture_location"] is True
+    assert row["allow_free_entries"] is True
+    assert row["max_free_entries_per_day"] == 2
+    assert row["free_entries_used_today"] == 1
+    assert by_id[str(closed.id)]["allow_free_entries"] is False
+    assert by_id[str(closed.id)]["max_free_entries_per_day"] is None
+    assert by_id[str(closed.id)]["free_entries_used_today"] == 0
+
+
+def test_activities_are_only_for_a_participant_that_can_record(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    participant = _participant_with_token(session, make_participant, study, "withdrawn-token")
+    _add_activity(session, study, allow_free_entries=True)
+    participant.status = ParticipantStatus.WITHDRAWN
+    session.commit()
+
+    response = client.get(ACTIVITIES, headers=_device("withdrawn-token"))
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "participant_not_active"
 
 
 def test_get_me_returns_the_study_and_the_state(

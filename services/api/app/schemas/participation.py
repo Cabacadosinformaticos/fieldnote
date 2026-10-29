@@ -189,5 +189,19 @@ class OpenPromptsOut(BaseModel):
     prompts: list[OpenPromptOut]
 
 
+class FreeEntryActivityOut(BaseModel):
+    """An activity the app can present for a free entry (FR-13, FR-108)."""
+
+    id: uuid.UUID
+    title: str
+    instructions: str | None
+    entry_types: list[str]
+    options: dict[str, object] | None
+    capture_location: bool
+    allow_free_entries: bool
+    max_free_entries_per_day: int | None
+    free_entries_used_today: int
+
+
 class ErasureRequest(BaseModel):
     confirmation: str = Field(min_length=1, max_length=20)

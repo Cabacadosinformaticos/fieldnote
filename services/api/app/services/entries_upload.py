@@ -319,20 +319,16 @@ def _validate_location(payload: EntrySubmitRequest, activity: Activity) -> None:
         raise ApiError(422, "location_not_requested", "The activity does not request location.")
 
 
-def _check_free_entry(
+def free_entries_used_today(
     session: Session,
     participant: Participant,
     activity: Activity,
-    recorded_at: datetime,
-) -> None:
-    if not activity.allow_free_entries:
-        raise ApiError(403, "free_entries_not_allowed", "The activity does not allow free entries.")
-    if activity.max_free_entries_per_day is None:
-        return
-
+    at: datetime,
+) -> int:
+    """Free entries of this activity in the local day of ``at`` (FR-13)."""
     study = session.get(Study, participant.study_id)
     timezone = ZoneInfo(study.timezone if study is not None else "UTC")
-    local_day: date = recorded_at.astimezone(timezone).date()
+    local_day: date = at.astimezone(timezone).date()
     day_start = datetime.combine(local_day, time.min, tzinfo=timezone)
     day_end = day_start + timedelta(days=1)
     used = session.scalar(
@@ -346,7 +342,21 @@ def _check_free_entry(
             Entry.recorded_at < day_end,
         )
     )
-    if used is not None and used >= activity.max_free_entries_per_day:
+    return used or 0
+
+
+def _check_free_entry(
+    session: Session,
+    participant: Participant,
+    activity: Activity,
+    recorded_at: datetime,
+) -> None:
+    if not activity.allow_free_entries:
+        raise ApiError(403, "free_entries_not_allowed", "The activity does not allow free entries.")
+    if activity.max_free_entries_per_day is None:
+        return
+    used = free_entries_used_today(session, participant, activity, recorded_at)
+    if used >= activity.max_free_entries_per_day:
         raise ApiError(409, "free_entry_limit_reached", "The daily limit of free entries is used.")
 
 
