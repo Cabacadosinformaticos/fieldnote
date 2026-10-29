@@ -9,6 +9,11 @@ without creating a second one.
 Run with:
 
     uv run seed.py --admin-email <email> --admin-password-stdin
+
+Then, after the seed finishes, write the prompts of the past days directly to the development
+database so that the adherence charts have data (the API has no endpoint for a past prompt):
+
+    SEED_DATABASE_URL=postgresql://user:password@127.0.0.1:5432/fieldnote uv run seed.py history
 """
 
 from __future__ import annotations
@@ -26,14 +31,16 @@ import time as clock
 import uuid
 from collections import Counter
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta, timezone, tzinfo
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
+import psycopg
 from PIL import Image, ImageDraw
+from psycopg.rows import dict_row
 
 API_ROOT = "/api/v1"
 STUDY_TITLE = "Viver o Jardim da Estrela"
@@ -232,6 +239,13 @@ PHOTO_NOTES = (
 
 SCALE_WEIGHTS = (2, 8, 20, 35, 35)  # value 1..5, mostly the positive end
 
+# The scheduler plans 15-minute slots inside the activity window and the participant's
+# availability (scheduler.md). The history step writes prompts on the same grid.
+HISTORY_SLOT_MINUTES = 15
+HISTORY_ANSWER_LOOKBACK = 2  # an answered prompt is sent at most 30 minutes before the entry
+DATABASE_URL_VARIABLE = "SEED_DATABASE_URL"
+PARTICIPANT_STATUSES = ("active", "withdrawn", "removed")  # the states the researcher views count
+
 
 class SeedError(RuntimeError):
     """A step of the demonstration data could not be completed."""
@@ -378,7 +392,9 @@ class Api:
             raise ApiError(method, path, response.status_code, response.text)
         return self._checked(method, path, response)
 
-    def public(self, method: str, path: str, *, expected: tuple[int, ...] = (200,), **kwargs: Any) -> Any:
+    def public(
+        self, method: str, path: str, *, expected: tuple[int, ...] = (200,), **kwargs: Any
+    ) -> Any:
         response = self._raw(method, path, **kwargs)
         if response.status_code not in expected:
             raise ApiError(method, path, response.status_code, response.text)
@@ -585,6 +601,39 @@ class Participant:
     answers: list[dict[str, Any]]
     profile: float
     entries: int = 0
+
+
+@dataclass(frozen=True)
+class ActivityRule:
+    id: uuid.UUID
+    prompts_per_day: int
+    window_start: int
+    window_end: int
+    min_gap_minutes: int
+
+
+@dataclass(frozen=True)
+class AvailabilityWindow:
+    start_minute: int
+    end_minute: int
+    weekdays: frozenset[int]
+
+
+@dataclass(frozen=True)
+class EntryRow:
+    id: uuid.UUID
+    recorded_at: datetime
+
+
+@dataclass(frozen=True)
+class PlannedPrompt:
+    participant_id: uuid.UUID
+    activity: ActivityRule
+    plan_date: date
+    occurrence: int
+    slot: int
+    timezone: tzinfo
+    entry_id: uuid.UUID | None
 
 
 def _answers(rng: random.Random, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -801,7 +850,12 @@ def _garden_photo(rng: random.Random) -> bytes:
         pond_left = rng.randint(40, 300)
         pond_top = horizon + rng.randint(20, 80)
         draw.ellipse(
-            [pond_left, pond_top, pond_left + rng.randint(180, 320), pond_top + rng.randint(50, 100)],
+            [
+                pond_left,
+                pond_top,
+                pond_left + rng.randint(180, 320),
+                pond_top + rng.randint(50, 100),
+            ],
             fill=(rng.randint(90, 130), rng.randint(150, 185), rng.randint(190, 220)),
             outline=(70, 115, 150),
             width=3,
@@ -971,7 +1025,7 @@ def _submit_scale(
             "id": str(uuid.uuid4()),
             "activity_id": activity_id,
             "entry_type": "scale",
-            "content_sha256": _sha256(f"scale:{value}".encode("utf-8")),
+            "content_sha256": _sha256(f"scale:{value}".encode()),
             "recorded_at": recorded_at.isoformat(),
             "value": value,
             "scale_shown": shown,
@@ -1115,18 +1169,399 @@ def _print_summary(
     print(f"  Dashboard: {dashboard_url}")
 
 
+@dataclass
+class HistoryContext:
+    study_id: uuid.UUID
+    timezone_name: str
+    max_prompts_per_day: int
+    first_day: date
+    last_day: date
+    participants: list[uuid.UUID]
+    activities: list[ActivityRule]
+    availability: dict[uuid.UUID, list[AvailabilityWindow]]
+    any_time: dict[uuid.UUID, bool]
+    entries: dict[tuple[uuid.UUID, date, uuid.UUID], list[EntryRow]]
+    existing: set[tuple[uuid.UUID, uuid.UUID, date, int]]
+
+
+def _time_minutes(value: time) -> int:
+    return value.hour * 60 + value.minute
+
+
+def _study_timezone(name: str, day: date) -> tzinfo:
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        if name == TIMEZONE:
+            return _lisbon_tz(day)
+        return UTC
+
+
+def _database_url() -> str:
+    value = os.environ.get(DATABASE_URL_VARIABLE, "").strip()
+    if not value:
+        raise SeedError(
+            f"Set {DATABASE_URL_VARIABLE}, for example "
+            "postgresql://fieldnote:fieldnote@127.0.0.1:5432/fieldnote"
+        )
+    if value.startswith("postgresql+psycopg://"):
+        value = "postgresql://" + value.removeprefix("postgresql+psycopg://")
+    parts = urlsplit(value)
+    if parts.hostname != "127.0.0.1" or parts.port != 5432:
+        raise SeedError(
+            f"{DATABASE_URL_VARIABLE} must point at the development database on "
+            "127.0.0.1:5432, never at another host."
+        )
+    return value
+
+
+def _database_label(url: str) -> str:
+    parts = urlsplit(url)
+    return f"{parts.hostname}:{parts.port}{parts.path}"
+
+
+def _load_history(connection: psycopg.Connection) -> HistoryContext:
+    study = connection.execute(
+        "SELECT id, starts_on, ends_on, timezone, max_prompts_per_day FROM study "
+        "WHERE title = %s ORDER BY starts_on, id LIMIT 1",
+        (STUDY_TITLE,),
+    ).fetchone()
+    if study is None:
+        raise SeedError(f"The study {STUDY_TITLE!r} was not found: run the seed step first.")
+    if study["starts_on"] is None or study["ends_on"] is None:
+        raise SeedError("The study has no start and end dates yet.")
+
+    timezone_name = study["timezone"]
+    today = datetime.now(UTC).astimezone(_study_timezone(timezone_name, study["ends_on"])).date()
+    last_day = min(study["ends_on"], today - timedelta(days=1))
+    first_day = study["starts_on"]
+    if last_day < first_day:
+        raise SeedError("The study has no past day to fill yet: run the history step tomorrow.")
+
+    participants = connection.execute(
+        "SELECT id, availability_any_time FROM participant "
+        "WHERE study_id = %s AND status::text = ANY(%s) "
+        "ORDER BY alias, id",
+        (study["id"], list(PARTICIPANT_STATUSES)),
+    ).fetchall()
+    participant_ids = [participant["id"] for participant in participants]
+    any_time = {
+        participant["id"]: participant["availability_any_time"] for participant in participants
+    }
+
+    activity_rows = connection.execute(
+        "SELECT id, prompts_per_day, window_start, window_end, min_gap_minutes "
+        "FROM activity WHERE study_id = %s ORDER BY id",
+        (study["id"],),
+    ).fetchall()
+    activities = [
+        ActivityRule(
+            id=row["id"],
+            prompts_per_day=row["prompts_per_day"],
+            window_start=_time_minutes(row["window_start"]),
+            window_end=_time_minutes(row["window_end"]),
+            min_gap_minutes=row["min_gap_minutes"],
+        )
+        for row in activity_rows
+    ]
+
+    availability: dict[uuid.UUID, list[AvailabilityWindow]] = {}
+    for row in connection.execute(
+        "SELECT participant_id, start_time, end_time, weekdays FROM availability "
+        "WHERE participant_id = ANY(%s) ORDER BY participant_id, start_time",
+        (participant_ids,),
+    ):
+        availability.setdefault(row["participant_id"], []).append(
+            AvailabilityWindow(
+                start_minute=_time_minutes(row["start_time"]),
+                end_minute=_time_minutes(row["end_time"]),
+                weekdays=frozenset(row["weekdays"]),
+            )
+        )
+
+    start_bound = datetime.combine(
+        first_day, time.min, tzinfo=_study_timezone(timezone_name, first_day)
+    ).astimezone(UTC)
+    end_bound = datetime.combine(
+        last_day + timedelta(days=1),
+        time.min,
+        tzinfo=_study_timezone(timezone_name, last_day + timedelta(days=1)),
+    ).astimezone(UTC)
+    entries: dict[tuple[uuid.UUID, date, uuid.UUID], list[EntryRow]] = {}
+    for row in connection.execute(
+        "SELECT id, participant_id, activity_id, recorded_at FROM entry "
+        "WHERE participant_id = ANY(%s) AND prompt_id IS NULL AND activity_id IS NOT NULL "
+        "AND recorded_at >= %s AND recorded_at < %s ORDER BY recorded_at, id",
+        (participant_ids, start_bound, end_bound),
+    ):
+        zone = _study_timezone(timezone_name, row["recorded_at"].astimezone(UTC).date())
+        local_date = row["recorded_at"].astimezone(zone).date()
+        entries.setdefault((row["participant_id"], local_date, row["activity_id"]), []).append(
+            EntryRow(id=row["id"], recorded_at=row["recorded_at"])
+        )
+
+    existing = {
+        (row["participant_id"], row["activity_id"], row["plan_date"], row["occurrence"])
+        for row in connection.execute(
+            "SELECT participant_id, activity_id, plan_date, occurrence FROM prompt "
+            "WHERE participant_id = ANY(%s)",
+            (participant_ids,),
+        )
+    }
+
+    return HistoryContext(
+        study_id=study["id"],
+        timezone_name=timezone_name,
+        max_prompts_per_day=study["max_prompts_per_day"],
+        first_day=first_day,
+        last_day=last_day,
+        participants=participant_ids,
+        activities=activities,
+        availability=availability,
+        any_time=any_time,
+        entries=entries,
+        existing=existing,
+    )
+
+
+def _slot_domain(
+    activity: ActivityRule,
+    windows: list[AvailabilityWindow],
+    any_time: bool,
+    weekday: int,
+) -> list[int]:
+    first = (activity.window_start + HISTORY_SLOT_MINUTES - 1) // HISTORY_SLOT_MINUTES
+    last = (activity.window_end - 1) // HISTORY_SLOT_MINUTES
+    if last < first:
+        return []
+    spans = (
+        [(0, 24 * 60)]
+        if any_time
+        else [
+            (window.start_minute, window.end_minute)
+            for window in windows
+            if weekday in window.weekdays
+        ]
+    )
+    slots: set[int] = set()
+    for start, end in spans:
+        low = max(first, (start + HISTORY_SLOT_MINUTES - 1) // HISTORY_SLOT_MINUTES)
+        high = min(last, (end - 1) // HISTORY_SLOT_MINUTES)
+        if high >= low:
+            slots.update(range(low, high + 1))
+    return sorted(slots)
+
+
+def _slot_fits(slot: int, activity: ActivityRule, used: list[tuple[int, int]]) -> bool:
+    return all(
+        abs(slot - other) * HISTORY_SLOT_MINUTES >= max(activity.min_gap_minutes, gap)
+        for other, gap in used
+    )
+
+
+def _entry_slot(recorded_at: datetime, zone: tzinfo) -> int:
+    local = recorded_at.astimezone(zone)
+    return (local.hour * 60 + local.minute) // HISTORY_SLOT_MINUTES
+
+
+def _plan_participant_day(
+    context: HistoryContext,
+    participant_id: uuid.UUID,
+    day: date,
+    entries_by_activity: dict[uuid.UUID, EntryRow],
+    rng: random.Random,
+) -> list[PlannedPrompt]:
+    zone = _study_timezone(context.timezone_name, day)
+    domains = {
+        activity.id: _slot_domain(
+            activity,
+            context.availability.get(participant_id, []),
+            context.any_time.get(participant_id, False),
+            day.isoweekday(),
+        )
+        for activity in context.activities
+    }
+
+    # Answered prompts are placed first, so an entry always gets the slot closest to it and a
+    # missing answer can only take what is left.
+    items: list[tuple[int, str, int, ActivityRule, EntryRow | None]] = []
+    for activity in context.activities:
+        entry = entries_by_activity.get(activity.id)
+        for occurrence in range(activity.prompts_per_day):
+            answer = entry if occurrence == 0 else None
+            priority = 0 if answer is not None else 1
+            items.append((priority, str(activity.id), occurrence, activity, answer))
+    items.sort(key=lambda item: (item[0], item[1], item[2]))
+
+    used: list[tuple[int, int]] = []
+    plans: list[PlannedPrompt] = []
+    for _priority, _key, occurrence, activity, entry in items:
+        if len(plans) >= context.max_prompts_per_day:
+            break
+        domain = domains[activity.id]
+        if not domain:
+            continue
+        pool = domain
+        if entry is not None:
+            entry_slot = _entry_slot(entry.recorded_at, zone)
+            near = [slot for slot in domain if 0 <= entry_slot - slot <= HISTORY_ANSWER_LOOKBACK]
+            pool = near or [slot for slot in domain if slot <= entry_slot]
+            if not pool:
+                entry = None
+                pool = domain
+        fitting = [slot for slot in pool if _slot_fits(slot, activity, used)]
+        slot = rng.choice(fitting or pool)
+        used.append((slot, activity.min_gap_minutes))
+        plans.append(
+            PlannedPrompt(
+                participant_id=participant_id,
+                activity=activity,
+                plan_date=day,
+                occurrence=occurrence,
+                slot=slot,
+                timezone=zone,
+                entry_id=entry.id if entry is not None else None,
+            )
+        )
+    return plans
+
+
+def _write_history(connection: psycopg.Connection, seed: int) -> None:
+    context = _load_history(connection)
+    plans: list[PlannedPrompt] = []
+    for participant_id in context.participants:
+        day = context.first_day
+        while day <= context.last_day:
+            entries_by_activity: dict[uuid.UUID, EntryRow] = {}
+            for activity in context.activities:
+                rows = context.entries.get((participant_id, day, activity.id))
+                if rows:
+                    entries_by_activity[activity.id] = rows[0]
+            rng = random.Random(f"{seed}-history-{participant_id}-{day.isoformat()}")
+            plans.extend(
+                _plan_participant_day(context, participant_id, day, entries_by_activity, rng)
+            )
+            day += timedelta(days=1)
+
+    inserted_answered = 0
+    inserted_expired = 0
+    already_present = 0
+    linked = 0
+    for plan in plans:
+        key = (plan.participant_id, plan.activity.id, plan.plan_date, plan.occurrence)
+        if key in context.existing:
+            already_present += 1
+            continue
+        scheduled_at = datetime.combine(
+            plan.plan_date,
+            time(plan.slot * HISTORY_SLOT_MINUTES // 60, plan.slot * HISTORY_SLOT_MINUTES % 60),
+            tzinfo=plan.timezone,
+        )
+        answered = plan.entry_id is not None
+        prompt_id = uuid.uuid4()
+        inserted = connection.execute(
+            """
+            INSERT INTO prompt
+                (id, activity_id, participant_id, plan_date, occurrence,
+                 scheduled_at, sent_at, shown_at, opened_at, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::prompt_status)
+            ON CONFLICT (participant_id, activity_id, plan_date, occurrence) DO NOTHING
+            RETURNING id
+            """,
+            (
+                prompt_id,
+                plan.activity.id,
+                plan.participant_id,
+                plan.plan_date,
+                plan.occurrence,
+                scheduled_at,
+                scheduled_at,
+                scheduled_at + timedelta(seconds=15),
+                scheduled_at + timedelta(seconds=30) if answered else None,
+                "answered" if answered else "expired",
+            ),
+        ).fetchone()
+        if inserted is None:
+            already_present += 1
+            continue
+        if answered:
+            inserted_answered += 1
+            linked += connection.execute(
+                "UPDATE entry SET prompt_id = %s WHERE id = %s AND prompt_id IS NULL",
+                (prompt_id, plan.entry_id),
+            ).rowcount
+        else:
+            inserted_expired += 1
+
+    start_bound = datetime.combine(
+        context.first_day,
+        time.min,
+        tzinfo=_study_timezone(context.timezone_name, context.first_day),
+    ).astimezone(UTC)
+    end_bound = datetime.combine(
+        context.last_day + timedelta(days=1),
+        time.min,
+        tzinfo=_study_timezone(context.timezone_name, context.last_day + timedelta(days=1)),
+    ).astimezone(UTC)
+    still_free = connection.execute(
+        "SELECT count(*) AS count FROM entry "
+        "WHERE participant_id = ANY(%s) AND prompt_id IS NULL AND activity_id IS NOT NULL "
+        "AND recorded_at >= %s AND recorded_at < %s",
+        (context.participants, start_bound, end_bound),
+    ).fetchone()["count"]
+
+    days = (context.last_day - context.first_day).days + 1
+    print(f"History step: {days} past days, {len(context.participants)} participants")
+    print(
+        f"  prompts inserted: {inserted_answered + inserted_expired} "
+        f"({inserted_answered} answered, {inserted_expired} expired)"
+    )
+    print(f"  prompts already present: {already_present}")
+    print(f"  entries linked to a prompt: {linked}")
+    print(f"  past entries still free: {still_free}")
+
+
+def _run_history(seed: int) -> int:
+    url = _database_url()
+    label = _database_label(url)
+    print(f"Writing past prompts directly to the development database at {label}")
+    try:
+        with psycopg.connect(url, connect_timeout=5, row_factory=dict_row) as connection:
+            _write_history(connection, seed)
+    except psycopg.Error as exc:
+        raise SeedError(f"Cannot write to the database at {label}: {exc}") from exc
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fill a running Fieldnote stack with the demonstration study."
     )
+    parser.add_argument(
+        "step",
+        nargs="?",
+        choices=("seed", "history"),
+        default="seed",
+        help="seed (default) fills the stack through the API; history writes past prompts "
+        "directly to the development database",
+    )
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--admin-email", required=True)
+    parser.add_argument("--admin-email")
     parser.add_argument("--admin-password-stdin", action="store_true")
     parser.add_argument("--days", type=int, default=14)
     parser.add_argument("--participants", type=int, default=22)
     parser.add_argument("--seed", type=int, default=20261006)
     arguments = parser.parse_args(argv)
 
+    if arguments.step == "history":
+        try:
+            return _run_history(arguments.seed)
+        except SeedError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+
+    if not arguments.admin_email:
+        parser.error("--admin-email is required for the seed step")
     if arguments.days < 1:
         parser.error("--days must be at least 1")
     if arguments.participants < 4:
@@ -1176,7 +1611,9 @@ def main(argv: list[str] | None = None) -> int:
             created.append((record, record["invite_code"]["code"], index))
 
         print(f"Joining {joined_count} participants as phones")
-        joined = _join_participants(api, created[:joined_count], questions, random.Random(arguments.seed))
+        joined = _join_participants(
+            api, created[:joined_count], questions, random.Random(arguments.seed)
+        )
         rng = random.Random(arguments.seed + 1)
         _declined_participant(api, study_id, questions, rng, ends_on)
 

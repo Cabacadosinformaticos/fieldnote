@@ -1,9 +1,12 @@
 # Demonstration data
 
-Fills a running Fieldnote stack with the study shown in the mockups, **through the public
-API only**. The script creates the researchers, the study, its activities and questions, 22
-participants with their availability and the entries of the last two weeks, including generated
-garden photos uploaded through signed URLs.
+Fills a running Fieldnote stack with the study shown in the mockups. The `seed` step creates
+the researchers, the study, its activities and questions, 22 participants with their
+availability and the entries of the last two weeks, including generated garden photos uploaded
+through signed URLs, **through the public API only**. The optional `history` step then writes
+past prompts **directly into the development database**, because the API has no endpoint to
+create a prompt in the past; it makes the adherence charts show data instead of an empty
+matrix.
 
 All the data is invented. There is no real person behind the names, e-mail addresses, answers
 or photographs. The photos are drawn locally (sky, trees, a bench, a pond, flowers) with no
@@ -13,10 +16,17 @@ people and no text.
 
 - The development stack running (see `infra/deploy/README.md`), with the API reachable at
   `http://127.0.0.1:8080`. Use `127.0.0.1`, never `localhost`.
-- `uv` on `PATH`. The project only depends on `httpx` and `Pillow`.
-- `docker compose` on `PATH`. The administrator has TOTP enabled, so the script derives the
-  current code by running the API's own `app.security.totp` helper inside the `api` container,
-  exactly like `infra/deploy/smoke.sh`. It never reads or writes the database itself.
+- `uv` on `PATH`. The project depends on `httpx`, `Pillow` and `psycopg` (the last one only
+  for the `history` step).
+- `docker compose` on `PATH`. The administrator has TOTP enabled, so the `seed` step derives
+  the current code by running the API's own `app.security.totp` helper inside the `api`
+  container, exactly like `infra/deploy/smoke.sh`. The `seed` step never reads or writes the
+  database itself; only the explicit `history` step does.
+- For `history`, the development PostgreSQL reachable at `127.0.0.1:5432`. Set
+  `SEED_DATABASE_URL` to its psycopg URL, for example
+  `postgresql://fieldnote:fieldnote@127.0.0.1:5432/fieldnote` (the safe development value in
+  `services/api/app/config.py`). The variable is read from the environment only; the script
+  never reads `.env` files. The step refuses any host other than `127.0.0.1:5432`.
 
 ## Create the administrator once
 
@@ -46,6 +56,18 @@ the script prints the study, the team, the participant and entry counts and the 
 passwords of the researcher accounts. Those passwords are only returned by the API once, when
 the accounts are created; a later run reports them as unchanged.
 
+Then write the prompts of the past study days and link the entries to them:
+
+```bash
+cd tools/demo-data
+SEED_DATABASE_URL='postgresql://fieldnote:fieldnote@127.0.0.1:5432/fieldnote' \
+  uv run seed.py history
+```
+
+This is the only step that writes to the database directly, and it is meant for demo data only:
+it inserts `prompt` rows and sets `entry.prompt_id` in the development database. It never runs
+against another host, never changes the API data and does not touch migrations.
+
 Open the dashboard at `http://127.0.0.1:5173` (override with `FIELDNOTE_DASHBOARD_URL`) and sign
 in as `ines.marques@fieldnote.test`.
 
@@ -53,12 +75,15 @@ in as `ines.marques@fieldnote.test`.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
+| `step` | `seed` | `seed` fills the stack through the API; `history` writes past prompts directly to the database |
 | `--base-url` | `http://127.0.0.1:8080` | API through the gateway |
-| `--admin-email` | required | Administrator that owns the setup calls |
+| `--admin-email` | required for `seed` | Administrator that owns the setup calls |
 | `--admin-password-stdin` | off | Read the administrator password from standard input |
 | `--days` | `14` | Days of entries, ending today |
 | `--participants` | `22` | Participants in the study (at least 4) |
-| `--seed` | `20261006` | Seed for the generated data |
+| `--seed` | `20261006` | Seed for the generated data and the prompt times of `history` |
+
+`history` also reads `SEED_DATABASE_URL` from the environment as described above.
 
 ## What is created
 
@@ -79,21 +104,32 @@ in as `ines.marques@fieldnote.test`.
   only) and entries whose recorded time falls inside it. Most participants answer almost
   everything; two answer much less. Photos go through `POST /media/upload-url` and a signed
   `PUT`, then the script waits until the media worker reports every file as `processed`.
+- **Past prompts** (`history`): for each participant and each past study day, one prompt per
+  activity occurrence on the scheduler's 15-minute grid, inside the participant's availability
+  and the activity window, respecting the minimum gap and the study's daily cap. A prompt whose
+  activity has a seeded entry on that day is `answered`, sent at most 30 minutes before the
+  entry, and the entry is linked to it with `entry.prompt_id`. The other prompts are `expired`
+  with no entry, which gives an adherence around 80 %. Prompts already present are skipped.
 
 ## Idempotency and dates
 
-The script finds an existing study by its exact title and stops without creating anything, so
+The seed step finds an existing study by its exact title and stops without creating anything, so
 running it twice never duplicates the study or its data. Researcher accounts are reused when
 their e-mail already exists.
 
+The `history` step is idempotent too: prompts use the
+`(participant_id, activity_id, plan_date, occurrence)` key with `ON CONFLICT DO NOTHING`, and it
+only links entries whose `prompt_id` is still null. A second run reports zero inserts and zero
+links and leaves the adherence numbers unchanged.
+
 The dates are relative to the day of the run so that the dashboard always shows recent data.
-The mockups show 6–19 October; run with `--days 14` on those dates to reproduce them.
+The mockups show 6–19 October; run with `--days 14` on those dates to reproduce them. The
+scheduler still plans today and tomorrow; `history` only fills the days before today.
 
-## Known limitation
+## Prompt timestamps
 
-The scheduler only plans prompts for today and tomorrow and the public API has no way to create
-a prompt in the past. The demonstration entries are therefore **free entries** (`prompt_id`
-absent) submitted with the historical `recorded_at`. The entry list and the timeline show them
-on the right day and time; the prompt adherence matrix only counts the prompts the scheduler
-creates while the stack is running, not these historical entries. The activities allow free
-entries for this reason.
+`prompt` stores `scheduled_at`, `sent_at`, `shown_at` and `opened_at`, but no answered or expired
+timestamp. For an answered prompt the answer time is the linked `entry.recorded_at`; for an
+expired prompt the end of the activity window on `plan_date` is when it expired. The `history`
+step leaves `opened_at` null on expired prompts (they were not opened) and sets it a few seconds
+after `sent_at` on answered ones.

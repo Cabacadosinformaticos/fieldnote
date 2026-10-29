@@ -1,11 +1,12 @@
 [project]
 name = "fieldnote-demo-data"
 version = "0.1.0"
-description = "Fill a running Fieldnote stack with the demonstration study through the public API"
+description = "Fill a running Fieldnote stack with the demonstration study"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
     "pillow>=11.3.0",
+    "psycopg[binary]>=3.3.6",
 ]
 
 [tool.ruff]
@@ -14,3 +15,8 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.3",
+]
