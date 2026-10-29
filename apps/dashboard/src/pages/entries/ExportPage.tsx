@@ -8,6 +8,7 @@ import {
   useStudyPermissions,
   type EntryOut,
 } from '../../api/entries'
+import { useStudyOverview } from '../../api/studies'
 import {
   LayersIcon,
   MapPinIcon,
@@ -109,7 +110,8 @@ export default function ExportPage() {
   const permissions = useStudyPermissions(studyId)
   const studyQuery = useStudy(studyId)
   const timeZone = studyQuery.data?.timezone ?? 'Europe/Lisbon'
-  const entriesQuery = useEntries(studyId, { limit: 200 })
+  const overviewQuery = useStudyOverview(studyId)
+  const entriesQuery = useEntries(studyId, { limit: 4 })
   const entries = entriesQuery.data?.items ?? []
   const preview = entries.slice(0, 4)
 
@@ -123,9 +125,8 @@ export default function ExportPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [exportError, setExportError] = useState<unknown>(null)
 
-  const count = entries.length
-  const capped = Boolean(entriesQuery.data?.next_cursor)
-  const countLabel = capped ? `${count}+` : String(count)
+  const total = overviewQuery.data?.entries.total
+  const countLabel = total === undefined ? '–' : String(total)
   const range =
     studyQuery.data?.starts_on && studyQuery.data.ends_on
       ? formatRange(studyQuery.data.starts_on, studyQuery.data.ends_on)
@@ -306,7 +307,9 @@ export default function ExportPage() {
                 onRetry={() => void entriesQuery.refetch()}
               />
             ) : null}
-            <p className="sub">{t('export.preview.note')}</p>
+            <p className="sub">
+              {t('export.preview.note', { shown: preview.length, total: countLabel })}
+            </p>
           </section>
 
           <section
@@ -476,7 +479,13 @@ export default function ExportPage() {
           <button
             type="button"
             className="btn btn-dk en-export-button"
-            disabled={busy || entriesQuery.isLoading || entriesQuery.isError}
+            disabled={
+              busy ||
+              overviewQuery.isLoading ||
+              overviewQuery.isError ||
+              entriesQuery.isLoading ||
+              entriesQuery.isError
+            }
             onClick={() => void runExport()}
           >
             <ExportIcon width={20} height={20} />

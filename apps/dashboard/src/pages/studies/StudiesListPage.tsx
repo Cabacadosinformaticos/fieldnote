@@ -6,7 +6,7 @@ import {
   studiesErrorMessage,
   useStudies,
   useStudyCard,
-  type Study,
+  type StudyListItem,
   type StudyMetricKind,
   type StudyStatus,
 } from '../../api/studies'
@@ -28,7 +28,7 @@ const metricLabel: Record<StudyMetricKind, StudiesKey> = {
   activities: 'list.metric.activities',
 }
 
-function StudyCard({ study }: { study: Study }) {
+function StudyCard({ study }: { study: StudyListItem }) {
   const summary = useStudyCard(study)
 
   return (

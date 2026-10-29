@@ -7,12 +7,7 @@ import {
   type Activity,
   type CaptureType,
 } from '../../api/activities'
-import {
-  studiesErrorMessage,
-  useEntries,
-  useStudy,
-  useStudyRole,
-} from '../../api/studies'
+import { studiesErrorMessage, useStudy, useStudyRole } from '../../api/studies'
 import { t, type ActivitiesKey } from '../../i18n/activities'
 import '../../styles/activities.css'
 
@@ -46,11 +41,9 @@ export default function ActivitiesListPage() {
   const basePath = `/estudos/${studyId}/atividades`
   const studyQuery = useStudy(studyId)
   const activitiesQuery = useActivities(studyId)
-  const entriesQuery = useEntries(studyId, studyQuery.data)
   const access = useStudyRole(studyId)
   const study = studyQuery.data
   const activities = activitiesQuery.data ?? []
-  const entries = entriesQuery.data?.items ?? []
   const maxRequestsPerDay = study?.max_prompts_per_day ?? 0
   const requestsPerDay = activities.reduce(
     (total, activity) => total + activity.prompts_per_day,
@@ -62,7 +55,7 @@ export default function ActivitiesListPage() {
   )
   const breakdown = activities.map((activity) => activity.prompts_per_day).join(' + ')
   const loading = studyQuery.isLoading || activitiesQuery.isLoading
-  const error = studyQuery.error ?? activitiesQuery.error ?? entriesQuery.error ?? null
+  const error = studyQuery.error ?? activitiesQuery.error ?? null
   const canDesign = access.canDesign
 
   return (
@@ -177,9 +170,6 @@ export default function ActivitiesListPage() {
       <section className="ac-activity-list" aria-label={t('list.title')}>
         {activities.map((activity, index) => {
           const types = activity.entry_types.filter(isCaptureType)
-          const freeCount = entries.filter(
-            (entry) => entry.activity_id === activity.id && entry.prompt_id === null,
-          ).length
 
           return (
             <article className="card ac-activity-card" key={activity.id}>
@@ -257,16 +247,9 @@ export default function ActivitiesListPage() {
                 <div className="ac-detail">
                   <dt>{t('list.details.free')}</dt>
                   <dd>
-                    {activity.allow_free_entries ? (
-                      <>
-                        {t('list.freeYes', { max: activity.max_free_entries_per_day ?? 0 })}
-                        <span className="ac-detail-note">
-                          {t('list.freeCount', { count: freeCount })}
-                        </span>
-                      </>
-                    ) : (
-                      t('list.freeNo')
-                    )}
+                    {activity.allow_free_entries
+                      ? t('list.freeYes', { max: activity.max_free_entries_per_day ?? 0 })
+                      : t('list.freeNo')}
                   </dd>
                 </div>
               </dl>

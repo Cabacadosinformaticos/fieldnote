@@ -6,6 +6,7 @@ import { client } from './client'
 import type { components } from './schema'
 
 export type Study = components['schemas']['StudyOut']
+export type StudyListItem = components['schemas']['StudyListItemOut']
 export type StudyMember = components['schemas']['StudyMemberOut']
 export type StudyRole = components['schemas']['StudyRole']
 export type StudyStatusApi = components['schemas']['StudyStatus']
@@ -306,22 +307,6 @@ async function fetchTimeline(studyId: string, start: string, end: string): Promi
   throw toApiError(error, response)
 }
 
-async function fetchEntries(
-  studyId: string,
-  dateFrom: string | null | undefined,
-): Promise<components['schemas']['EntryListResponse']> {
-  const { data, error, response } = await client.GET('/studies/{study_id}/entries', {
-    params: {
-      path: { study_id: studyId },
-      query: { limit: 200, ...(dateFrom ? { date_from: dateFrom } : {}) },
-    },
-  })
-  if (data) {
-    return data
-  }
-  throw toApiError(error, response)
-}
-
 export function useStudies() {
   return useQuery({
     queryKey: studyKeys.list(),
@@ -335,24 +320,15 @@ export function useStudies() {
   })
 }
 
-export function useStudyCard(study: Study): StudySummary {
+export function useStudyCard(study: StudyListItem): StudySummary {
   const { user } = useAuth()
-  const participants = useParticipants(study.id)
   const members = useStudyMembers(study.id)
-  const entries = useEntries(study.id, study)
   const activities = useActivities(study.id)
   const member = members.data?.find((item) => item.user_id === user?.id)
   const role: StudyRole | null =
     user?.role === 'admin' ? 'principal_investigator' : (member?.role ?? null)
-  const timezone = study.timezone
-  const today = todayInTimezone(timezone)
-  const participantRows = participants.data ?? []
-  const entryRows = entries.data?.items ?? []
   const activityRows = activities.data ?? []
-  const todayEntries = entryRows.filter(
-    (entry) => dateInTimezone(entry.recorded_at, timezone) === today,
-  )
-  const loading = participants.isLoading || entries.isLoading || activities.isLoading
+  const loading = activities.isLoading
 
   return {
     id: study.id,
@@ -368,17 +344,13 @@ export function useStudyCard(study: Study): StudySummary {
     metrics: [
       {
         kind: 'participants',
-        value: loading ? '…' : String(participantRows.length),
-        note: loading
-          ? ''
-          : t('list.metric.participantsNote', {
-              active: participantRows.filter((item) => item.status === 'active').length,
-            }),
+        value: String(study.participant_count),
+        note: '',
       },
       {
         kind: 'entries',
-        value: loading ? '…' : String(entryRows.length),
-        note: loading ? '' : t('list.metric.entriesNote', { today: todayEntries.length }),
+        value: String(study.entry_count),
+        note: '',
       },
       {
         kind: 'activities',
@@ -438,14 +410,6 @@ export function useTimeline(studyId: string | undefined, study: Study | undefine
   return useQuery({
     queryKey: studyKeys.timeline(studyId ?? '', start, end),
     queryFn: () => fetchTimeline(studyId as string, start, end),
-    enabled: Boolean(studyId && study),
-  })
-}
-
-export function useEntries(studyId: string | undefined, study: Study | undefined) {
-  return useQuery({
-    queryKey: studyKeys.entries(studyId ?? ''),
-    queryFn: () => fetchEntries(studyId as string, study?.starts_on),
     enabled: Boolean(studyId && study),
   })
 }

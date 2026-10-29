@@ -535,6 +535,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/participation/me/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Free Entry Activities */
+        get: operations["list_free_entry_activities_api_v1_participation_me_activities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/participation/me/approval": {
         parameters: {
             query?: never;
@@ -2043,6 +2060,35 @@ export interface components {
             status: components["schemas"]["ParticipantStatus"];
         };
         /**
+         * FreeEntryActivityOut
+         * @description An activity the app can present for a free entry (FR-13, FR-108).
+         */
+        FreeEntryActivityOut: {
+            /** Allow Free Entries */
+            allow_free_entries: boolean;
+            /** Capture Location */
+            capture_location: boolean;
+            /** Entry Types */
+            entry_types: string[];
+            /** Free Entries Used Today */
+            free_entries_used_today: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Instructions */
+            instructions: string | null;
+            /** Max Free Entries Per Day */
+            max_free_entries_per_day: number | null;
+            /** Options */
+            options: {
+                [key: string]: unknown;
+            } | null;
+            /** Title */
+            title: string;
+        };
+        /**
          * Gender
          * @enum {string}
          */
@@ -2954,6 +3000,37 @@ export interface components {
             schedule_style: components["schemas"]["ScheduleStyle"];
             /** Starts On */
             starts_on?: string | null;
+            /** Timezone */
+            timezone: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * StudyListItemOut
+         * @description A study on the dashboard list, with the counts the cards show.
+         */
+        StudyListItemOut: {
+            /** Description */
+            description: string | null;
+            /** Ends On */
+            ends_on: string | null;
+            /** Entry Count */
+            entry_count: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Max Prompts Per Day */
+            max_prompts_per_day: number;
+            /** Max Prompts Per Slot */
+            max_prompts_per_slot: number;
+            /** Participant Count */
+            participant_count: number;
+            schedule_style: components["schemas"]["ScheduleStyle"];
+            /** Starts On */
+            starts_on: string | null;
+            status: components["schemas"]["StudyStatus"];
             /** Timezone */
             timezone: string;
             /** Title */
@@ -4255,6 +4332,37 @@ export interface operations {
             };
         };
     };
+    list_free_entry_activities_api_v1_participation_me_activities_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FreeEntryActivityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approval_status_api_v1_participation_me_approval_get: {
         parameters: {
             query?: never;
@@ -4821,7 +4929,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StudyOut"][];
+                    "application/json": components["schemas"]["StudyListItemOut"][];
                 };
             };
         };
