@@ -2,8 +2,8 @@
 
 Single-node development stack run with Docker Compose: Traefik, PostgreSQL,
 RabbitMQ, Garage, Mailpit, the API, the outbox relay, the media worker, the
-erasure job, the scheduler, Prometheus and Grafana. Every service is in the
-`dev` profile.
+erasure job, the scheduler, the backup job, Prometheus and Grafana. Every
+service is in the `dev` profile.
 
 ## Start
 
@@ -40,12 +40,56 @@ read/write access. It is idempotent, so restarting the stack is safe.
 
 ## Background services
 
-Both services run after `migrate` and are restarted by Docker if they exit.
+These services run after `migrate` and are restarted by Docker if they exit.
 
 | Service | What it does |
 |---|---|
 | `erasure-job` | runs `python -m app.erasure_job` every `ERASURE_JOB_INTERVAL_SECONDS` (default 300) to settle the erasures that are due |
 | `scheduler` | runs `python -m scheduler.main`, which loops and holds the scheduler lease |
+| `backup` | runs `python -m backup run` once at start and then every `BACKUP_INTERVAL_SECONDS` (default 86400) |
+
+## Backups
+
+`backup` writes one encrypted archive per run to the `backups` Garage bucket.
+The archive contains a `pg_dump -Fc` of the database and a copy of every object
+in the `media` bucket, packed in a tar stream and encrypted with AES-256-GCM in
+1 MiB chunks with a random nonce per chunk. Archives older than
+`BACKUP_RETENTION_DAYS` (default and maximum 7) are removed after each run.
+
+The encryption key is 32 random bytes kept outside the stack. Compose mounts it
+read-only as the `backup_key` secret at `/run/secrets/backup.key`; it never
+enters the image or `.env`. Generate it once and keep a copy somewhere else,
+because an archive cannot be read without it:
+
+```sh
+head -c 32 /dev/urandom > infra/deploy/secrets/backup.key
+```
+
+`infra/deploy/secrets/` and `*.key` are gitignored (`git status --ignored
+infra/deploy/secrets` shows `!!`).
+
+Participants whose erasure is pending (`erasure_scheduled`) are left out of the
+dump together with their dependent rows, and their objects under
+`entries/<participant id>/` are skipped. This keeps NFR-13 intact: restoring a
+backup never brings back data that was on its way to erasure, and the 7-day
+retention is never longer than the 7-day erasure window.
+
+On-demand run and inspection:
+
+```sh
+docker compose -f infra/deploy/compose.yaml exec -T backup python -m backup run
+docker compose -f infra/deploy/compose.yaml exec -T backup python -m backup stats
+docker compose -f infra/deploy/compose.yaml exec -T backup \
+  python -m backup download <archive-name> archive.fnb
+docker compose -f infra/deploy/compose.yaml cp backup:/app/archive.fnb ./archive.fnb
+```
+
+`python -m backup restore <archive>` restores into an **empty** database: it
+runs `pg_restore --no-owner --no-acl --exit-on-error`, uploads the bucket
+objects with their content types and prints the entry, media-record and
+bucket-object counts. Point `FIELDNOTE_DATABASE_URL` and the S3 variables at
+the target stack; `infra/chaos/fs9-restore-backup.sh` does exactly that against
+a clean throwaway PostgreSQL and Garage and checks the counts.
 
 ## Monitoring
 
@@ -118,7 +162,8 @@ and the Garage admin API are reachable only inside the project network.
 
 Prometheus and Grafana run on node 3 only and are not replicated. Losing them
 hides the metrics during a demonstration but does not affect the service. The
-scheduler runs two replicas, on nodes 1 and 2; the erasure job runs on node 1.
+scheduler runs two replicas, on nodes 1 and 2; the erasure job and the single
+`backup1` replica run on node 1.
 
 ### Memory use
 
@@ -151,3 +196,6 @@ GRAFANA_ADMIN_PASSWORD=fieldnote-grafana-dev
 | `PROMETHEUS_PORT` | `9091` | host port of Prometheus in the cluster profile (dev uses 9090) |
 | `GRAFANA_PORT` | `3001` | host port of Grafana in the cluster profile (dev uses 3000) |
 | `ERASURE_JOB_INTERVAL_SECONDS` | `300` | how often the erasure job runs |
+| `BACKUP_BUCKET` | `backups` | Garage bucket that holds the encrypted archives |
+| `BACKUP_RETENTION_DAYS` | `7` | days an archive is kept (1-7; 7 is the erasure window) |
+| `BACKUP_INTERVAL_SECONDS` | `86400` | how often the backup service writes an archive |

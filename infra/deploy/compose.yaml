@@ -12,6 +12,12 @@ volumes:
   prometheus-data:
   grafana-data:
 
+secrets:
+  # The off-host backup key: 32 random bytes in a file outside the stack. Compose mounts it
+  # read-only at /run/secrets/backup.key.
+  backup_key:
+    file: ./secrets/backup.key
+
 x-api-build: &api-build
   context: ../../services/api
 
@@ -261,6 +267,46 @@ services:
       FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY}
       FIELDNOTE_S3_REGION: garage
       ERASURE_JOB_INTERVAL_SECONDS: ${ERASURE_JOB_INTERVAL_SECONDS:-300}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      garage-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - cluster
+
+  # One encrypted archive a day with the database dump and a copy of the media bucket. The key
+  # is mounted read-only as a Compose secret and never enters the container image or .env.
+  backup:
+    profiles: ["dev"]
+    build:
+      context: ../../services/backup
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          python -m backup run || true
+          sleep "$$BACKUP_INTERVAL_SECONDS"
+        done
+    environment:
+      FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
+      FIELDNOTE_DATABASE_URL: *database-url
+      FIELDNOTE_S3_ENDPOINT: http://garage:3900
+      FIELDNOTE_S3_BUCKET: ${GARAGE_BUCKET:-media}
+      FIELDNOTE_BACKUPS_BUCKET: ${BACKUP_BUCKET:-backups}
+      FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      FIELDNOTE_S3_REGION: garage
+      FIELDNOTE_BACKUP_KEY_FILE: /run/secrets/backup.key
+      FIELDNOTE_BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      FIELDNOTE_GARAGE_ADMIN_ENDPOINT: http://garage:3903
+      FIELDNOTE_GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    secrets:
+      - source: backup_key
+        target: backup.key
     depends_on:
       migrate:
         condition: service_completed_successfully
