@@ -45,6 +45,14 @@ const daily = {
   'today.enterStudy': 'Entrar num estudo',
   'today.offline': 'Sem ligação. Está a ver os últimos pedidos guardados.',
   'today.retry': 'Tentar',
+  'today.freeTitle': 'Registo livre',
+  'today.freeBody':
+    'Quer registar um momento, um sítio ou algo que lhe chamou a atenção? Pode fazê-lo a qualquer hora, sem esperar por um pedido.',
+  'today.freeUsed': '{used} de {max} usados hoje',
+  'today.freeNoLimit': 'Sem limite diário',
+  'today.freeAction': 'Novo registo livre',
+  'today.freeLimitReached': 'Limite diário atingido. Pode voltar a registar amanhã.',
+  'today.freeUnsupported': 'Tipo de resposta não suportado',
 
   'sync.sentTitle': 'Tudo enviado',
   'sync.sentBody':

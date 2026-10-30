@@ -21,7 +21,7 @@ export type ScaleShown = {
 
 export type PromptActivity = {
   id: string;
-  promptId: string;
+  promptId: string | null;
   studyId: string;
   studyTitle: string;
   title: string;
@@ -34,6 +34,21 @@ export type PromptActivity = {
   scheduledAt: string | null;
   sentAt: string | null;
   closesAt: string;
+};
+
+/** An activity the study lets participants use without a request (FR-13). */
+export type FreeEntryActivity = {
+  id: string;
+  studyId: string;
+  studyTitle: string;
+  title: string;
+  instructions: string;
+  captureTypes: CaptureType[];
+  warnings: WarningId[];
+  captureLocation: boolean;
+  scale: ScaleConfig | null;
+  maxFreeEntriesPerDay: number | null;
+  freeEntriesUsedToday: number;
 };
 
 export type EntryPayload = {

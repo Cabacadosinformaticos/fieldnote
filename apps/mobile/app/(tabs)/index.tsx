@@ -12,6 +12,7 @@ import {
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { FreeEntrySection } from '@/components/daily/FreeEntrySection';
 import { SyncStatus } from '@/components/daily/SyncStatus';
 import { captureTypeIcons, captureTypeLabelKeys } from '@/components/daily/captureType';
 import {
@@ -21,8 +22,8 @@ import {
 import { td } from '@/i18n/td';
 import { startNotifications } from '@/notifications';
 import { startQueue } from '@/queue';
-import { loadTodayPrompts } from '@/queue/prompts';
-import type { PromptActivity } from '@/queue/types';
+import { cacheFreeEntry, forgetFreeEntry, loadTodayPrompts } from '@/queue/prompts';
+import type { FreeEntryActivity, PromptActivity } from '@/queue/types';
 import type { Participation } from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
 
@@ -91,6 +92,7 @@ function typeLabels(activity: PromptActivity): string {
 
 export default function TodayScreen() {
   const [activities, setActivities] = useState<PromptActivity[]>([]);
+  const [freeActivities, setFreeActivities] = useState<FreeEntryActivity[]>([]);
   const [participations, setParticipations] = useState<Participation[]>([]);
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,6 +101,7 @@ export default function TodayScreen() {
     try {
       const result = await loadTodayPrompts();
       setActivities(result.activities);
+      setFreeActivities(result.freeActivities);
       setParticipations(result.participations);
       setOffline(result.offline);
     } catch {
@@ -130,10 +133,26 @@ export default function TodayScreen() {
     if (activity.captureTypes.length === 0) {
       return;
     }
+    // An activity can be both prompted and free; this answer belongs to the prompt.
+    void forgetFreeEntry(activity.id).catch(() => undefined);
     router.push({
       pathname: '/record/[activityId]',
       params: { activityId: activity.id },
     });
+  };
+
+  const openFreeEntry = (activity: FreeEntryActivity) => {
+    if (activity.captureTypes.length === 0) {
+      return;
+    }
+    void cacheFreeEntry(activity)
+      .catch(() => undefined)
+      .then(() => {
+        router.push({
+          pathname: '/record/[activityId]',
+          params: { activityId: activity.id },
+        });
+      });
   };
 
   return (
@@ -170,6 +189,14 @@ export default function TodayScreen() {
             onPress={() => router.push('/join/code')}
           />
         </View>
+      ) : null}
+
+      {!loading && participations.length > 0 && !primary && freeActivities.length > 0 ? (
+        <FreeEntrySection
+          activities={freeActivities}
+          main
+          onOpen={openFreeEntry}
+        />
       ) : null}
 
       {!loading && participations.length > 0 && !primary ? (
@@ -267,7 +294,7 @@ export default function TodayScreen() {
               {others.map((activity) => (
                 <Pressable
                   accessibilityRole="button"
-                  key={activity.promptId}
+                  key={activity.promptId ?? activity.id}
                   onPress={() => openActivity(activity)}
                   style={({ pressed }) => [
                     styles.otherRow,
@@ -295,6 +322,14 @@ export default function TodayScreen() {
             </View>
           ) : null}
         </>
+      ) : null}
+
+      {!loading && primary && freeActivities.length > 0 ? (
+        <FreeEntrySection
+          activities={freeActivities}
+          main={false}
+          onOpen={openFreeEntry}
+        />
       ) : null}
 
       {offline ? (

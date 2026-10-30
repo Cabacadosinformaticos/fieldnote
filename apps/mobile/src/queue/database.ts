@@ -47,6 +47,22 @@ const CREATE_PROMPT_CACHE_INDEX = `
     ON prompt_activities (study_id);
 `;
 
+// Free-entry activities have no prompt, so they cannot share the prompt cache, whose prompt_id
+// is unique and mandatory.
+const CREATE_FREE_CACHE = `
+  CREATE TABLE IF NOT EXISTS free_entry_activities (
+    activity_id TEXT PRIMARY KEY NOT NULL,
+    study_id TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    cached_at TEXT NOT NULL
+  );
+`;
+
+const CREATE_FREE_CACHE_INDEX = `
+  CREATE INDEX IF NOT EXISTS free_entry_activities_study
+    ON free_entry_activities (study_id);
+`;
+
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export function queueDatabase(): Promise<SQLite.SQLiteDatabase> {
@@ -57,6 +73,8 @@ export function queueDatabase(): Promise<SQLite.SQLiteDatabase> {
       await db.execAsync(CREATE_OUTBOX_INDEXES);
       await db.execAsync(CREATE_PROMPT_CACHE);
       await db.execAsync(CREATE_PROMPT_CACHE_INDEX);
+      await db.execAsync(CREATE_FREE_CACHE);
+      await db.execAsync(CREATE_FREE_CACHE_INDEX);
       return db;
     })();
   }

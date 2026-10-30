@@ -4,13 +4,19 @@ import { listParticipations } from '@/state/participations';
 
 import { listAnsweredPromptIds } from './outbox';
 import {
+  cacheFreeActivity,
+  clearCachedFreeActivity,
   getCachedActivity,
   getCachedActivityByPrompt,
+  getCachedFreeActivity,
+  listCachedFreeActivities,
   listCachedPromptActivities,
+  replaceCachedFreeActivities,
   replaceCachedPrompts,
 } from './promptCache';
 import type {
   CaptureType,
+  FreeEntryActivity,
   PromptActivity,
   ScaleConfig,
   ScaleType,
@@ -75,26 +81,38 @@ export function scaleConfigOf(options: Record<string, unknown> | null): ScaleCon
   };
 }
 
-export function activityFromPrompt(
-  prompt: PromptSource,
-  participation: Participation,
-): PromptActivity {
+function supportedCaptureTypes(
+  entryTypes: string[],
+  scale: ScaleConfig | null,
+): CaptureType[] {
   const captureTypes: CaptureType[] = [];
-  for (const value of prompt.entry_types) {
+  for (const value of entryTypes) {
     const type = captureTypeOf(value);
     if (type && !captureTypes.includes(type)) {
       captureTypes.push(type);
     }
   }
 
-  const scale = scaleConfigOf(prompt.options);
-  const supported = captureTypes.filter((type) => type !== 'scale' || scale !== null);
+  return captureTypes.filter((type) => type !== 'scale' || scale !== null);
+}
+
+function warningsOf(captureTypes: CaptureType[], captureLocation: boolean): WarningId[] {
   const warnings: WarningId[] = [];
 
-  if (supported.some((type) => type === 'photo' || type === 'video' || type === 'audio')) {
+  if (captureTypes.some((type) => type === 'photo' || type === 'video' || type === 'audio')) {
     warnings.push('privacy');
   }
-  warnings.push(prompt.capture_location ? 'locationOn' : 'locationOff');
+  warnings.push(captureLocation ? 'locationOn' : 'locationOff');
+
+  return warnings;
+}
+
+export function activityFromPrompt(
+  prompt: PromptSource,
+  participation: Participation,
+): PromptActivity {
+  const scale = scaleConfigOf(prompt.options);
+  const captureTypes = supportedCaptureTypes(prompt.entry_types, scale);
 
   return {
     id: prompt.activity_id,
@@ -103,8 +121,8 @@ export function activityFromPrompt(
     studyTitle: participation.title,
     title: prompt.title,
     instructions: prompt.instructions?.trim() ?? '',
-    captureTypes: supported,
-    warnings,
+    captureTypes,
+    warnings: warningsOf(captureTypes, prompt.capture_location),
     expectedMinutes: prompt.expected_minutes,
     captureLocation: prompt.capture_location,
     scale,
@@ -114,51 +132,124 @@ export function activityFromPrompt(
   };
 }
 
-type PromptResult = {
+type FreeEntrySource = {
+  id: string;
+  title: string;
+  instructions: string | null;
+  entry_types: string[];
+  options: Record<string, unknown> | null;
+  capture_location: boolean;
+  max_free_entries_per_day: number | null;
+  free_entries_used_today: number;
+};
+
+export function activityFromFreeEntry(
+  activity: FreeEntrySource,
+  participation: Participation,
+): FreeEntryActivity {
+  const scale = scaleConfigOf(activity.options);
+  const captureTypes = supportedCaptureTypes(activity.entry_types, scale);
+
+  return {
+    id: activity.id,
+    studyId: participation.studyId,
+    studyTitle: participation.title,
+    title: activity.title,
+    instructions: activity.instructions?.trim() ?? '',
+    captureTypes,
+    warnings: warningsOf(captureTypes, activity.capture_location),
+    captureLocation: activity.capture_location,
+    scale,
+    maxFreeEntriesPerDay: activity.max_free_entries_per_day,
+    freeEntriesUsedToday: activity.free_entries_used_today,
+  };
+}
+
+export function promptActivityOf(free: FreeEntryActivity): PromptActivity {
+  return {
+    id: free.id,
+    promptId: null,
+    studyId: free.studyId,
+    studyTitle: free.studyTitle,
+    title: free.title,
+    instructions: free.instructions,
+    captureTypes: free.captureTypes,
+    warnings: free.warnings,
+    expectedMinutes: 0,
+    captureLocation: free.captureLocation,
+    scale: free.scale,
+    scheduledAt: null,
+    sentAt: null,
+    closesAt: '',
+  };
+}
+
+type ParticipationResult = {
   ok: boolean;
   activities: PromptActivity[];
+  freeActivities: FreeEntryActivity[];
 };
 
 async function fetchForParticipation(
   participation: Participation,
-): Promise<PromptResult> {
+): Promise<ParticipationResult> {
   if (participation.status !== 'active') {
-    return { ok: true, activities: [] };
+    return { ok: true, activities: [], freeActivities: [] };
   }
 
   const client = await deviceClientForStudy(participation.studyId).catch(
     () => null,
   );
   if (!client) {
-    return { ok: false, activities: [] };
+    return { ok: false, activities: [], freeActivities: [] };
   }
+
+  let ok = true;
+  let activities: PromptActivity[] = [];
+  let freeActivities: FreeEntryActivity[] = [];
 
   try {
     const { data } = await client.GET('/api/v1/participation/me/prompts');
     if (!data) {
-      return { ok: false, activities: [] };
+      ok = false;
+    } else {
+      activities = data.prompts.map((prompt) =>
+        activityFromPrompt(prompt, participation),
+      );
+      await replaceCachedPrompts(participation.studyId, activities);
     }
-
-    const activities = data.prompts.map((prompt) =>
-      activityFromPrompt(prompt, participation),
-    );
-    await replaceCachedPrompts(participation.studyId, activities);
-    return { ok: true, activities };
   } catch {
-    return { ok: false, activities: [] };
+    ok = false;
   }
+
+  try {
+    const { data } = await client.GET('/api/v1/participation/me/activities');
+    if (!data) {
+      ok = false;
+    } else {
+      freeActivities = data
+        .filter((activity) => activity.allow_free_entries)
+        .map((activity) => activityFromFreeEntry(activity, participation));
+      await replaceCachedFreeActivities(participation.studyId, freeActivities);
+    }
+  } catch {
+    ok = false;
+  }
+
+  return { ok, activities, freeActivities };
 }
 
 export type TodayPrompts = {
   activities: PromptActivity[];
+  freeActivities: FreeEntryActivity[];
   participations: Participation[];
   offline: boolean;
 };
 
 /**
- * Fetches the open prompts of every active participation, then falls back to the last copy
- * saved on the phone for studies whose request failed. A prompt with an outbox entry is not
- * shown again, even if it has not reached the server yet.
+ * Fetches the open prompts and the free-entry activities of every active participation, then
+ * falls back to the last copy saved on the phone for studies whose request failed. A prompt
+ * with an outbox entry is not shown again, even if it has not reached the server yet.
  */
 export async function loadTodayPrompts(): Promise<TodayPrompts> {
   const participations = await listParticipations();
@@ -171,33 +262,67 @@ export async function loadTodayPrompts(): Promise<TodayPrompts> {
 
   const byPrompt = new Map<string, PromptActivity>();
   for (const activity of results.flatMap((result) => result.activities)) {
-    byPrompt.set(activity.promptId, activity);
+    if (activity.promptId) {
+      byPrompt.set(activity.promptId, activity);
+    }
+  }
+
+  const freeActivities = new Map<string, FreeEntryActivity>();
+  for (const activity of results.flatMap((result) => result.freeActivities)) {
+    freeActivities.set(activity.id, activity);
   }
 
   if (offline) {
     const cached = await listCachedPromptActivities();
     for (const activity of cached) {
       if (
+        activity.promptId &&
         activeStudyIds.has(activity.studyId) &&
         !byPrompt.has(activity.promptId)
       ) {
         byPrompt.set(activity.promptId, activity);
       }
     }
+
+    for (const activity of await listCachedFreeActivities(activeStudyIds)) {
+      if (!freeActivities.has(activity.id)) {
+        freeActivities.set(activity.id, activity);
+      }
+    }
   }
 
   const answered = await listAnsweredPromptIds();
   const activities = [...byPrompt.values()]
-    .filter((activity) => !answered.has(activity.promptId))
+    .filter((activity) => !activity.promptId || !answered.has(activity.promptId))
     .sort((left, right) => left.closesAt.localeCompare(right.closesAt));
 
-  return { activities, participations, offline };
+  return {
+    activities,
+    freeActivities: [...freeActivities.values()],
+    participations,
+    offline,
+  };
 }
 
 export async function cachedActivity(
   activityId: string | undefined,
 ): Promise<PromptActivity | null> {
+  const free = await getCachedFreeActivity(activityId);
+  if (free) {
+    return promptActivityOf(free);
+  }
+
   return getCachedActivity(activityId);
+}
+
+/** Prepares the recording flow for a free entry, which carries no prompt. */
+export async function cacheFreeEntry(activity: FreeEntryActivity): Promise<void> {
+  await cacheFreeActivity(activity);
+}
+
+/** A prompt answer must be recorded against the prompt, not as a free entry. */
+export async function forgetFreeEntry(activityId: string): Promise<void> {
+  await clearCachedFreeActivity(activityId);
 }
 
 export async function cachedActivityForPrompt(
