@@ -73,16 +73,13 @@ printf '%s\n' "$LOADGEN_ADMIN_PASSWORD" |
   compose exec -T api1 python -m app.cli create-admin \
     --email "$LOADGEN_ADMIN_EMAIL" --password-stdin >/dev/null 2>&1 || true
 
-# Text entries only: the cluster API verifies uploaded media through its
-# FIELDNOTE_S3_ENDPOINT, which is pinned to traefik1. A media entry therefore
-# fails on every API replica while gateway 1 is down, which is a configuration
-# problem this scenario should report rather than retry around. Media uploads
-# through a dead storage node are covered by scenario 5.
+# A share of entries carry a photo: the APIs reach object storage through the
+# s3-gateway alias that both gateways answer to, so uploads survive gateway 1.
 LOADGEN_ARGS=(
   --base "$GATEWAY1" --second-base "$GATEWAY2"
   --admin-email "$LOADGEN_ADMIN_EMAIL" --admin-password "$LOADGEN_ADMIN_PASSWORD"
   --participants "$PARTICIPANTS" --minutes "$MINUTES" --rate "$RATE"
-  --media-ratio 0 --seed "$SEED" --media-timeout 300
+  --media-ratio "${MEDIA_RATIO:-0.3}" --seed "$SEED" --media-timeout 300
 )
 if [ -n "${FIELDNOTE_LOADGEN_ADMIN_TOTP_SECRET:-}" ]; then
   LOADGEN_ARGS+=(--admin-totp-secret "$FIELDNOTE_LOADGEN_ADMIN_TOTP_SECRET")

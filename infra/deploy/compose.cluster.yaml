@@ -23,7 +23,7 @@ x-api-environment: &api-environment
   # libpq multi-host connection: libpq accepts the comma-separated host list
   # and target_session_attrs makes it pick the writable member after failover.
   FIELDNOTE_DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-fieldnote}:${POSTGRES_PASSWORD:-fieldnote}@pg1,pg2,pg3/${POSTGRES_DB:-fieldnote}?target_session_attrs=read-write&connect_timeout=3"
-  FIELDNOTE_S3_ENDPOINT: http://traefik1:8080
+  FIELDNOTE_S3_ENDPOINT: http://s3-gateway:8080
   FIELDNOTE_S3_BUCKET: ${GARAGE_BUCKET:-media}
   FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
   FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
@@ -395,7 +395,10 @@ services:
       - ./traefik/dynamic-cluster.yml:/etc/traefik/dynamic-cluster.yml:ro
     restart: unless-stopped
     networks:
-      - edge
+      edge:
+        # Both gateways answer to this alias, so the APIs reach object storage through
+        # whichever gateway is up (Docker DNS drops a stopped container's record).
+        aliases: [s3-gateway]
 
   # ---------------------------------------------------------------- node 2
   etcd2:
@@ -651,7 +654,10 @@ services:
       - ./traefik/dynamic-cluster.yml:/etc/traefik/dynamic-cluster.yml:ro
     restart: unless-stopped
     networks:
-      - edge
+      edge:
+        # Both gateways answer to this alias, so the APIs reach object storage through
+        # whichever gateway is up (Docker DNS drops a stopped container's record).
+        aliases: [s3-gateway]
 
   # ---------------------------------------------------------------- node 3
   etcd3:
