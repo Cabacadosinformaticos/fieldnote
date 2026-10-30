@@ -1,0 +1,751 @@
+{
+  "note": "Plan input for the demo study on 2026-11-02, built at 19:15 local time (availability clipped by the scheduler startup path). Ids are aliases; times are Europe/Lisbon.",
+  "study": {
+    "id": "demo-study",
+    "schedule_style": "varied",
+    "max_prompts_per_day": 4,
+    "max_prompts_per_slot": 2,
+    "time_zone": "Europe/Lisbon"
+  },
+  "plan_date": "2026-11-02",
+  "activities": [
+    {
+      "id": "activity-1",
+      "prompts_per_day": 1,
+      "min_gap_minutes": 30,
+      "window_start": "08:00:00",
+      "window_end": "20:00:00"
+    },
+    {
+      "id": "activity-2",
+      "prompts_per_day": 1,
+      "min_gap_minutes": 30,
+      "window_start": "09:00:00",
+      "window_end": "20:00:00"
+    },
+    {
+      "id": "activity-3",
+      "prompts_per_day": 1,
+      "min_gap_minutes": 30,
+      "window_start": "09:00:00",
+      "window_end": "23:59:00"
+    }
+  ],
+  "participants": [
+    {
+      "id": "P-01",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "21:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "any_time": false,
+      "availability": []
+    },
+    {
+      "id": "P-03",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "20:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "19:30:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "22:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "any_time": false,
+      "availability": []
+    },
+    {
+      "id": "P-07",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "20:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "21:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "any_time": false,
+      "availability": []
+    },
+    {
+      "id": "P-10",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "20:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-11",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "19:30:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-12",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "22:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-13",
+      "any_time": false,
+      "availability": []
+    },
+    {
+      "id": "P-14",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "20:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-15",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "21:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-16",
+      "any_time": false,
+      "availability": []
+    },
+    {
+      "id": "P-17",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "20:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-18",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "19:30:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-19",
+      "any_time": false,
+      "availability": [
+        {
+          "start_time": "19:15:00",
+          "end_time": "22:00:00",
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P-20",
+      "any_time": false,
+      "availability": []
+    },
+    {
+      "id": "P-21",
+      "any_time": false,
+      "availability": []
+    }
+  ],
+  "history": {
+    "yesterday": [
+      {
+        "participant_id": "P-01",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T10:45:00+00:00"
+      },
+      {
+        "participant_id": "P-01",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T15:15:00+00:00"
+      },
+      {
+        "participant_id": "P-01",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T13:45:00+00:00"
+      },
+      {
+        "participant_id": "P-03",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T11:00:00+00:00"
+      },
+      {
+        "participant_id": "P-03",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T12:15:00+00:00"
+      },
+      {
+        "participant_id": "P-03",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T17:45:00+00:00"
+      },
+      {
+        "participant_id": "P-05",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T19:30:00+00:00"
+      },
+      {
+        "participant_id": "P-05",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T10:00:00+00:00"
+      },
+      {
+        "participant_id": "P-05",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T14:45:00+00:00"
+      },
+      {
+        "participant_id": "P-06",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T10:45:00+00:00"
+      },
+      {
+        "participant_id": "P-06",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T12:30:00+00:00"
+      },
+      {
+        "participant_id": "P-06",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T16:45:00+00:00"
+      },
+      {
+        "participant_id": "P-07",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T15:30:00+00:00"
+      },
+      {
+        "participant_id": "P-07",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T17:00:00+00:00"
+      },
+      {
+        "participant_id": "P-07",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T14:45:00+00:00"
+      },
+      {
+        "participant_id": "P-08",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T17:45:00+00:00"
+      },
+      {
+        "participant_id": "P-08",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T11:00:00+00:00"
+      },
+      {
+        "participant_id": "P-08",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T20:00:00+00:00"
+      },
+      {
+        "participant_id": "P-10",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T11:00:00+00:00"
+      },
+      {
+        "participant_id": "P-10",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T15:45:00+00:00"
+      },
+      {
+        "participant_id": "P-10",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T17:30:00+00:00"
+      },
+      {
+        "participant_id": "P-12",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T11:30:00+00:00"
+      },
+      {
+        "participant_id": "P-12",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T09:00:00+00:00"
+      },
+      {
+        "participant_id": "P-12",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T14:15:00+00:00"
+      },
+      {
+        "participant_id": "P-13",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T10:00:00+00:00"
+      },
+      {
+        "participant_id": "P-13",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T17:45:00+00:00"
+      },
+      {
+        "participant_id": "P-13",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T16:00:00+00:00"
+      },
+      {
+        "participant_id": "P-14",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T08:00:00+00:00"
+      },
+      {
+        "participant_id": "P-14",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T15:15:00+00:00"
+      },
+      {
+        "participant_id": "P-14",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T19:00:00+00:00"
+      },
+      {
+        "participant_id": "P-15",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T08:30:00+00:00"
+      },
+      {
+        "participant_id": "P-15",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T09:45:00+00:00"
+      },
+      {
+        "participant_id": "P-15",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T16:15:00+00:00"
+      },
+      {
+        "participant_id": "P-17",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T11:30:00+00:00"
+      },
+      {
+        "participant_id": "P-17",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T16:45:00+00:00"
+      },
+      {
+        "participant_id": "P-17",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T11:00:00+00:00"
+      },
+      {
+        "participant_id": "P-19",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T13:00:00+00:00"
+      },
+      {
+        "participant_id": "P-19",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T14:15:00+00:00"
+      },
+      {
+        "participant_id": "P-19",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T15:45:00+00:00"
+      },
+      {
+        "participant_id": "P-20",
+        "activity_id": "activity-1",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T12:00:00+00:00"
+      },
+      {
+        "participant_id": "P-20",
+        "activity_id": "activity-2",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T10:15:00+00:00"
+      },
+      {
+        "participant_id": "P-20",
+        "activity_id": "activity-3",
+        "occurrence": 0,
+        "scheduled_at": "2026-11-01T16:00:00+00:00"
+      }
+    ],
+    "recent_parts": [
+      {
+        "participant_id": "P-01",
+        "parts": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-02",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-03",
+        "parts": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-04",
+        "parts": [
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-05",
+        "parts": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-06",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-07",
+        "parts": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-08",
+        "parts": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-09",
+        "parts": [
+          0,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-10",
+        "parts": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-11",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-12",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-13",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-14",
+        "parts": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-15",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-16",
+        "parts": [
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-17",
+        "parts": [
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-18",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "participant_id": "P-19",
+        "parts": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "participant_id": "P-20",
+        "parts": [
+          0,
+          1,
+          2
+        ]
+      }
+    ]
+  }
+}

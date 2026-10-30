@@ -536,6 +536,11 @@ def _run_ac3(variables: list[_Variable], reasons: list[SolvedAssignment]) -> Non
             active = [index for index in active if index not in emptied_set]
             for index in active:
                 domains[index] = base[index]
+        # A value that AC-3 removes because a peer prompt is planned is still consistent
+        # when that peer is left unplanned (⊥), so its value removals are unsound here; only
+        # the prompts whose whole domain was emptied are kept as infeasible.
+        for index in active:
+            domains[index] = base[index]
     for index, variable in enumerate(variables):
         variable.domain = domains[index]
 
@@ -622,8 +627,40 @@ class _Search:
         if not self.variables:
             self.finished = True
             return
+        if self._can_start():
+            self._seed_incumbent()
         self._search()
         self.finished = self.cut_reason is None
+
+    def _can_start(self) -> bool:
+        if self.deadline is not None and time.monotonic() >= self.deadline:
+            return False
+        # A node budget that cannot reach one leaf is a deliberate probe of the first
+        # branch; a greedy pass would replace the partial plan the caller asked to see.
+        return self.node_limit is None or self.node_limit > len(self.variables)
+
+    def _seed_incumbent(self) -> None:
+        """A complete greedy plan before branching, so a cut run always has a usable plan.
+
+        Each variable takes its earliest assignable slot, or ⊥ when every slot is blocked.
+        The assignment goes through the trail and is undone, so the search itself is
+        unchanged when the budget allows it to finish.
+        """
+        mark = len(self.trail)
+        for _ in range(len(self.variables)):
+            index = self._select_variable()
+            value = BOTTOM
+            domain = self.domains[index]
+            while domain:
+                bit = domain & -domain
+                slot_index = bit.bit_length() - 1
+                if self._can_assign(index, slot_index):
+                    value = slot_index
+                    break
+                domain ^= bit
+            self._assign(index, value)
+        self._record(force=True)
+        self._undo(mark)
 
     # -- trail -----------------------------------------------------------------------
 
@@ -795,10 +832,10 @@ class _Search:
             return True
         return score_bound > self.best_score
 
-    def _record(self) -> None:
+    def _record(self, *, force: bool = False) -> None:
         candidate = self.planned, self.score
         best = self.best_planned, self.best_score
-        if candidate <= best:
+        if not force and candidate <= best:
             return
         self.best_planned, self.best_score = candidate
         self.best_assignment = [
