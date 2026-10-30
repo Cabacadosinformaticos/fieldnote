@@ -237,6 +237,18 @@ const join = {
   'scan.invalid':
     'Não reconhecemos um código de convite neste QR. Tente outra vez ou escreva o código.',
 
+  'joinAccount.title': 'Este código pede uma conta',
+  'joinAccount.body':
+    'Para entrar neste estudo com este código, precisa de uma conta Fieldnote. A conta permite recuperar os estudos num telemóvel novo e evita que a mesma pessoa entre com vários telemóveis. A equipa do estudo nunca vê a sua conta.',
+  'joinAccount.create': 'Criar conta',
+  'joinAccount.restore': 'Já tenho conta',
+  'joinAccount.continue': 'Já criei a conta',
+  'joinAccount.hint':
+    'Depois de criar ou recuperar a conta, volte a este convite para continuar.',
+  'joinAccount.missing':
+    'Ainda não há uma conta neste telemóvel. Crie uma ou entre numa que já tenha.',
+  'joinAccount.study': 'Estudo: {title}',
+
   'error.network':
     'Não foi possível ligar-nos. Verifique a ligação à internet e tente outra vez.',
   'error.generic': 'Não foi possível concluir o pedido. Tente outra vez.',
@@ -246,7 +258,7 @@ const join = {
   'error.invalidAvailability':
     'Diga pelo menos um intervalo válido ou escolha «Qualquer altura».',
   'error.accountRequired':
-    'Este código exige uma conta Fieldnote, que ainda não está disponível.',
+    'Este código exige uma conta Fieldnote. Crie uma conta ou entre na sua e tente outra vez.',
   'error.participationRemoved':
     'A equipa removeu esta participação. Fale com a equipa do estudo.',
   'error.erasureScheduled':

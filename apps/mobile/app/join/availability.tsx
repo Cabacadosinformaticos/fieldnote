@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { api, deviceClient } from '@/api/client';
+import { accountClient, api, deviceClient } from '@/api/client';
 import { getAndroidId } from '@/api/device';
 import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
@@ -20,6 +20,7 @@ import { Screen } from '@/components/Screen';
 import type { JoinKey } from '@/i18n/join';
 import { t } from '@/i18n/pt';
 import { tj } from '@/i18n/tj';
+import { getAccountToken } from '@/state/actions';
 import { useJoinSession, type AvailabilityInput } from '@/state/join';
 import {
   getDeviceToken,
@@ -160,7 +161,14 @@ export default function AvailabilityScreen() {
 
     try {
       const storedToken = await getDeviceToken(lookup.study.id);
-      const client = storedToken ? deviceClient(storedToken) : api;
+      const accountToken = lookup.requires_account
+        ? await getAccountToken().catch(() => null)
+        : null;
+      const client = accountToken
+        ? accountClient(accountToken)
+        : storedToken
+          ? deviceClient(storedToken)
+          : api;
       const accepted = await client.POST(
         '/api/v1/participation/invitations/accept',
         {

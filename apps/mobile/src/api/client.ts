@@ -32,6 +32,22 @@ export function deviceClient(deviceToken: string) {
   });
 }
 
+/** A client that authenticates with the participant account token. */
+export function accountClient(accountToken: string) {
+  return createClient<paths>({
+    baseUrl: apiOrigin,
+    headers: { Authorization: `Account ${accountToken}` },
+  });
+}
+
+/** A client that authenticates as a volunteer pool member. */
+export function poolClient(credential: string) {
+  return createClient<paths>({
+    baseUrl: apiOrigin,
+    headers: { Authorization: `Pool ${credential}` },
+  });
+}
+
 export async function deviceClientForStudy(studyId: string) {
   const deviceToken = await getDeviceToken(studyId);
 

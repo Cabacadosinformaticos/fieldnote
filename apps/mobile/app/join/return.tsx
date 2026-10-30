@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { api, deviceClient } from '@/api/client';
+import { accountClient, api, deviceClient } from '@/api/client';
 import { getAndroidId } from '@/api/device';
 import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
@@ -13,6 +13,7 @@ import { Card } from '@/components/Card';
 import { formatDate, formatPeriod, formatTeam } from '@/components/join/format';
 import { Screen } from '@/components/Screen';
 import { tj } from '@/i18n/tj';
+import { getAccountToken } from '@/state/actions';
 import { useJoinSession } from '@/state/join';
 import {
   getDeviceToken,
@@ -45,7 +46,14 @@ export default function ReturnScreen() {
 
     try {
       const storedToken = await getDeviceToken(lookup.study.id);
-      const client = storedToken ? deviceClient(storedToken) : api;
+      const accountToken = lookup.requires_account
+        ? await getAccountToken().catch(() => null)
+        : null;
+      const client = accountToken
+        ? accountClient(accountToken)
+        : storedToken
+          ? deviceClient(storedToken)
+          : api;
       const accepted = await client.POST(
         '/api/v1/participation/invitations/accept',
         {

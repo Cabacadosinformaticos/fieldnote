@@ -11,6 +11,7 @@ import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { accountHref } from '@/components/account/navigation';
 import {
   formatEntryTypes,
   formatPeriod,
@@ -19,6 +20,7 @@ import {
 import { Screen } from '@/components/Screen';
 import { t } from '@/i18n/pt';
 import { tj } from '@/i18n/tj';
+import { getAccountToken } from '@/state/actions';
 import { useJoinSession } from '@/state/join';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
@@ -64,9 +66,12 @@ export default function InvitationScreen() {
         }
 
         if (result.data.requires_account) {
-          setError(tj('error.accountRequired'));
-          setStatus('error');
-          return;
+          const accountToken = await getAccountToken().catch(() => null);
+          if (!accountToken) {
+            setLookup(result.data);
+            router.replace(accountHref('/join/account'));
+            return;
+          }
         }
 
         const existing = result.data.existing_participation;

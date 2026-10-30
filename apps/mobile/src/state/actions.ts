@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 
-import { apiBaseUrl, type components } from '@/api/client';
+import { accountClient, api, poolClient, type components } from '@/api/client';
 import { queueDatabase } from '@/queue/database';
 import {
   deviceTokenKey,
@@ -20,176 +20,47 @@ const DATABASE_NAME = 'fieldnote-participations.db';
 /** The consent text version the app shows; the API records it with each acceptance (FR-29). */
 export const CONSENT_VERSION = '1.0';
 
-const apiOrigin = apiBaseUrl.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
-
 export type ParticipantStatus = components['schemas']['ParticipantStatus'];
 export type Locale = components['schemas']['Locale'];
+export type AgeBand = components['schemas']['AgeBand'];
+export type Gender = components['schemas']['Gender'];
+export type Occupation = components['schemas']['Occupation'];
+export type TransportMode = components['schemas']['TransportMode'];
 
-// The account and pool routes are newer than the generated schema, so their enums are mirrored
-// here until `npm run api:types` is regenerated.
-export type AgeBand = '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+';
-export type Gender = 'female' | 'male' | 'other';
-export type Occupation =
-  | 'student'
-  | 'employee'
-  | 'self_employed'
-  | 'unemployed'
-  | 'retired'
-  | 'other';
-export type TransportMode =
-  | 'walking'
-  | 'public_transport'
-  | 'car'
-  | 'bicycle'
-  | 'scooter'
-  | 'other';
-
-export type StudySummary = {
-  id: string;
-  title: string;
-  status: 'draft' | 'running' | 'closed';
-  starts_on: string | null;
-  ends_on: string | null;
-  timezone: string;
-};
-
-export type AccountParticipation = {
-  participant_id: string;
-  study: StudySummary;
-  status: ParticipantStatus;
-  alias: string | null;
-  erasure_due_at: string | null;
-  device_token?: string | null;
-};
-
-export type AccountOut = {
-  confirmed: boolean;
-  created_at: string;
-  methods: {
-    email_masked: string | null;
-    google: boolean;
-    recovery_code: boolean;
-  };
-  participations: AccountParticipation[];
-  pool_linked: boolean;
-};
-
-export type PoolMember = {
-  concelho: string;
-  freguesia: string | null;
-  age_band: AgeBand | null;
-  gender: Gender | null;
-  occupation: Occupation | null;
-  usual_transport: TransportMode | null;
-  languages: string[] | null;
-  invitations_paused: boolean;
-  joined_at: string;
-  account_linked: boolean;
-};
-
-export type PoolJoinOut = PoolMember & { credential: string };
-
-export type PoolInvitation = {
-  id: string;
-  status: 'sent' | 'accepted' | 'declined' | 'expired';
-  reason: string;
-  concelho: string;
-  sent_at: string;
-  expires_at: string;
-  responded_at: string | null;
-  study: {
-    id: string;
-    title: string;
-    description: string | null;
-    status: 'draft' | 'running' | 'closed';
-    starts_on: string | null;
-    ends_on: string | null;
-    timezone: string;
-    team: string[];
-    requests_per_day: number;
-    expected_minutes_per_day: number;
-    entry_types: string[];
-    captures_location: boolean;
-  };
-};
-
-export type PoolAccepted = {
-  outcome: 'joined';
-  device_token: string;
-  participant: {
-    id: string;
-    study: StudySummary;
-    alias: string | null;
-    status: ParticipantStatus;
-    has_consent: boolean;
-  };
-};
-
-export type SignInOut = {
-  account_token: string;
-  created?: boolean;
-  participations: AccountParticipation[];
-  pool: { credential: string; member: PoolMember } | null;
-};
-
-export type RecoveryAccountOut = {
-  recovery_code: string;
-  account_token: string;
-  confirmed?: boolean;
-};
+export type StudySummary = components['schemas']['StudySummaryOut'];
+export type AccountParticipation =
+  components['schemas']['AccountParticipationOut'];
+export type AccountOut = components['schemas']['app__schemas__account__AccountOut'];
+export type PoolMember = components['schemas']['PoolMemberOut'];
+export type PoolJoinOut = components['schemas']['PoolJoinOut'];
+export type PoolInvitation = components['schemas']['PoolInvitationOut'];
+export type PoolAccepted = components['schemas']['PoolInvitationAcceptOut'];
+export type SignInOut = components['schemas']['SignInOut'];
+export type RecoveryAccountOut = components['schemas']['RecoveryAccountOut'];
+export type PoolJoinRequest = components['schemas']['PoolJoinRequest'];
+export type PoolProfileUpdate = components['schemas']['PoolProfileUpdate'];
 
 export type LinkCredentials = {
   device_tokens: string[];
   pool_credential: string | null;
 };
 
-type Auth = {
-  scheme: 'Account' | 'Pool' | 'Device';
-  token: string;
-};
-
-type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
-  auth?: Auth;
-  body?: unknown;
-};
-
 export type ApiResult<T> = { data: T; error: null } | { data: null; error: unknown };
 
-async function errorBody(response: Response): Promise<unknown> {
+type TypedCall<T> = Promise<{
+  data?: T;
+  error?: unknown;
+  response: Response;
+}>;
+
+/** Normalises an openapi-fetch result to the shape the screens already use. */
+async function settle<T>(call: TypedCall<T>): Promise<ApiResult<T>> {
   try {
-    return await response.json();
-  } catch {
-    return undefined;
-  }
-}
-
-async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResult<T>> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
-
-  if (options.auth) {
-    headers.Authorization = `${options.auth.scheme} ${options.auth.token}`;
-  }
-  if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  try {
-    const response = await fetch(`${apiOrigin}${path}`, {
-      method: options.method ?? 'GET',
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
-
-    if (!response.ok) {
-      return { data: null, error: await errorBody(response) };
+    const { data, error, response } = await call;
+    if (response.ok) {
+      return { data: data as T, error: null };
     }
-
-    if (response.status === 204) {
-      return { data: undefined as T, error: null };
-    }
-
-    return { data: (await response.json()) as T, error: null };
+    return { data: null, error: error ?? { network: true } };
   } catch {
     return { data: null, error: { network: true } };
   }
@@ -407,48 +278,44 @@ export function isEndedParticipation(
 /* Account --------------------------------------------------------------------------------- */
 
 export function createRecoveryAccount(): Promise<ApiResult<RecoveryAccountOut>> {
-  return request('/api/v1/account/recovery', { method: 'POST' });
+  return settle(api.POST('/api/v1/account/recovery'));
 }
 
 export function confirmAccount(
   accountToken: string,
   credentials: LinkCredentials,
 ): Promise<ApiResult<AccountOut>> {
-  return request('/api/v1/account/confirm', {
-    method: 'POST',
-    auth: { scheme: 'Account', token: accountToken },
-    body: credentials,
-  });
+  return settle(
+    accountClient(accountToken).POST('/api/v1/account/confirm', {
+      body: credentials,
+    }),
+  );
 }
 
 export function getAccount(accountToken: string): Promise<ApiResult<AccountOut>> {
-  return request('/api/v1/account/me', {
-    auth: { scheme: 'Account', token: accountToken },
-  });
+  return settle(accountClient(accountToken).GET('/api/v1/account/me'));
 }
 
 export function linkAccount(
   accountToken: string,
   credentials: LinkCredentials,
 ): Promise<ApiResult<AccountOut>> {
-  return request('/api/v1/account/participations/link', {
-    method: 'POST',
-    auth: { scheme: 'Account', token: accountToken },
-    body: credentials,
-  });
+  return settle(
+    accountClient(accountToken).POST('/api/v1/account/participations/link', {
+      body: credentials,
+    }),
+  );
 }
 
 export function requestEmailCode(
   email: string,
   accountToken?: string | null,
 ): Promise<ApiResult<{ detail: string }>> {
-  return request('/api/v1/account/email/codes', {
-    method: 'POST',
-    auth: accountToken
-      ? { scheme: 'Account', token: accountToken }
-      : undefined,
-    body: { email },
-  });
+  const client = accountToken ? accountClient(accountToken) : api;
+
+  return settle(
+    client.POST('/api/v1/account/email/codes', { body: { email } }),
+  );
 }
 
 export function verifyEmailCode(
@@ -457,35 +324,34 @@ export function verifyEmailCode(
   credentials: LinkCredentials,
   accountToken?: string | null,
 ): Promise<ApiResult<AccountOut | SignInOut>> {
-  return request('/api/v1/account/email/verify', {
-    method: 'POST',
-    auth: accountToken
-      ? { scheme: 'Account', token: accountToken }
-      : undefined,
-    body: { email, code, ...credentials },
-  });
+  const client = accountToken ? accountClient(accountToken) : api;
+
+  return settle(
+    client.POST('/api/v1/account/email/verify', {
+      body: { email, code, ...credentials },
+    }),
+  );
 }
 
 export function signInWithRecovery(
   code: string,
   credentials: LinkCredentials,
 ): Promise<ApiResult<SignInOut>> {
-  return request('/api/v1/account/sign-in/recovery', {
-    method: 'POST',
-    body: { code, ...credentials },
-  });
+  return settle(
+    api.POST('/api/v1/account/sign-in/recovery', {
+      body: { code, ...credentials },
+    }),
+  );
 }
 
 export function deleteAccount(
   accountToken: string,
   eraseStudyData: boolean,
 ): Promise<ApiResult<void>> {
-  return request(
-    `/api/v1/account?erase_study_data=${eraseStudyData ? 'true' : 'false'}`,
-    {
-      method: 'DELETE',
-      auth: { scheme: 'Account', token: accountToken },
-    },
+  return settle(
+    accountClient(accountToken).DELETE('/api/v1/account', {
+      params: { query: { erase_study_data: eraseStudyData } },
+    }),
   );
 }
 
@@ -493,97 +359,72 @@ export function removeAccountMethod(
   accountToken: string,
   method: 'recovery_code' | 'email',
 ): Promise<ApiResult<AccountOut>> {
-  return request(`/api/v1/account/methods/${method}`, {
-    method: 'DELETE',
-    auth: { scheme: 'Account', token: accountToken },
-  });
+  return settle(
+    accountClient(accountToken).DELETE('/api/v1/account/methods/{method}', {
+      params: { path: { method } },
+    }),
+  );
 }
 
 /* Volunteer pool -------------------------------------------------------------------------- */
 
-export type PoolJoinRequest = {
-  concelho: string;
-  freguesia?: string | null;
-  age_band?: AgeBand | null;
-  gender?: Gender | null;
-  occupation?: Occupation | null;
-  usual_transport?: TransportMode | null;
-  languages?: Locale[];
-  push_token?: string | null;
-};
-
-export type PoolProfileUpdate = Partial<PoolJoinRequest> & {
-  invitations_paused?: boolean;
-};
-
 export function joinPool(body: PoolJoinRequest): Promise<ApiResult<PoolJoinOut>> {
-  return request('/api/v1/pool/members', { method: 'POST', body });
+  return settle(api.POST('/api/v1/pool/members', { body }));
 }
 
 export function getPoolMember(credential: string): Promise<ApiResult<PoolMember>> {
-  return request('/api/v1/pool/me', {
-    auth: { scheme: 'Pool', token: credential },
-  });
+  return settle(poolClient(credential).GET('/api/v1/pool/me'));
 }
 
 export function updatePoolMember(
   credential: string,
   body: PoolProfileUpdate,
 ): Promise<ApiResult<PoolMember>> {
-  return request('/api/v1/pool/me', {
-    method: 'PATCH',
-    auth: { scheme: 'Pool', token: credential },
-    body,
-  });
+  return settle(poolClient(credential).PATCH('/api/v1/pool/me', { body }));
 }
 
 export function leavePool(credential: string): Promise<ApiResult<void>> {
-  return request('/api/v1/pool/me', {
-    method: 'DELETE',
-    auth: { scheme: 'Pool', token: credential },
-  });
+  return settle(poolClient(credential).DELETE('/api/v1/pool/me'));
 }
 
 export function listPoolInvitations(
   credential: string,
 ): Promise<ApiResult<PoolInvitation[]>> {
-  return request('/api/v1/pool/invitations', {
-    auth: { scheme: 'Pool', token: credential },
-  });
+  return settle(poolClient(credential).GET('/api/v1/pool/invitations'));
 }
 
 export function getPoolInvitation(
   credential: string,
   invitationId: string,
 ): Promise<ApiResult<PoolInvitation>> {
-  return request(`/api/v1/pool/invitations/${invitationId}`, {
-    auth: { scheme: 'Pool', token: credential },
-  });
+  return settle(
+    poolClient(credential).GET('/api/v1/pool/invitations/{invitation_id}', {
+      params: { path: { invitation_id: invitationId } },
+    }),
+  );
 }
 
 export function acceptPoolInvitation(
   credential: string,
   invitationId: string,
-  body: {
-    consent_version: string;
-    locale?: Locale;
-    android_id?: string | null;
-    answers?: { question_id: string; answer: unknown }[];
-  },
+  body: components['schemas']['PoolInvitationAcceptRequest'],
 ): Promise<ApiResult<PoolAccepted>> {
-  return request(`/api/v1/pool/invitations/${invitationId}/accept`, {
-    method: 'POST',
-    auth: { scheme: 'Pool', token: credential },
-    body,
-  });
+  return settle(
+    poolClient(credential).POST(
+      '/api/v1/pool/invitations/{invitation_id}/accept',
+      { params: { path: { invitation_id: invitationId } }, body },
+    ),
+  );
 }
 
 export function declinePoolInvitation(
   credential: string,
   invitationId: string,
 ): Promise<ApiResult<PoolInvitation>> {
-  return request(`/api/v1/pool/invitations/${invitationId}/decline`, {
-    method: 'POST',
-    auth: { scheme: 'Pool', token: credential },
-  });
+  return settle(
+    poolClient(credential).POST(
+      '/api/v1/pool/invitations/{invitation_id}/decline',
+      { params: { path: { invitation_id: invitationId } } },
+    ),
+  );
 }
