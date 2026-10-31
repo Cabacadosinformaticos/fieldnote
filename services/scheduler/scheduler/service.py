@@ -76,6 +76,7 @@ class SchedulerService:
         )
         self.push = push_client or ExpoPushClient(
             settings.expo_access_token,
+            enabled=settings.push_enabled,
             url=settings.expo_push_url,
             timeout_seconds=settings.expo_push_timeout_seconds,
         )

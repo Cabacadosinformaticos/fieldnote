@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://fieldnote:fieldnote@127.0.0.1:5432/fieldnote"
     database_connect_timeout_seconds: int = 5
 
+    # Expo accepts sends without a token unless the project enforces push security.
+    push_enabled: bool = True
     expo_access_token: str | None = None
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
     expo_push_timeout_seconds: float = 10.0

@@ -65,11 +65,13 @@ class ExpoPushClient:
         self,
         access_token: str | None,
         *,
+        enabled: bool = True,
         url: str = "https://exp.host/--/api/v2/push/send",
         timeout_seconds: float = 10.0,
         transport: PushTransport | None = None,
     ) -> None:
         self.access_token = access_token
+        self.enabled = enabled
         self.url = url
         self.timeout_seconds = timeout_seconds
         self.transport = transport or UrllibTransport()
@@ -77,12 +79,12 @@ class ExpoPushClient:
     def send(self, messages: Sequence[PushMessage]) -> list[PushResult]:
         if not messages:
             return []
-        if not self.access_token:
-            # Development without Expo credentials: log the prompt ids instead of sending.
+        if not self.enabled:
+            # Switched off by configuration: log the prompt ids instead of sending.
             for message in messages:
                 logger.info("push disabled, would send prompt %s", message.prompt_id)
             return [
-                PushResult(message.prompt_id, delivered=False, error="push_not_configured")
+                PushResult(message.prompt_id, delivered=False, error="push_disabled")
                 for message in messages
             ]
 

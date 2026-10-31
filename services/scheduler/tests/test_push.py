@@ -62,15 +62,25 @@ def test_english_locale_uses_the_english_text() -> None:
     assert payload["body"] == "A new activity is available."
 
 
-def test_without_an_expo_token_nothing_is_sent() -> None:
+def test_switched_off_nothing_is_sent() -> None:
     transport = FakeTransport()
-    client = ExpoPushClient(None, url=URL, transport=transport)
+    client = ExpoPushClient("secret", enabled=False, url=URL, transport=transport)
 
     results = client.send(_messages(2))
 
     assert transport.calls == []
     assert [result.delivered for result in results] == [False, False]
-    assert all(result.error == "push_not_configured" for result in results)
+    assert all(result.error == "push_disabled" for result in results)
+
+
+def test_without_an_expo_token_it_sends_with_no_authorization() -> None:
+    transport = FakeTransport()
+    client = ExpoPushClient(None, url=URL, transport=transport)
+
+    client.send(_messages(1))
+
+    assert len(transport.calls) == 1
+    assert "Authorization" not in transport.calls[0][1]
 
 
 def test_error_tickets_are_reported() -> None:
