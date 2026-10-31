@@ -151,7 +151,7 @@ const pt = {
   'overview.effort': 'Esforço previsto',
   'overview.effortPerDay': 'por dia',
   'overview.effortNote': 'Por participante: 2 × 3 min + 1 min + 1 min',
-  'overview.studyAdherence': 'Adesão no estudo',
+  'overview.studyAdherence': 'No estudo',
   'overview.adherenceStudyNote': '{answered} de {sent} pedidos respondidos desde o início',
   'overview.prompts.answered': 'Respondidos',
   'overview.prompts.sent': 'Enviados sem resposta',

@@ -39,6 +39,11 @@ const entryTypeKeys: Record<
   choice: 'overview.entryType.choice',
 }
 
+// Every prompt already sent, whatever became of it: the denominator of adherence.
+function promptsOut(adherence: { answered: number; sent: number; expired: number }): number {
+  return adherence.answered + adherence.sent + adherence.expired
+}
+
 function entryKind(entryType: keyof typeof entryTypeKeys): EntryKind {
   if (entryType === 'photo') {
     return 'photo'
@@ -243,9 +248,9 @@ export default function StudyOverviewPage() {
         <div className="st-kpi st-kpi-primary">
           <div className="st-kpi-copy">
             <span className="st-kpi-label st-kpi-label-primary">{t('overview.adherenceToday')}</span>
-            <span className="st-kpi-hero">{percentLabel(today.answered, today.sent)}</span>
+            <span className="st-kpi-hero">{percentLabel(today.answered, promptsOut(today))}</span>
             <span className="st-kpi-note">
-              {t('overview.adherenceNote', { answered: today.answered, sent: today.sent })}
+              {t('overview.adherenceNote', { answered: today.answered, sent: promptsOut(today) })}
             </span>
           </div>
         </div>
@@ -285,12 +290,12 @@ export default function StudyOverviewPage() {
         <div className="st-kpi">
           <span className="st-kpi-label">{t('overview.studyAdherence')}</span>
           <span className="st-kpi-value-row">
-            <span className="st-kpi-value">{percentLabel(allTime.answered, allTime.sent)}</span>
+            <span className="st-kpi-value">{percentLabel(allTime.answered, promptsOut(allTime))}</span>
           </span>
           <span className="st-kpi-note">
             {t('overview.adherenceStudyNote', {
               answered: allTime.answered,
-              sent: allTime.sent,
+              sent: promptsOut(allTime),
             })}
           </span>
         </div>
@@ -365,21 +370,21 @@ export default function StudyOverviewPage() {
             <div className="st-mini-stat">
               <span className="st-mini-stat-label">{t('overview.adherenceToday')}</span>
               <span className="st-mini-stat-value">
-                {percentLabel(today.answered, today.sent)}
+                {percentLabel(today.answered, promptsOut(today))}
               </span>
               <span className="st-mini-stat-note">
-                {t('overview.adherenceNote', { answered: today.answered, sent: today.sent })}
+                {t('overview.adherenceNote', { answered: today.answered, sent: promptsOut(today) })}
               </span>
             </div>
             <div className="st-mini-stat">
               <span className="st-mini-stat-label">{t('overview.studyAdherence')}</span>
               <span className="st-mini-stat-value">
-                {percentLabel(allTime.answered, allTime.sent)}
+                {percentLabel(allTime.answered, promptsOut(allTime))}
               </span>
               <span className="st-mini-stat-note">
                 {t('overview.adherenceStudyNote', {
                   answered: allTime.answered,
-                  sent: allTime.sent,
+                  sent: promptsOut(allTime),
                 })}
               </span>
             </div>
