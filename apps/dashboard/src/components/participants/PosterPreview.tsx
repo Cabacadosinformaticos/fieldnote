@@ -13,6 +13,7 @@ export default function PosterPreview({
   studyTitle,
   startsOn,
   endsOn,
+  team,
   code,
   expiresAt,
 }: {
@@ -21,6 +22,7 @@ export default function PosterPreview({
   studyTitle: string
   startsOn: string | null
   endsOn: string | null
+  team: string[]
   code: string
   expiresAt: string
 }) {
@@ -96,8 +98,7 @@ export default function PosterPreview({
         <div className="poster-foot-grid">
           <div>
             <span>{t('poster.team')}</span>
-            <strong>{t('poster.teamValue')}</strong>
-            <small>{t('poster.institution')}</small>
+            <strong>{team.length > 0 ? team.join(', ') : t('poster.teamEmpty')}</strong>
           </div>
           <div>
             <span>{t('poster.signups')}</span>

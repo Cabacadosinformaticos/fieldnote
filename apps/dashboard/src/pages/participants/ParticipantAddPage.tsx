@@ -4,7 +4,7 @@ import AddParticipantModal from '../../components/participants/AddParticipantMod
 import ParticipantsPage from './ParticipantsPage'
 
 export default function ParticipantAddPage() {
-  const { studyId = 'jardim-da-estrela' } = useParams<{ studyId: string }>()
+  const { studyId = '' } = useParams<{ studyId: string }>()
 
   return (
     <>

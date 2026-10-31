@@ -5,8 +5,11 @@ import {
   ParticipantsApiError,
   usePoolCount,
   useSendPoolInvitations,
+  useStudy,
+  useStudyMembers,
   type PoolCriteria,
 } from '../../api/participants'
+import { emailDisplayName, formatDate } from '../../components/participants/format'
 import ParticipantsTabs from '../../components/participants/ParticipantsTabs'
 import {
   CalendarIcon,
@@ -137,6 +140,20 @@ export default function RecruitPage() {
 
   const countQuery = usePoolCount(studyId, criteria)
   const send = useSendPoolInvitations(studyId)
+  const studyQuery = useStudy(studyId)
+  const membersQuery = useStudyMembers(studyId)
+  const study = studyQuery.data
+  const teamLabel =
+    (membersQuery.data ?? [])
+      .map((member) => emailDisplayName(member.email))
+      .join(', ') || '–'
+  const datesLabel =
+    study?.starts_on || study?.ends_on
+      ? t('poster.dateRange', {
+          start: formatDate(study.starts_on),
+          end: formatDate(study.ends_on),
+        })
+      : '–'
   const count = countQuery.data?.count ?? null
   const known = typeof count === 'number'
   const bar = typeof count === 'number' ? Math.min(100, (count / 50) * 100) : 0
@@ -302,26 +319,32 @@ export default function RecruitPage() {
                 <span className="pts-label">{t('recruit.card')}</span>
                 <div className="recruit-invite-card">
                   <span className="recruit-card-kicker">{t('recruit.cardKicker')}</span>
-                  <h3>{t('recruit.studyName')}</h3>
+                  <h3>{study?.title ?? t('poster.unknownStudy')}</h3>
                   <dl>
                     <div>
                       <dt>{t('recruit.team')}</dt>
-                      <dd>{t('recruit.teamValue')}</dd>
+                      <dd>{teamLabel}</dd>
                     </div>
                     <div>
                       <dt>{t('recruit.dates')}</dt>
-                      <dd>{t('recruit.datesValue')}</dd>
+                      <dd>{datesLabel}</dd>
                     </div>
                     <div>
                       <dt>{t('recruit.requests')}</dt>
-                      <dd>{t('recruit.requestsValue')}</dd>
+                      <dd>
+                        {study
+                          ? t('recruit.requestsValue', { max: study.max_prompts_per_day })
+                          : t('table.dash')}
+                      </dd>
                     </div>
                     <div>
                       <dt>{t('recruit.entries')}</dt>
                       <dd>{t('recruit.entriesValue')}</dd>
                     </div>
                   </dl>
-                  <p className="recruit-why">{t('recruit.why')}</p>
+                  <p className="recruit-why">
+                    {county ? t('recruit.why', { county }) : t('recruit.whyNoCounty')}
+                  </p>
                   <p className="recruit-validity">{t('recruit.validity')}</p>
                   <div className="recruit-card-actions">
                     <span className="btn btn-p">{t('recruit.accept')}</span>
@@ -392,7 +415,11 @@ export default function RecruitPage() {
               </li>
               <li>
                 <CalendarIcon />
-                <span>{t('recruit.sendBullet2')}</span>
+                <span>
+                  {study?.starts_on
+                    ? t('recruit.sendBullet2', { date: formatDate(study.starts_on) })
+                    : t('recruit.sendBullet2NoDate')}
+                </span>
               </li>
               <li>
                 <UsersIcon />

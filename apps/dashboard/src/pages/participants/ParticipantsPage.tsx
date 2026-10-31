@@ -12,8 +12,10 @@ import {
   useApprovals,
   useCanReadIdentity,
   useParticipants,
+  useStudy,
   type FilterKey,
 } from '../../api/participants'
+import { todayInTimezone } from '../../api/studies'
 import ParticipantsTable, {
   type ParticipantRow,
 } from '../../components/participants/ParticipantsTable'
@@ -29,6 +31,7 @@ export default function ParticipantsPage() {
   const [query, setQuery] = useState('')
 
   const participants = useParticipants(studyId)
+  const studyQuery = useStudy(studyId)
   const approvals = useApprovals(studyId)
   const canReadIdentity = useCanReadIdentity(studyId)
   const list = participants.data
@@ -152,6 +155,8 @@ export default function ParticipantsPage() {
               studyId={studyId}
               rows={rows}
               dayColumns={dayColumns}
+              studyStart={studyQuery.data?.starts_on ?? null}
+              today={todayInTimezone(studyQuery.data?.timezone ?? 'Europe/Lisbon')}
               canReadIdentity={canReadIdentity}
             />
 

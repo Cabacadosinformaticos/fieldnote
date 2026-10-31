@@ -29,15 +29,29 @@ function rowTone(stats: DayStat | null): string {
   return `is-${adherenceTone(stats.answered, stats.sent)}`
 }
 
+function dayNumber(date: string, studyStart: string | null): number | null {
+  if (!date || !studyStart) {
+    return null
+  }
+  const diff = Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${studyStart}T00:00:00Z`)) / 86_400_000,
+  )
+  return diff + 1
+}
+
 export default function ParticipantsTable({
   studyId,
   rows,
   dayColumns,
+  studyStart,
+  today,
   canReadIdentity,
 }: {
   studyId: string
   rows: ParticipantRow[]
   dayColumns: string[]
+  studyStart: string | null
+  today: string
   canReadIdentity: boolean
 }) {
   const [menu, setMenu] = useState<MenuState | null>(null)
@@ -78,16 +92,31 @@ export default function ParticipantsTable({
               <th scope="col">{t('table.status')}</th>
               <th scope="col">{t('table.entry')}</th>
               <th scope="col">{t('table.registered')}</th>
-              {columns.map((date, index) => (
-                <th
-                  scope="col"
-                  key={`head-${index}`}
-                  className={index === columns.length - 1 ? 'pts-day-head is-today' : 'pts-day-head'}
-                >
-                  {t('table.day', { n: index + 1 })}
-                  <small>{date ? formatDate(date) : t('table.dash')}</small>
-                </th>
-              ))}
+              {columns.map((date, index) => {
+                const isToday = Boolean(date) && date === today
+                const number = dayNumber(date, studyStart)
+                return (
+                  <th
+                    scope="col"
+                    key={`head-${index}`}
+                    className={isToday ? 'pts-day-head is-today' : 'pts-day-head'}
+                    title={
+                      isToday
+                        ? t('table.todayTitle', { n: number ?? index + 1 })
+                        : number !== null
+                          ? t('table.dayTitle', { n: number, date: formatDate(date) })
+                          : undefined
+                    }
+                  >
+                    {isToday
+                      ? t('table.today')
+                      : number !== null
+                        ? t('table.day', { n: number })
+                        : t('table.dash')}
+                    <small>{date ? formatDate(date) : t('table.dash')}</small>
+                  </th>
+                )
+              })}
               <th scope="col" className="pts-actions-head">
                 <span className="sr-only">{t('table.actions')}</span>
               </th>
@@ -114,7 +143,9 @@ export default function ParticipantsTable({
                   {item.days.map((stats, index) => (
                     <td
                       key={`${item.id}-day-${index}`}
-                      className={index === item.days.length - 1 ? 'pts-day is-today' : 'pts-day'}
+                      className={
+                        dayColumns[index] === today ? 'pts-day is-today' : 'pts-day'
+                      }
                     >
                       {stats ? (
                         <span

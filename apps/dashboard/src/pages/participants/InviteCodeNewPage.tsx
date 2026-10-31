@@ -4,7 +4,7 @@ import NewCodeModal from '../../components/participants/NewCodeModal'
 import InviteCodesPage from './InviteCodesPage'
 
 export default function InviteCodeNewPage() {
-  const { studyId = 'jardim-da-estrela' } = useParams<{ studyId: string }>()
+  const { studyId = '' } = useParams<{ studyId: string }>()
 
   return (
     <>

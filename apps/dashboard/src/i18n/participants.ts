@@ -373,8 +373,8 @@ export const pt = {
   'poster.previewNote': 'Pré-visualização de impressão. O código QR desta maqueta é ilustrativo.',
   'poster.studyKind': 'Estudo de investigação',
   'poster.tagline':
-    'Durante duas semanas, responda a pedidos curtos sobre como usa o Jardim da Estrela.',
-  'poster.taglineShort': 'Duas semanas de pedidos curtos sobre o Jardim da Estrela.',
+    'Durante o estudo, responda a pedidos curtos no seu dia a dia.',
+  'poster.taglineShort': 'Pedidos curtos no seu dia a dia.',
   'poster.pillMinutes': 'Cerca de 8 minutos por dia',
   'poster.pillDates': 'De 6 a 19 de outubro',
   'poster.howTitle': 'Instale a app Fieldnote e leia o código',
@@ -387,8 +387,7 @@ export const pt = {
   'poster.readWithApp': 'Leia o código com a app Fieldnote',
   'poster.writeInApp': 'Escreva-o na app Fieldnote',
   'poster.team': 'Equipa',
-  'poster.teamValue': 'Inês Marques',
-  'poster.institution': 'UNIDCOM/IADE',
+  'poster.teamEmpty': '–',
   'poster.signups': 'Inscrições',
   'poster.signupsValue': 'Até 12 de outubro',
   'poster.dates': 'De 6 a 19 de outubro',
@@ -417,18 +416,17 @@ export const pt = {
   'recruit.noticeHelp': 'O aviso não leva o nome do estudo nem mais nada.',
   'recruit.card': 'Cartão do convite',
   'recruit.cardKicker': 'Foi convidado para participar num estudo',
-  'recruit.studyName': 'Trajetos casa-faculdade',
   'recruit.team': 'Equipa:',
-  'recruit.teamValue': 'Rita Ferraz e Inês Marques, UNIDCOM/IADE',
   'recruit.dates': 'Datas:',
-  'recruit.datesValue': '2 a 15 nov. 2026',
   'recruit.requests': 'Pedidos:',
-  'recruit.requestsValue': 'até 3 por dia',
+  'recruit.requestsValue': 'até {max} por dia',
   'recruit.entries': 'Registos:',
   'recruit.entriesValue':
     'fotos, texto e escala. A localização só é pedida em algumas atividades.',
   'recruit.why':
-    'Recebeu este convite porque está na bolsa de voluntários e vive no concelho de Lisboa. A frase muda com o concelho de cada pessoa.',
+    'Recebeu este convite porque está na bolsa de voluntários e vive no concelho de {county}. A frase muda com o concelho de cada pessoa.',
+  'recruit.whyNoCounty':
+    'Recebeu este convite porque está na bolsa de voluntários. A frase muda com o concelho de cada pessoa.',
   'recruit.validity': 'Convite válido durante 7 dias.',
   'recruit.accept': 'Quero participar',
   'recruit.decline': 'Não quero participar',
@@ -444,7 +442,8 @@ export const pt = {
     'Um grupo com menos de 5 pessoas aparece como "menos de 5" e não se pode convidar, para ninguém ser identificado pelos critérios.',
   'recruit.send': 'Enviar convites',
   'recruit.sendBullet1': 'Cada convite vale 7 dias. Depois expira.',
-  'recruit.sendBullet2': 'Pode enviar já, antes de o estudo começar a 2 nov.',
+  'recruit.sendBullet2': 'Pode enviar já, antes de o estudo começar a {date}.',
+  'recruit.sendBullet2NoDate': 'Pode enviar já, antes de o estudo começar.',
   'recruit.sendBullet3':
     'Quem aceitar entra na lista com um pseudónimo novo. O estudo prevê 12 participantes; nem todos os convidados aceitam.',
   'recruit.sendNote':

@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import '../../styles/participants.css'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { useStudy, useStudyCodes } from '../../api/participants'
+import { useStudy, useStudyCodes, useStudyMembers } from '../../api/participants'
 import PosterPreview, {
   type PosterContent,
   type PosterStyle,
 } from '../../components/participants/PosterPreview'
-import { formatDate } from '../../components/participants/format'
+import { emailDisplayName, formatDate } from '../../components/participants/format'
 import { ArrowLeftIcon, PrinterIcon } from '../../components/participants/icons'
 import { t, type ParticipantsKey } from '../../i18n/participants'
 
@@ -46,6 +46,8 @@ export default function PosterPage() {
   const [content, setContent] = useState<PosterContent>('both')
   const codes = useStudyCodes(studyId)
   const study = useStudy(studyId)
+  const members = useStudyMembers(studyId)
+  const team = (members.data ?? []).map((member) => emailDisplayName(member.email))
   const styleName = t(styles.find((item) => item.key === style)?.labelKey ?? 'poster.styleInfo')
 
   const chosenId = searchParams.get('code')
@@ -210,6 +212,7 @@ export default function PosterPage() {
                 studyTitle={study.data?.title ?? t('poster.unknownStudy')}
                 startsOn={study.data?.starts_on ?? null}
                 endsOn={study.data?.ends_on ?? null}
+                team={team}
                 code={selected.code}
                 expiresAt={selected.expires_at}
               />

@@ -342,8 +342,18 @@ export function useAddParticipant(studyId: string) {
 }
 
 export function useIssuePersonalCode(studyId: string) {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (participantId: string) => issuePersonalCode(studyId, participantId),
+    onSuccess: (_data, participantId) => {
+      void queryClient.invalidateQueries({ queryKey: participantsKeys.list(studyId) })
+      void queryClient.invalidateQueries({
+        queryKey: participantsKeys.detail(studyId, participantId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: participantsKeys.adherence(studyId, participantId),
+      })
+    },
   })
 }
 
