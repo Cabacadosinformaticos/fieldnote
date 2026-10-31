@@ -1,15 +1,32 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { accountHref } from '@/components/account/navigation';
 import { t } from '@/i18n/pt';
+import { listParticipations } from '@/state/participations';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
-export default function WelcomeScreen() {
+export default function IndexRoute() {
+  const [hasStudies, setHasStudies] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    listParticipations()
+      .then((participations) => setHasStudies(participations.length > 0))
+      .catch(() => setHasStudies(false));
+  }, []);
+
+  if (hasStudies === null) {
+    return null;
+  }
+  return hasStudies ? <Redirect href="/(tabs)" /> : <WelcomeScreen />;
+}
+
+function WelcomeScreen() {
   return (
     <Screen contentStyle={styles.content}>
       <StatusBar style="dark" />
