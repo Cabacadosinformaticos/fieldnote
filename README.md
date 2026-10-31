@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="Status: design stage" src="https://img.shields.io/badge/status-design%20stage-orange">
+  <img alt="Status: prototype" src="https://img.shields.io/badge/status-prototype-yellow">
   <img alt="License: all rights reserved" src="https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python%203.12-3776AB?logo=python&logoColor=white">
@@ -33,8 +33,11 @@ Distribuída para Mobile Ethnography e Diary Studies").
 
 ## Status
 
-Design stage. No component is implemented yet; everything below describes the planned system. The
-work plan, with owners and dates for every task, is in the
+Working prototype for the second delivery. The API, the scheduler, the media worker, the
+researcher dashboard and the participant app run against the development stack and against the
+three-node cluster. Push notifications through Expo still need the Firebase key in the Expo
+project, and the camera and microphone are tested only on the emulator. The work plan, with owners
+and dates for every task, is in the
 [Fieldnote - Master Plan](https://github.com/users/Cabacadosinformaticos/projects/7) project.
 
 | Delivery | Presentation | Submission | Scope |
@@ -51,7 +54,7 @@ activity goes out to many participants at once, and a study runs for weeks witho
 window. Fieldnote therefore replicates its services, database, message broker and file storage,
 and the app keeps entries in a local queue while it has no network.
 
-## Planned features
+## Features
 
 | Participant (mobile app) | Researcher (web dashboard) | Administrator |
 |---|---|---|
@@ -64,6 +67,33 @@ and the app keeps entries in a local queue while it has no network.
 | Take part in several studies on one phone | Tag and filter entries | |
 | Create an optional account to recover studies on a new phone | Export data as CSV with a media archive | |
 | Leave a study or erase own data from the app | | |
+
+## Run it locally
+
+Requirements: Docker Desktop with Compose, Python 3.12 with `uv`, Node.js 24 and, for the app, the
+Android emulator or a phone with Expo. From a Windows host use `127.0.0.1`, not `localhost`.
+
+```bash
+cp infra/deploy/.env.example infra/deploy/.env
+mkdir -p infra/deploy/secrets && head -c 32 /dev/urandom > infra/deploy/secrets/backup.key
+docker compose -f infra/deploy/compose.yaml --profile dev up -d --build --wait
+bash infra/deploy/smoke.sh                        # prints SMOKE OK
+```
+
+| What | Where |
+|---|---|
+| API and media gateway | http://127.0.0.1:8080/api/v1 |
+| Dashboard | `npm --prefix apps/dashboard run dev`, then http://127.0.0.1:5173 |
+| Participant app | `npx expo start` in `apps/mobile` (the emulator reaches the API at `10.0.2.2:8080`) |
+| Grafana, Prometheus, Mailpit | http://127.0.0.1:3000, http://127.0.0.1:9090, http://127.0.0.1:8025 |
+| Demonstration study | `tools/demo-data/README.md` |
+
+The three-node cluster (Patroni and etcd, RabbitMQ quorum queues, Garage with three zones, three
+API replicas and two gateways on ports 8090 and 8092) starts with
+`docker compose -f infra/deploy/compose.cluster.yaml --profile cluster up -d --wait`. The failure
+scenarios of the fault model are scripts in `infra/chaos/`, and `tools/loadgen` sends entries from
+simulated phones and reports any lost or duplicated entry. Details: `infra/deploy/README.md` and
+`infra/chaos/README.md`.
 
 ## Architecture in brief
 
@@ -137,10 +167,14 @@ fieldnote/
 ├── services/                     backend services, Python 3.12
 │   ├── api/                      REST API, signed upload URLs, server-sent events, outbox relay
 │   ├── scheduler/                constraint satisfaction planner and push notifications
-│   └── media-worker/             ffmpeg thumbnails, video conversion, metadata removal
+│   ├── media-worker/             ffmpeg thumbnails, video conversion, metadata removal
+│   └── backup/                   daily encrypted backup of the database and the media bucket
 ├── infra/
 │   ├── deploy/                   Docker Compose project: three logical nodes, networks, gateways
 │   └── chaos/                    failure injection scripts for the fault tolerance demonstration
+├── tools/
+│   ├── demo-data/                demonstration study seeded through the API
+│   └── loadgen/                  load generator with loss and duplicate checks
 ├── Fieldnote/                    project archive, folder names fixed by the course briefing
 │   ├── 00_Identificacao/         info.md: project metadata, team, keywords, short summary
 │   ├── 01_Memoria_Descritiva/    memoria.md: the descriptive report
@@ -155,8 +189,7 @@ fieldnote/
 └── README.md
 ```
 
-The application folders are empty until implementation starts. The archive folder names are in
-Portuguese because the course briefing fixes them; their content is in English.
+The archive folder names are in Portuguese because the course briefing fixes them; their content is in English.
 
 ## Team
 
