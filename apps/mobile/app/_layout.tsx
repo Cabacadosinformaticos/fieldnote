@@ -10,7 +10,10 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { TopBannerProvider } from '@/components/TopBanner';
 import { JoinProvider } from '@/state/join';
 import { colors } from '@/theme';
 
@@ -37,13 +40,23 @@ export default function RootLayout() {
   }
 
   return (
-    <JoinProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      />
-    </JoinProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <JoinProvider>
+        <TopBannerProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          />
+        </TopBannerProvider>
+      </JoinProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

@@ -70,6 +70,11 @@ const daily = {
   'sync.retrying': 'A tentar enviar…',
   'sync.close': 'Fechar',
 
+  'banner.close': 'Fechar',
+  'notification.foregroundTitle': 'Novo pedido',
+  'notification.foregroundBody': 'Há um novo pedido à sua espera. Toque para abrir.',
+  'notification.open': 'Abrir',
+
   'warning.count': '{count} avisos sobre esta atividade',
   'warning.countOne': '1 aviso sobre esta atividade',
   'warning.privacy':

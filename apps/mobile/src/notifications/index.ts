@@ -3,6 +3,8 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 
 import { deviceClientForStudy } from '@/api/client';
+import { showTopBanner } from '@/components/TopBanner';
+import { td } from '@/i18n/td';
 import {
   cachedActivityForPrompt,
   refreshPromptCache,
@@ -87,6 +89,20 @@ async function openPrompt(promptId: string): Promise<void> {
   }
 }
 
+function promptIdFrom(data: unknown): string | null {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+  const record = data as Record<string, unknown>;
+  if (typeof record.prompt_id === 'string') {
+    return record.prompt_id;
+  }
+  if (typeof record.promptId === 'string') {
+    return record.promptId;
+  }
+  return null;
+}
+
 async function handleResponse(
   response: Notifications.NotificationResponse,
 ): Promise<void> {
@@ -96,14 +112,7 @@ async function handleResponse(
   }
   handledNotifications.add(request.identifier);
 
-  const data = request.content.data;
-  const promptId =
-    typeof data?.prompt_id === 'string'
-      ? data.prompt_id
-      : typeof data?.promptId === 'string'
-        ? data.promptId
-        : null;
-
+  const promptId = promptIdFrom(request.content.data);
   if (promptId) {
     await openPrompt(promptId);
   }
@@ -120,11 +129,29 @@ export function startNotifications(): void {
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
+      shouldShowBanner: false,
+      shouldShowList: false,
       shouldPlaySound: false,
       shouldSetBadge: false,
     }),
+  });
+
+  Notifications.addNotificationReceivedListener((notification) => {
+    // Only the prompt id is trusted; the banner text is always generic.
+    const promptId = promptIdFrom(notification.request.content.data);
+    showTopBanner({
+      icon: 'notifications-outline',
+      title: td('notification.foregroundTitle'),
+      body: td('notification.foregroundBody'),
+      action: promptId
+        ? {
+            label: td('notification.open'),
+            onPress: () => {
+              void openPrompt(promptId);
+            },
+          }
+        : undefined,
+    });
   });
 
   Notifications.addNotificationResponseReceivedListener((response) => {
