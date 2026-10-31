@@ -395,28 +395,28 @@ export default function StudyOverviewPage() {
               <span className="st-plan-stat-label">{t('overview.prompts.answered')}</span>
               <span className="st-plan-stat-value">{today.answered}</span>
               <span className="st-plan-stat-note">
-                {t('overview.studyAdherence')}: {allTime.answered}
+                {t('overview.inStudy')}: {allTime.answered}
               </span>
             </div>
             <div className="st-plan-stat">
               <span className="st-plan-stat-label">{t('overview.prompts.sent')}</span>
               <span className="st-plan-stat-value">{today.sent}</span>
               <span className="st-plan-stat-note">
-                {t('overview.studyAdherence')}: {allTime.sent}
+                {t('overview.inStudy')}: {allTime.sent}
               </span>
             </div>
             <div className="st-plan-stat">
               <span className="st-plan-stat-label">{t('overview.prompts.expired')}</span>
               <span className="st-plan-stat-value">{today.expired}</span>
               <span className="st-plan-stat-note">
-                {t('overview.studyAdherence')}: {allTime.expired}
+                {t('overview.inStudy')}: {allTime.expired}
               </span>
             </div>
             <div className="st-plan-stat">
               <span className="st-plan-stat-label">{t('overview.prompts.planned')}</span>
               <span className="st-plan-stat-value">{today.planned}</span>
               <span className="st-plan-stat-note">
-                {t('overview.studyAdherence')}: {allTime.planned}
+                {t('overview.inStudy')}: {allTime.planned}
               </span>
             </div>
           </div>
