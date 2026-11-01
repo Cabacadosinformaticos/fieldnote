@@ -390,7 +390,7 @@ export const pt = {
   'poster.teamEmpty': '–',
   'poster.signups': 'Inscrições',
   'poster.signupsValue': 'Até 12 de outubro',
-  'poster.dates': 'De 6 a 19 de outubro',
+  'poster.dates': 'Datas',
   'poster.privacy': 'Privacidade',
   'poster.privacyValue': 'Participa com um pseudónimo. A equipa confirma cada entrada.',
   'poster.minutesShort': 'Duas semanas de pedidos curtos.',

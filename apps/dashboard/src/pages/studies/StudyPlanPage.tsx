@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronRightIcon } from '../../components/icons'
 import {
@@ -32,8 +32,6 @@ const AXIS_SPAN = AXIS_END - AXIS_START
 const AXIS_GRID = [8, 10, 12, 14, 16, 18, 20, 22]
 const INTERVAL_MINUTES = 15
 const INTERVAL_BIN_COUNT = Math.round(AXIS_SPAN / INTERVAL_MINUTES)
-const FIXED_HOURS = 4
-const FIXED_HOUR_LABELS = ['08:00', '12:00', '16:00', '20:00']
 
 type IntervalBin = { sent: number; planned: number }
 
@@ -61,9 +59,23 @@ const statusLabels: Record<PromptStatus, StudiesKey> = {
   unplanned: 'plan.schedule.status.unplanned',
 }
 
-const activityColors = ['#2F5BEA', '#0E7C66', '#B96A00', '#7B4FBF', '#C2413E']
+const requestStatusClasses: Record<PromptStatus, string> = {
+  answered: 'st-req-responded',
+  sent: 'st-req-sent',
+  expired: 'st-req-expired',
+  planned: 'st-req-planned',
+  unplanned: 'st-req-planned',
+}
 
-type ActivityMeta = { code: string; name: string; color: string }
+const activityPalette = [
+  { color: '#2F5BEA', soft: '#EAF0FF' },
+  { color: '#0E7C66', soft: '#E3F4EC' },
+  { color: '#B96A00', soft: '#FFF3D6' },
+  { color: '#7B4FBF', soft: '#F1EAFB' },
+  { color: '#C2413E', soft: '#FDECEC' },
+]
+
+type ActivityMeta = { code: string; name: string; color: string; soft: string }
 
 function parseTime(value: string): number {
   const [hours, minutes] = value.split(':')
@@ -138,10 +150,12 @@ function buildActivities(plan: StudyPlan): Map<string, ActivityMeta> {
   const activities = new Map<string, ActivityMeta>()
   for (const prompt of plan.prompts) {
     if (!activities.has(prompt.activity_id)) {
+      const palette = activityPalette[activities.size % activityPalette.length]
       activities.set(prompt.activity_id, {
         code: `A${activities.size + 1}`,
         name: prompt.activity_title,
-        color: activityColors[activities.size % activityColors.length],
+        color: palette.color,
+        soft: palette.soft,
       })
     }
   }
@@ -164,16 +178,23 @@ function studyDays(study: Study | undefined, fallback: string): string[] {
 }
 
 function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
-  const planned = plan.prompts.filter((prompt) => prompt.status === 'planned').length
   const unplanned = plan.prompts.filter(
     (prompt) => prompt.status === 'unplanned' || prompt.unplanned_reason !== null,
   ).length
   const expected = plan.prompts.length
+  const planned = expected - unplanned
   const totals = binTotals(buildIntervalBins(plan, study.timezone))
-  const sameHoursPeak =
-    totals.sent + totals.planned > 0
-      ? Math.ceil((totals.sent + totals.planned) / FIXED_HOURS)
-      : 0
+  const perParticipant = new Map<string, number>()
+  for (const prompt of plan.prompts) {
+    if (prompt.status === 'unplanned' || prompt.unplanned_reason !== null) {
+      continue
+    }
+    perParticipant.set(
+      prompt.participant_id,
+      (perParticipant.get(prompt.participant_id) ?? 0) + 1,
+    )
+  }
+  const highestPerParticipant = Math.max(0, ...perParticipant.values())
 
   return (
     <section
@@ -229,10 +250,20 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
               {t('plan.summary.maxIntervalOf', { limit: study.max_prompts_per_slot })}
             </span>
           </span>
-          <span className="st-plan-stat-note">
-            {t('plan.summary.maxIntervalNote', { count: sameHoursPeak })}
-          </span>
         </div>
+      </div>
+
+      <div className="st-constraint-row">
+        {highestPerParticipant <= study.max_prompts_per_day ? (
+          <span className="st-constraint-pill">
+            {t('plan.summary.dailyOk', { maxDay: study.max_prompts_per_day })}
+          </span>
+        ) : null}
+        {totals.peak <= study.max_prompts_per_slot ? (
+          <span className="st-constraint-pill">
+            {t('plan.summary.slotOk', { maxSlot: study.max_prompts_per_slot })}
+          </span>
+        ) : null}
       </div>
     </section>
   )
@@ -245,6 +276,7 @@ function TimelineRow({
   anyTime,
   prompts,
   activities,
+  nowMinutes,
 }: {
   timezone: string
   alias: string
@@ -252,6 +284,7 @@ function TimelineRow({
   anyTime: boolean
   prompts: PlanPrompt[]
   activities: Map<string, ActivityMeta>
+  nowMinutes: number | null
 }) {
   const requests = prompts
     .map((prompt) => ({ prompt, minutes: promptMinutes(prompt, timezone) }))
@@ -306,14 +339,23 @@ function TimelineRow({
             style={{ left: `${((hour * 60 - AXIS_START) * 100) / AXIS_SPAN}%` }}
           />
         ))}
+        {nowMinutes !== null ? (
+          <span className="st-plan-now" style={{ left: `${percentOf(nowMinutes)}%` }} />
+        ) : null}
         {requests.map(({ prompt, minutes }) => {
           const activity = activities.get(prompt.activity_id)
           const code = activity?.code ?? 'A?'
           return (
             <span
               key={prompt.prompt_id}
-              className="st-req"
-              style={{ left: `${percentOf(minutes)}%`, background: activity?.color }}
+              className={`st-req ${requestStatusClasses[prompt.status]}`}
+              style={
+                {
+                  left: `${percentOf(minutes)}%`,
+                  '--st-act': activity?.color,
+                  '--st-act-soft': activity?.soft,
+                } as CSSProperties
+              }
               title={`${code} ${activity?.name ?? ''} · ${formatMinutes(minutes)} · ${t(statusLabels[prompt.status])}`}
             >
               <b>{code}</b> {formatMinutes(minutes)}
@@ -409,12 +451,12 @@ export default function StudyPlanPage() {
 
   const intervalBins = plan ? buildIntervalBins(plan, timezone) : []
   const intervalTotals = binTotals(intervalBins)
-  const intervalCount = intervalTotals.sent + intervalTotals.planned
-  const sameHoursPeak = intervalCount > 0 ? Math.ceil(intervalCount / FIXED_HOURS) : 0
   const intervalScale = Math.max(intervalTotals.peak, study.max_prompts_per_slot, 1)
-  const compareScale = Math.max(sameHoursPeak, intervalTotals.peak, 1)
   const nowClock = nowClockInTimezone(timezone)
   const nowMinutes = nowClock.hour * 60 + nowClock.minute
+  const nowLabel = `${String(nowClock.hour).padStart(2, '0')}:${String(
+    nowClock.minute,
+  ).padStart(2, '0')}`
   const showNow =
     plan?.date === today && nowMinutes >= AXIS_START && nowMinutes <= AXIS_END
   const intervalTicks = Array.from(
@@ -481,6 +523,24 @@ export default function StudyPlanPage() {
               <ChevronRightIcon width={18} height={18} />
             </button>
           </div>
+          {date === today && nextDate ? (
+            <button
+              type="button"
+              className="st-btn st-btn-ghost st-btn-sm"
+              onClick={() => selectDate(nextDate)}
+            >
+              {t('plan.viewTomorrow')}
+            </button>
+          ) : null}
+          {date !== today && days.includes(today) ? (
+            <button
+              type="button"
+              className="st-btn st-btn-ghost st-btn-sm"
+              onClick={() => selectDate(today)}
+            >
+              {t('plan.viewToday')}
+            </button>
+          ) : null}
           {study.starts_on && study.ends_on ? (
             <span className="st-muted-small">
               {formatDate(study.starts_on)} – {formatFullDate(study.ends_on)}
@@ -601,6 +661,18 @@ export default function StudyPlanPage() {
                       <span className="st-unplanned-actions-label">
                         {t('plan.unplanned.whatCanDo')}
                       </span>
+                      {reason === 'min_gap_infeasible' ||
+                      reason === 'outside_availability' ? (
+                        <Link
+                          className="st-btn st-btn-ghost st-btn-sm st-btn-left"
+                          to={`/estudos/${studyId}/atividades`}
+                        >
+                          <ChevronRightIcon width={16} height={16} />
+                          {t('plan.unplanned.extend', {
+                            activity: activity?.code ?? prompt.activity_title,
+                          })}
+                        </Link>
+                      ) : null}
                       <Link
                         className="st-btn st-btn-ghost st-btn-sm st-btn-left"
                         to={`/estudos/${studyId}/participantes`}
@@ -608,7 +680,7 @@ export default function StudyPlanPage() {
                         <ChevronRightIcon width={16} height={16} />
                         {t('plan.unplanned.talk')}
                       </Link>
-                      {reason === 'slot_cap' || reason === 'daily_cap' ? (
+                      {reason === 'slot_cap' ? (
                         <Link
                           className="st-btn st-btn-ghost st-btn-sm st-btn-left"
                           to={`/estudos/${studyId}/definicoes`}
@@ -625,6 +697,9 @@ export default function StudyPlanPage() {
 
             <aside className="st-reasons">
               <span className="st-plan-how-title">{t('plan.reasons.title')}</span>
+              <p className="st-sub">
+                {plan.date === today ? t('plan.reasons.note') : t('plan.reasons.noteTomorrow')}
+              </p>
               <div className="st-reason-list">
                 {(Object.keys(reasonLabels) as UnplannedReason[]).map((reason) => {
                   const count = reasonCounts.get(reason) ?? 0
@@ -645,7 +720,7 @@ export default function StudyPlanPage() {
       ) : null}
 
       {plan && plan.prompts.length > 0 ? (
-        <div className="st-grid-interval">
+        <>
           <section className="card st-interval-card" aria-label={t('plan.interval.title')}>
             <div>
               <h2 className="h2">{t('plan.interval.title')}</h2>
@@ -767,66 +842,7 @@ export default function StudyPlanPage() {
               ) : null}
             </div>
           </section>
-
-          <section className="card st-compare-card" aria-label={t('plan.compare.title')}>
-            <div>
-              <h2 className="h2">{t('plan.compare.title')}</h2>
-              <p className="st-sub">{t('plan.compare.subtitle', { count: intervalCount })}</p>
-            </div>
-            <div className="st-compare-chart">
-              <div className="st-compare-axis" aria-hidden="true">
-                <span>{compareScale}</span>
-                <span>0</span>
-              </div>
-              <div className="st-compare-plot">
-                <span className="st-compare-baseline" />
-                <span
-                  className="st-compare-limit"
-                  style={{
-                    bottom: `${(intervalTotals.peak / compareScale) * 100}%`,
-                    top: 'auto',
-                  }}
-                />
-                <div className="st-compare-bars">
-                  {Array.from({ length: FIXED_HOURS }, (_, index) => (
-                    <span
-                      className="st-compare-bar"
-                      key={index}
-                      style={{ height: `${(sameHoursPeak / compareScale) * 100}%` }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="st-compare-labels" aria-hidden="true">
-              {FIXED_HOUR_LABELS.map((label, index) => (
-                <span
-                  key={label}
-                  style={{ left: `${(index / (FIXED_HOURS - 1)) * 100}%` }}
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-            <div className="st-compare-stats">
-              <div className="st-compare-stat">
-                <span className="st-compare-stat-label">{t('plan.compare.sameHours')}</span>
-                <span className="st-compare-stat-value">
-                  {sameHoursPeak}{' '}
-                  <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
-                </span>
-              </div>
-              <div className="st-compare-stat st-compare-stat-primary">
-                <span className="st-compare-stat-label">{t('plan.compare.fieldnote')}</span>
-                <span className="st-compare-stat-value">
-                  {intervalTotals.peak}{' '}
-                  <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
-                </span>
-              </div>
-            </div>
-            <p className="sub">{t('plan.compare.note')}</p>
-          </section>
-        </div>
+        </>
       ) : null}
 
       {plan ? (
@@ -834,7 +850,11 @@ export default function StudyPlanPage() {
           <div className="st-schedule-head">
             <div className="st-schedule-heading">
               <h2 className="h2">{t('plan.schedule.title')}</h2>
-              <p className="st-sub">{dayLabel(date)}</p>
+              <p className="st-sub">
+                {showNow
+                  ? t('plan.schedule.subtitle', { time: nowLabel })
+                  : t('plan.schedule.subtitleNoNow')}
+              </p>
             </div>
             {plan.participants.length > 12 ? (
               <button
@@ -899,6 +919,7 @@ export default function StudyPlanPage() {
                   anyTime={participant.availability_any_time}
                   prompts={promptsFor(participant.participant_id)}
                   activities={activities}
+                  nowMinutes={showNow ? nowMinutes : null}
                 />
               ))}
               {participants.length === 0 ? (

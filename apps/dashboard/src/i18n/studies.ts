@@ -321,6 +321,8 @@ const pt = {
   'plan.schedule.title': 'Dia de cada participante',
   'plan.schedule.subtitle':
     'Cada linha vai das 08:00 às 22:30. Cada quadrado é um pedido, com o número da atividade e a hora planeada. A linha escura marca as {time}.',
+  'plan.schedule.subtitleNoNow':
+    'Cada linha vai das 08:00 às 22:30. Cada quadrado é um pedido, com o número da atividade e a hora planeada.',
   'plan.schedule.viewAll': 'Ver os {count} participantes',
   'plan.schedule.viewLess': 'Ver menos',
   'plan.schedule.participant': 'Participante',
