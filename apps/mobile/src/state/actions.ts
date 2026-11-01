@@ -3,6 +3,8 @@ import * as SQLite from 'expo-sqlite';
 
 import { accountClient, api, poolClient, type components } from '@/api/client';
 import { queueDatabase } from '@/queue/database';
+import { deleteStudyMedia, notifyOutbox } from '@/queue/outbox';
+import { clearCachedStudy } from '@/queue/promptCache';
 import {
   deviceTokenKey,
   getDeviceToken,
@@ -219,13 +221,31 @@ export async function setErasureDue(
 }
 
 /**
- * The queued entries and the prompt cache are study data, so an erasure request discards them
- * at once (security.md, "Erasure started by the participant").
+ * The queued entries, their media files and both activity caches are study data, so an erasure
+ * request discards them at once (security.md, "Erasure started by the participant"). SQLite can
+ * reject a write while another screen is reading, so the wipe is retried before it is reported.
  */
 export async function clearStudyQueue(studyId: string): Promise<void> {
-  const db = await queueDatabase();
-  await db.runAsync('DELETE FROM outbox WHERE study_id = ?', [studyId]);
-  await db.runAsync('DELETE FROM prompt_activities WHERE study_id = ?', [studyId]);
+  const attempts = 3;
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await deleteStudyMedia(studyId);
+      const db = await queueDatabase();
+      await db.runAsync('DELETE FROM outbox WHERE study_id = ?', [studyId]);
+      await clearCachedStudy(studyId);
+      notifyOutbox();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('queue_wipe_failed');
 }
 
 async function deleteCachedParticipation(studyId: string): Promise<void> {
@@ -234,11 +254,13 @@ async function deleteCachedParticipation(studyId: string): Promise<void> {
 }
 
 /**
- * After an erasure is complete, nothing of the study is useful on the phone: the device token
- * and the cached card are removed. The token is kept while the erasure is only scheduled, so
- * the participant can still cancel it (security.md, "Erasure started by the participant").
+ * After an erasure is complete, nothing of the study is useful on the phone: the queued entries,
+ * their media, the activity caches, the device token and the cached card are removed. The token
+ * is kept while the erasure is only scheduled, so the participant can still cancel it
+ * (security.md, "Erasure started by the participant").
  */
 export async function deleteParticipationLocal(studyId: string): Promise<void> {
+  await clearStudyQueue(studyId);
   await SecureStore.deleteItemAsync(deviceTokenKey(studyId)).catch(() => undefined);
   await deleteCachedParticipation(studyId);
   await setErasureDue(studyId, null);

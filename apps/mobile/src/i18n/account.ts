@@ -4,6 +4,7 @@ const account = {
   'common.emailPlaceholder': 'nome@exemplo.pt',
   'common.optional': '(opcional)',
   'common.required': '(obrigatório)',
+  'common.retry': 'Tentar',
 
   'account.title': 'Conta (opcional)',
   'account.body':
@@ -233,11 +234,6 @@ const account = {
     'O convite fica neste telemóvel até expirar, a {date}. Quando voltar a abrir o Fieldnote, encontra-o no mesmo sítio. Depois dessa data, deixa de valer.',
   'poolInvite.laterOk': 'Entendido',
 
-  'poolNotification.label': 'Aviso de convite da bolsa de voluntários',
-  'poolNotification.date': 'terça-feira, 29 de setembro',
-  'poolNotification.brand': 'Fieldnote',
-  'poolNotification.time': '10:05',
-  'poolNotification.body': 'Há um novo estudo em que pode participar.',
 } as const;
 
 export type AccountKey = keyof typeof account;

@@ -103,7 +103,6 @@ export default function EraseStudyScreen() {
         return;
       }
 
-      await clearStudyQueue(id).catch(() => undefined);
       await saveParticipation({
         studyId: data.study.id,
         title: data.study.title,
@@ -113,9 +112,17 @@ export default function EraseStudyScreen() {
         endsOn: data.study.ends_on,
         timezone: data.study.timezone,
       }).catch(() => undefined);
+      // Store the due date first: if the queue wipe fails now, the scheduled purge retries it.
       await setErasureDue(data.study.id, data.erasure_due_at).catch(
         () => undefined,
       );
+
+      try {
+        await clearStudyQueue(data.study.id);
+      } catch {
+        setError(tm('erase.error'));
+        return;
+      }
 
       router.replace({
         pathname: '/erase/scheduled',

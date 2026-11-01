@@ -144,6 +144,24 @@ export async function getCachedFreeActivity(
   return row ? (JSON.parse(row.payload) as FreeEntryActivity) : null;
 }
 
+/**
+ * Drops both activity caches of a study, waiting for the writes already queued so a refresh in
+ * flight cannot put the cached prompts back after the erasure.
+ */
+export function clearCachedStudy(studyId: string): Promise<void> {
+  const write = pendingWrite.then(async () => {
+    const db = await queueDatabase();
+    await db.runAsync('DELETE FROM prompt_activities WHERE study_id = ?', [
+      studyId,
+    ]);
+    await db.runAsync('DELETE FROM free_entry_activities WHERE study_id = ?', [
+      studyId,
+    ]);
+  });
+  pendingWrite = write.catch(() => undefined);
+  return write;
+}
+
 /** A prompt opened for the same activity must not reuse the free-entry copy. */
 export function clearCachedFreeActivity(activityId: string): Promise<void> {
   const write = pendingWrite.then(async () => {

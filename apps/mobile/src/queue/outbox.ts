@@ -1,3 +1,5 @@
+import { File } from 'expo-file-system';
+
 import { queueDatabase } from './database';
 import type {
   CaptureType,
@@ -189,10 +191,42 @@ export async function updateEntryMedia(
   ]);
 }
 
+/** A failed entry was rejected for good, so its prompt is still open for the participant. */
 export async function listAnsweredPromptIds(): Promise<Set<string>> {
   const db = await queueDatabase();
   const rows = await db.getAllAsync<{ prompt_id: string }>(
-    'SELECT DISTINCT prompt_id FROM outbox WHERE prompt_id IS NOT NULL',
+    `SELECT DISTINCT prompt_id FROM outbox
+     WHERE prompt_id IS NOT NULL AND state IN ('queued', 'sending', 'sent')`,
   );
   return new Set(rows.map((row) => row.prompt_id));
+}
+
+/** Deletes the copies of the media files that the queued entries of a study still hold. */
+export async function deleteStudyMedia(studyId: string): Promise<void> {
+  const db = await queueDatabase();
+  const rows = await db.getAllAsync<{ media: string }>(
+    'SELECT media FROM outbox WHERE study_id = ?',
+    [studyId],
+  );
+
+  for (const row of rows) {
+    let media: MediaAttachment[];
+    try {
+      const parsed: unknown = JSON.parse(row.media);
+      media = Array.isArray(parsed) ? (parsed as MediaAttachment[]) : [];
+    } catch {
+      continue;
+    }
+
+    for (const item of media) {
+      try {
+        const file = new File(item.localPath);
+        if (file.exists) {
+          file.delete();
+        }
+      } catch {
+        // A file that is already gone must not stop the rest of the wipe.
+      }
+    }
+  }
 }

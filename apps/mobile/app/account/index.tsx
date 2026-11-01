@@ -14,15 +14,18 @@ import {
 
 import { deviceClient } from '@/api/client';
 import { apiErrorMessage } from '@/api/errors';
+import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { BackLink } from '@/components/more/BackLink';
 import { Note } from '@/components/account/Note';
 import { ToggleSwitch } from '@/components/account/ToggleSwitch';
 import { accountHref } from '@/components/account/navigation';
 import { ta } from '@/i18n/ta';
+import { td } from '@/i18n/td';
 import {
   clearAccountToken,
   clearPoolCredential,
+  clearStudyQueue,
   createRecoveryAccount,
   deleteAccount,
   getAccount,
@@ -76,6 +79,7 @@ export default function AccountScreen() {
   const [deleting, setDeleting] = useState(false);
   const [eraseStudies, setEraseStudies] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -83,6 +87,7 @@ export default function AccountScreen() {
     setToken(stored);
     if (!stored) {
       setAccount(null);
+      setLoadError(null);
       setLoading(false);
       return;
     }
@@ -90,9 +95,10 @@ export default function AccountScreen() {
     const { data, error: apiError } = await getAccount(stored);
     if (data) {
       setAccount(data);
+      setLoadError(null);
       setError(null);
     } else {
-      setError(apiErrorMessage(apiError));
+      setLoadError(apiErrorMessage(apiError));
     }
     setLoading(false);
   }, []);
@@ -139,7 +145,7 @@ export default function AccountScreen() {
     setNotice(ta('account.linkDone'));
   };
 
-  const refreshAfterDelete = async () => {
+  const refreshAfterDelete = async (eraseStudyData: boolean) => {
     const rows = await listParticipations().catch(() => []);
     for (const row of rows) {
       const deviceToken = await getDeviceToken(row.studyId).catch(() => null);
@@ -164,6 +170,11 @@ export default function AccountScreen() {
           await setErasureDue(data.study.id, data.erasure_due_at).catch(
             () => undefined,
           );
+          // The account route scheduled the erasure: the phone drops the study's queued
+          // entries, media and caches at once, exactly like the per-study erasure.
+          if (eraseStudyData && data.erasure_due_at) {
+            await clearStudyQueue(data.study.id).catch(() => undefined);
+          }
         }
       } catch {
         // The local cards stay as they were when the API is offline.
@@ -189,7 +200,7 @@ export default function AccountScreen() {
       await clearPoolCredential().catch(() => undefined);
     }
     await clearAccountToken().catch(() => undefined);
-    await refreshAfterDelete();
+    await refreshAfterDelete(eraseStudies);
     setAccount(null);
     setToken(null);
     setDeleting(false);
@@ -346,7 +357,20 @@ export default function AccountScreen() {
         </>
       ) : null}
 
-      {!loading && !account ? (
+      {!loading && !account && loadError ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{loadError}</Text>
+          <Button
+            label={td('today.retry')}
+            onPress={() => {
+              setLoading(true);
+              void load();
+            }}
+          />
+        </View>
+      ) : null}
+
+      {!loading && !account && !loadError ? (
         <>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{ta('account.givesTitle')}</Text>
