@@ -73,6 +73,13 @@ function addDaysIso(iso: string, days: number) {
   return date.toISOString().slice(0, 10)
 }
 
+function daysBetweenIso(start: string, end: string): number | null {
+  if (!start || !end || end < start) {
+    return null
+  }
+  return Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86_400_000) + 1
+}
+
 function SectionHeading({
   id,
   step,
@@ -309,6 +316,7 @@ export default function StudyNewPage() {
   const styleName = t(selectedStyle.name)
   const titleDatesDone =
     title.trim().length > 0 && start.trim().length > 0 && end.trim().length > 0
+  const studyDays = daysBetweenIso(start, end)
   const consentDone = consentPt.text.trim().length > 0 || consentPt.fileName.length > 0
   const consentDetail = consentDone
     ? consentPt.fileName || consentPt.text
@@ -442,7 +450,11 @@ export default function StudyNewPage() {
                 </select>
               </div>
             </div>
-            <span className="st-field-help">{t('new.daysNote')}</span>
+            <span className="st-field-help">
+              {studyDays === null
+                ? t('new.daysNoteUnknown')
+                : t('new.daysNote', { days: studyDays })}
+            </span>
           </section>
 
           <section className="card st-section" aria-labelledby="new-calendar">
@@ -668,10 +680,18 @@ export default function StudyNewPage() {
               <ChecklistItem
                 done={titleDatesDone}
                 title={t('new.checklist.titleDates')}
-                detail={t('new.checklist.titleDatesDetail', {
-                  start: formatDate(start),
-                  end: formatDate(end),
-                })}
+                detail={
+                  studyDays === null
+                    ? t('new.checklist.titleDatesDetailUnknown', {
+                        start: formatDate(start),
+                        end: formatDate(end),
+                      })
+                    : t('new.checklist.titleDatesDetail', {
+                        start: formatDate(start),
+                        end: formatDate(end),
+                        days: studyDays,
+                      })
+                }
               />
               <ChecklistItem
                 done

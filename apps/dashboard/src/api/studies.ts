@@ -49,7 +49,7 @@ export type StudySummary = {
   metrics: StudyMetric[]
 }
 
-export type EntryKind = 'photo' | 'text' | 'audio'
+export type EntryKind = 'photo' | 'text' | 'audio' | 'video'
 
 export type FeedItem = {
   alias: string
@@ -197,6 +197,10 @@ export function clockInTimezone(value: string | Date, timezone: string): Clock {
   const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0')
   const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0')
   return { hour, minute }
+}
+
+export function nowClockInTimezone(timezone: string): Clock {
+  return clockInTimezone(new Date(), timezone)
 }
 
 export function timeLabel(value: string | null, timezone: string): string {

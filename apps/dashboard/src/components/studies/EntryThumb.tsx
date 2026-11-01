@@ -13,6 +13,16 @@ export default function EntryThumb({ item }: { item: FeedItem }) {
     )
   }
 
+  if (item.kind === 'video') {
+    return (
+      <svg width={52} height={52} viewBox="0 0 52 52" className="st-entry-thumb" aria-hidden="true">
+        <rect width="52" height="52" fill="#E7ECF7" />
+        <rect x="8" y="12" width="36" height="28" rx="4" fill="#5B6B8C" />
+        <path d="M22 19l12 7-12 7z" fill="#fff" />
+      </svg>
+    )
+  }
+
   if (item.kind === 'text') {
     return (
       <svg width={52} height={52} viewBox="0 0 52 52" className="st-entry-thumb" aria-hidden="true">

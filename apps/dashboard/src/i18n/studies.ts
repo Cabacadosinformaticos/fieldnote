@@ -47,7 +47,10 @@ const pt = {
   'new.field.start': 'Início',
   'new.field.end': 'Fim',
   'new.field.timezone': 'Fuso horário',
-  'new.daysNote': 'São 14 dias. Todas as horas do estudo são mostradas e planeadas neste fuso horário.',
+  'new.daysNote':
+    'São {days} dias. Todas as horas do estudo são mostradas e planeadas neste fuso horário.',
+  'new.daysNoteUnknown':
+    'Todas as horas do estudo são mostradas e planeadas neste fuso horário.',
   'new.style.label': 'Estilo de calendário',
   'new.style.fixed.name': 'Fixo',
   'new.style.fixed.description':
@@ -101,7 +104,8 @@ const pt = {
   'new.team.errorDuplicate': 'Esta pessoa já pertence à equipa.',
   'new.checklist.title': 'Antes de iniciar',
   'new.checklist.titleDates': 'Título e datas',
-  'new.checklist.titleDatesDetail': '{start} a {end}, 14 dias.',
+  'new.checklist.titleDatesDetail': '{start} a {end}, {days} dias.',
+  'new.checklist.titleDatesDetailUnknown': '{start} a {end}.',
   'new.checklist.calendar': 'Calendário e limites',
   'new.checklist.calendarDetail': '{style}, até {max} pedidos por dia.',
   'new.checklist.activities': 'Pelo menos uma atividade',
@@ -122,7 +126,7 @@ const pt = {
     'A API ainda não guarda a opção de convite da bolsa de voluntários. A escolha fica apenas neste ecrã.',
   'new.fallback.team':
     'A equipa ainda não é enviada ao criar o estudo. Adicione membros depois de o estudo existir.',
-  'new.saved': 'Rascunho guardado. Pode continuar a editar; os dados são apenas de demonstração.',
+  'new.saved': 'Rascunho guardado. Pode continuar a editar.',
   'new.start': 'Iniciar estudo',
   'new.startNote':
     'Só pode iniciar quando houver pelo menos uma atividade e o texto de consentimento em português. Depois de iniciar, o planeamento começa na noite seguinte.',
@@ -267,10 +271,10 @@ const pt = {
     'Cada pedido só pode cair em intervalos de 15 minutos dentro das horas indicadas pelo participante e da janela da atividade.',
   'plan.how.step2.title': 'Regras que nunca se quebram',
   'plan.how.step2.body':
-    'Pelo menos 120 minutos entre pedidos do mesmo participante, no máximo 4 por participante e dia e no máximo 3 por intervalo de 15 minutos em todo o estudo.',
+    'Pelo menos 120 minutos entre pedidos do mesmo participante, no máximo {maxDay} por participante e dia e no máximo {maxSlot} por intervalo de 15 minutos em todo o estudo.',
   'plan.how.step3.title': 'Preferência do estudo',
   'plan.how.step3.body':
-    'Entre os planos válidos, o estilo Variado escolhe o que cobre partes diferentes do dia e evita repetir o horário de ontem.',
+    'Entre os planos válidos, o estilo {style} decide a distribuição das horas ao longo do dia e evita repetir o horário de ontem.',
   'plan.how.step4.title': 'Quando não cabe',
   'plan.how.step4.body':
     'O pedido fica por planear e o plano segue sem ele. A razão aparece aqui, em frase simples, para decidir o que mudar.',

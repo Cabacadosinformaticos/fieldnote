@@ -11,6 +11,7 @@ import {
   clockInTimezone,
   formatDate,
   formatFullDate,
+  nowClockInTimezone,
   studiesErrorMessage,
   styleLabel,
   todayInTimezone,
@@ -29,6 +30,12 @@ const AXIS_START = 8 * 60
 const AXIS_END = 22 * 60 + 30
 const AXIS_SPAN = AXIS_END - AXIS_START
 const AXIS_GRID = [8, 10, 12, 14, 16, 18, 20, 22]
+const INTERVAL_MINUTES = 15
+const INTERVAL_BIN_COUNT = Math.round(AXIS_SPAN / INTERVAL_MINUTES)
+const FIXED_HOURS = 4
+const FIXED_HOUR_LABELS = ['08:00', '12:00', '16:00', '20:00']
+
+type IntervalBin = { sent: number; planned: number }
 
 const reasonLabels: Record<UnplannedReason, StudiesKey> = {
   outside_availability: 'plan.reasons.outsideHours',
@@ -91,6 +98,42 @@ function dayLabel(date: string): string {
   }).format(new Date(`${date}T12:00:00Z`))
 }
 
+function buildIntervalBins(plan: StudyPlan, timezone: string): IntervalBin[] {
+  const bins = Array.from({ length: INTERVAL_BIN_COUNT }, () => ({ sent: 0, planned: 0 }))
+  for (const prompt of plan.prompts) {
+    if (prompt.status === 'unplanned' || prompt.unplanned_reason !== null) {
+      continue
+    }
+    const minutes = promptMinutes(prompt, timezone)
+    if (minutes === null) {
+      continue
+    }
+    const index = Math.min(
+      Math.max(Math.floor((minutes - AXIS_START) / INTERVAL_MINUTES), 0),
+      INTERVAL_BIN_COUNT - 1,
+    )
+    if (prompt.status === 'planned') {
+      bins[index].planned += 1
+    } else {
+      bins[index].sent += 1
+    }
+  }
+  return bins
+}
+
+function binTotals(bins: IntervalBin[]): { sent: number; planned: number; peak: number } {
+  let sent = 0
+  let planned = 0
+  let peak = 0
+  for (const bin of bins) {
+    const total = bin.sent + bin.planned
+    sent += bin.sent
+    planned += bin.planned
+    peak = Math.max(peak, total)
+  }
+  return { sent, planned, peak }
+}
+
 function buildActivities(plan: StudyPlan): Map<string, ActivityMeta> {
   const activities = new Map<string, ActivityMeta>()
   for (const prompt of plan.prompts) {
@@ -126,6 +169,11 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
     (prompt) => prompt.status === 'unplanned' || prompt.unplanned_reason !== null,
   ).length
   const expected = plan.prompts.length
+  const totals = binTotals(buildIntervalBins(plan, study.timezone))
+  const sameHoursPeak =
+    totals.sent + totals.planned > 0
+      ? Math.ceil((totals.sent + totals.planned) / FIXED_HOURS)
+      : 0
 
   return (
     <section
@@ -172,6 +220,18 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
           <span className="st-plan-stat-label">{t('plan.summary.participants')}</span>
           <span className="st-plan-stat-value">{plan.participants.length}</span>
           <span className="st-plan-stat-note">{t('plan.summary.participantsNote')}</span>
+        </div>
+        <div className="st-plan-stat">
+          <span className="st-plan-stat-label">{t('plan.summary.maxInterval')}</span>
+          <span className="st-plan-stat-value">
+            {totals.peak}{' '}
+            <span className="st-plan-stat-sub">
+              {t('plan.summary.maxIntervalOf', { limit: study.max_prompts_per_slot })}
+            </span>
+          </span>
+          <span className="st-plan-stat-note">
+            {t('plan.summary.maxIntervalNote', { count: sameHoursPeak })}
+          </span>
         </div>
       </div>
     </section>
@@ -347,6 +407,20 @@ export default function StudyPlanPage() {
     }
   }
 
+  const intervalBins = plan ? buildIntervalBins(plan, timezone) : []
+  const intervalTotals = binTotals(intervalBins)
+  const intervalCount = intervalTotals.sent + intervalTotals.planned
+  const sameHoursPeak = intervalCount > 0 ? Math.ceil(intervalCount / FIXED_HOURS) : 0
+  const intervalScale = Math.max(intervalTotals.peak, study.max_prompts_per_slot, 1)
+  const compareScale = Math.max(sameHoursPeak, intervalTotals.peak, 1)
+  const nowClock = nowClockInTimezone(timezone)
+  const nowMinutes = nowClock.hour * 60 + nowClock.minute
+  const showNow =
+    plan?.date === today && nowMinutes >= AXIS_START && nowMinutes <= AXIS_END
+  const intervalTicks = Array.from(
+    new Set([intervalScale, Math.round(intervalScale / 2), 0]),
+  ).sort((left, right) => right - left)
+
   const promptsFor = (participantId: string) =>
     plan?.prompts.filter((prompt) => prompt.participant_id === participantId) ?? []
 
@@ -438,6 +512,55 @@ export default function StudyPlanPage() {
 
       {plan ? <PlanSummary plan={plan} study={study} /> : null}
 
+      <section className="card st-plan-how" aria-label={t('plan.how.title')}>
+        <h2 className="h2">{t('plan.how.title')}</h2>
+        <div className="st-plan-how-grid">
+          <div className="st-plan-how-step">
+            <span className="st-step" aria-hidden="true">
+              1
+            </span>
+            <div className="st-plan-how-copy">
+              <span className="st-plan-how-title">{t('plan.how.step1.title')}</span>
+              <p className="sub">{t('plan.how.step1.body')}</p>
+            </div>
+          </div>
+          <div className="st-plan-how-step">
+            <span className="st-step" aria-hidden="true">
+              2
+            </span>
+            <div className="st-plan-how-copy">
+              <span className="st-plan-how-title">{t('plan.how.step2.title')}</span>
+              <p className="sub">
+                {t('plan.how.step2.body', {
+                  maxDay: study.max_prompts_per_day,
+                  maxSlot: study.max_prompts_per_slot,
+                })}
+              </p>
+            </div>
+          </div>
+          <div className="st-plan-how-step">
+            <span className="st-step" aria-hidden="true">
+              3
+            </span>
+            <div className="st-plan-how-copy">
+              <span className="st-plan-how-title">{t('plan.how.step3.title')}</span>
+              <p className="sub">
+                {t('plan.how.step3.body', { style: styleLabel(study.schedule_style) })}
+              </p>
+            </div>
+          </div>
+          <div className="st-plan-how-step">
+            <span className="st-step" aria-hidden="true">
+              4
+            </span>
+            <div className="st-plan-how-copy">
+              <span className="st-plan-how-title">{t('plan.how.step4.title')}</span>
+              <p className="sub">{t('plan.how.step4.body')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {plan ? (
         <section className="card st-unplanned" aria-label={t('plan.unplanned.titleDate')}>
           <div className="st-unplanned-head">
@@ -519,6 +642,191 @@ export default function StudyPlanPage() {
             </aside>
           </div>
         </section>
+      ) : null}
+
+      {plan && plan.prompts.length > 0 ? (
+        <div className="st-grid-interval">
+          <section className="card st-interval-card" aria-label={t('plan.interval.title')}>
+            <div>
+              <h2 className="h2">{t('plan.interval.title')}</h2>
+              <p className="st-sub">
+                {t('plan.interval.subtitle', { limit: study.max_prompts_per_slot })}
+              </p>
+            </div>
+            <div className="st-interval-chart">
+              <div className="st-interval-axis" aria-hidden="true">
+                {intervalTicks.map((tick) => (
+                  <span
+                    key={tick}
+                    style={{ bottom: `${(tick / intervalScale) * 100}%` }}
+                  >
+                    {tick}
+                  </span>
+                ))}
+              </div>
+              <div className="st-interval-plot">
+                <span className="st-interval-baseline" />
+                {[25, 50, 75].map((percent) => (
+                  <span
+                    key={percent}
+                    className="st-interval-grid"
+                    style={{ bottom: `${percent}%` }}
+                  />
+                ))}
+                <span
+                  className="st-interval-limit"
+                  style={{
+                    bottom: `${(study.max_prompts_per_slot / intervalScale) * 100}%`,
+                    top: 'auto',
+                  }}
+                />
+                {showNow ? (
+                  <span
+                    className="st-interval-now"
+                    style={{ left: `${percentOf(nowMinutes)}%` }}
+                  />
+                ) : null}
+                <div className="st-interval-bars">
+                  {intervalBins.map((bin, index) => {
+                    const start = AXIS_START + index * INTERVAL_MINUTES
+                    return (
+                      <span
+                        className="st-interval-col"
+                        key={index}
+                        title={`${formatMinutes(start)}: ${
+                          bin.sent
+                        } já enviados, ${bin.planned} por enviar`}
+                      >
+                        <span
+                          className="st-interval-planned"
+                          style={{ height: `${(bin.planned / intervalScale) * 100}%` }}
+                        />
+                        <span
+                          className="st-interval-sent"
+                          style={{ height: `${(bin.sent / intervalScale) * 100}%` }}
+                        />
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="st-interval-labels" aria-hidden="true">
+              {AXIS_GRID.map((hour) => (
+                <span
+                  key={hour}
+                  style={{ left: `${((hour * 60 - AXIS_START) * 100) / AXIS_SPAN}%` }}
+                >
+                  {String(hour).padStart(2, '0')}:00
+                </span>
+              ))}
+            </div>
+            <div className="st-activity-legend">
+              <span className="st-activity-legend-item">
+                <i
+                  aria-hidden="true"
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 3,
+                    background: 'var(--fn-color-primary)',
+                  }}
+                />
+                {t('plan.interval.sent', { count: intervalTotals.sent })}
+              </span>
+              <span className="st-activity-legend-item">
+                <i
+                  aria-hidden="true"
+                  style={{ width: 12, height: 12, borderRadius: 3, background: '#9DB4F7' }}
+                />
+                {t('plan.interval.planned', { count: intervalTotals.planned })}
+              </span>
+              <span className="st-activity-legend-item">
+                <i
+                  aria-hidden="true"
+                  style={{ width: 18, borderTop: '2px dashed #B96A00' }}
+                />
+                {t('plan.interval.limit', { limit: study.max_prompts_per_slot })}
+              </span>
+              {showNow ? (
+                <span className="st-activity-legend-item">
+                  <i
+                    aria-hidden="true"
+                    style={{
+                      width: 2,
+                      height: 12,
+                      background: 'var(--fn-color-text)',
+                    }}
+                  />
+                  {t('plan.interval.now', {
+                    time: `${String(nowClock.hour).padStart(2, '0')}:${String(
+                      nowClock.minute,
+                    ).padStart(2, '0')}`,
+                  })}
+                </span>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="card st-compare-card" aria-label={t('plan.compare.title')}>
+            <div>
+              <h2 className="h2">{t('plan.compare.title')}</h2>
+              <p className="st-sub">{t('plan.compare.subtitle', { count: intervalCount })}</p>
+            </div>
+            <div className="st-compare-chart">
+              <div className="st-compare-axis" aria-hidden="true">
+                <span>{compareScale}</span>
+                <span>0</span>
+              </div>
+              <div className="st-compare-plot">
+                <span className="st-compare-baseline" />
+                <span
+                  className="st-compare-limit"
+                  style={{
+                    bottom: `${(intervalTotals.peak / compareScale) * 100}%`,
+                    top: 'auto',
+                  }}
+                />
+                <div className="st-compare-bars">
+                  {Array.from({ length: FIXED_HOURS }, (_, index) => (
+                    <span
+                      className="st-compare-bar"
+                      key={index}
+                      style={{ height: `${(sameHoursPeak / compareScale) * 100}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="st-compare-labels" aria-hidden="true">
+              {FIXED_HOUR_LABELS.map((label, index) => (
+                <span
+                  key={label}
+                  style={{ left: `${(index / (FIXED_HOURS - 1)) * 100}%` }}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="st-compare-stats">
+              <div className="st-compare-stat">
+                <span className="st-compare-stat-label">{t('plan.compare.sameHours')}</span>
+                <span className="st-compare-stat-value">
+                  {sameHoursPeak}{' '}
+                  <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
+                </span>
+              </div>
+              <div className="st-compare-stat st-compare-stat-primary">
+                <span className="st-compare-stat-label">{t('plan.compare.fieldnote')}</span>
+                <span className="st-compare-stat-value">
+                  {intervalTotals.peak}{' '}
+                  <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
+                </span>
+              </div>
+            </div>
+            <p className="sub">{t('plan.compare.note')}</p>
+          </section>
+        </div>
       ) : null}
 
       {plan ? (

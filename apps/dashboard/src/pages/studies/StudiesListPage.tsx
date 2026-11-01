@@ -72,7 +72,7 @@ function StudyCard({ study }: { study: StudyListItem }) {
 
         {summary.status === 'draft' ? (
           <Link className="st-btn st-btn-ghost" to={`/estudos/${summary.id}/visao-geral`}>
-            {t('list.openOverview')}
+            {t('list.continueEditing')}
           </Link>
         ) : null}
 

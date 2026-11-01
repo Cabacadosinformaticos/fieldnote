@@ -51,6 +51,9 @@ function entryKind(entryType: keyof typeof entryTypeKeys): EntryKind {
   if (entryType === 'text' || entryType === 'scale' || entryType === 'choice') {
     return 'text'
   }
+  if (entryType === 'video') {
+    return 'video'
+  }
   return 'audio'
 }
 
