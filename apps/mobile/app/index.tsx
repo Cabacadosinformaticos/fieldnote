@@ -36,7 +36,7 @@ function WelcomeScreen() {
           <LogoMark />
           <Text style={styles.brandName}>{t('welcome.brand')}</Text>
         </View>
-        <LanguageToggle />
+        {/* PT/EN selector removed until English exists. */}
       </View>
 
       <View style={styles.intro}>
@@ -106,16 +106,6 @@ function WelcomeScreen() {
         >
           <Text style={styles.accountLinkText}>{t('welcome.alreadyHaveAccount')}</Text>
         </Pressable>
-
-        {__DEV__ ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/(tabs)')}
-            style={styles.devLink}
-          >
-            <Text style={styles.devLinkText}>Ver o dia (demo)</Text>
-          </Pressable>
-        ) : null}
       </View>
     </Screen>
   );
@@ -128,30 +118,6 @@ function LogoMark() {
       <View style={[styles.logoLine, styles.logoLineTop]} />
       <View style={[styles.logoLine, styles.logoLineBottom]} />
       <View style={styles.logoPin} />
-    </View>
-  );
-}
-
-function LanguageToggle() {
-  return (
-    <View accessibilityLabel={t('welcome.language')} style={styles.languageToggle}>
-      <Pressable
-        accessibilityLabel={t('welcome.portuguese')}
-        accessibilityRole="button"
-        accessibilityState={{ selected: true }}
-        style={[styles.languageOption, styles.languageOptionActive]}
-      >
-        <Text style={[styles.languageText, styles.languageTextActive]}>PT</Text>
-      </Pressable>
-      <Pressable
-        accessibilityLabel={t('welcome.english')}
-        accessibilityRole="button"
-        accessibilityState={{ selected: false, disabled: true }}
-        disabled
-        style={styles.languageOption}
-      >
-        <Text style={styles.languageText}>EN</Text>
-      </Pressable>
     </View>
   );
 }
@@ -231,31 +197,6 @@ const styles = StyleSheet.create({
     height: 11,
     borderRadius: 6,
     backgroundColor: colors.accent,
-  },
-  languageToggle: {
-    flexDirection: 'row',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-  },
-  languageOption: {
-    height: 48,
-    minWidth: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  languageOptionActive: {
-    backgroundColor: colors.text,
-  },
-  languageText: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  languageTextActive: {
-    color: colors.white,
   },
   intro: {
     gap: 10,
@@ -404,17 +345,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textDecorationLine: 'underline',
     color: colors.primaryDark,
-  },
-  devLink: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  devLinkText: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textMuted,
   },
   pressed: {
     opacity: 0.8,

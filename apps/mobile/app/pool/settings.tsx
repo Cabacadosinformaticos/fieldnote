@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { apiErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
+import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { ConfirmSheet } from '@/components/account/ConfirmSheet';
 import { ToggleSwitch } from '@/components/account/ToggleSwitch';
@@ -40,22 +41,25 @@ export default function PoolSettingsScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLeave, setShowLeave] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const load = async () => {
       const stored = await getPoolCredential().catch(() => null);
+      setLoading(true);
+      setError(null);
       if (!stored) {
         router.replace(accountHref('/pool'));
         return;
       }
 
-      const [{ data }, invites] = await Promise.all([
+      const [{ data, error: apiError }, invites] = await Promise.all([
         getPoolMember(stored),
         listPoolInvitations(stored),
       ]);
       setLoading(false);
       if (!data) {
-        setError(ta('account.error'));
+        setError(apiErrorMessage(apiError));
         return;
       }
 
@@ -68,7 +72,7 @@ export default function PoolSettingsScreen() {
     };
 
     void load();
-  }, []);
+  }, [attempt]);
 
   const toggleReceiving = async (value: boolean) => {
     if (!credential) {
@@ -107,16 +111,32 @@ export default function PoolSettingsScreen() {
     router.replace(accountHref('/settings'));
   };
 
-  if (loading || !member) {
+  if (loading) {
     return (
       <Screen contentStyle={styles.loading}>
         <StatusBar style="dark" />
         <View style={styles.header}>
           <BackButton onPress={() => router.back()} />
         </View>
-        <Text style={styles.loadingText}>
-          {error ?? ta('account.loading')}
-        </Text>
+        <Text style={styles.loadingText}>{ta('account.loading')}</Text>
+      </Screen>
+    );
+  }
+
+  if (!member) {
+    return (
+      <Screen contentStyle={styles.loading}>
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <BackButton onPress={() => router.back()} />
+        </View>
+        <View style={styles.loadErrorCard}>
+          <Text style={styles.loadingText}>{error ?? ta('account.error')}</Text>
+          <Button
+            label={ta('common.retry')}
+            onPress={() => setAttempt((value) => value + 1)}
+          />
+        </View>
       </Screen>
     );
   }
@@ -293,6 +313,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: colors.textMuted,
+  },
+  loadErrorCard: {
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radii.card,
+    padding: spacing.xl,
+    backgroundColor: colors.surface,
   },
   content: {
     gap: spacing.md,

@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import type { ComponentProps } from 'react';
+import { type ComponentProps, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { tm } from '@/i18n/tm';
 import { td } from '@/i18n/td';
+import { loadTodayPrompts } from '@/queue/prompts';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
@@ -23,6 +25,35 @@ const tabPresentation: Record<
 };
 
 export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps) {
+  const [otherPrompts, setOtherPrompts] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    void loadTodayPrompts()
+      .then((result) => {
+        if (!active) {
+          return;
+        }
+
+        const primaryStudyId =
+          result.participations.find(
+            (participation) => participation.status === 'active',
+          )?.studyId ?? result.participations[0]?.studyId;
+
+        setOtherPrompts(
+          result.activities.filter(
+            (activity) => activity.studyId !== primaryStudyId,
+          ).length,
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [state.index]);
+
   return (
     <View
       accessibilityLabel={td('tabs.main')}
@@ -35,11 +66,19 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
         }
 
         const focused = state.index === index;
+        const showBadge = route.name === 'studies' && otherPrompts > 0;
+        const label = showBadge
+          ? `${presentation.label}, ${
+              otherPrompts === 1
+                ? tm('studies.otherOpenRequestOne')
+                : tm('studies.otherOpenRequests', { count: otherPrompts })
+            }`
+          : presentation.label;
 
         return (
           <Pressable
             accessibilityRole="tab"
-            accessibilityLabel={presentation.label}
+            accessibilityLabel={label}
             accessibilityState={{ selected: focused }}
             key={route.key}
             onPress={() => navigateToTab(route.key)}
@@ -51,6 +90,11 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
                 size={22}
                 color={focused ? colors.primaryDark : colors.textMuted}
               />
+              {showBadge ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{otherPrompts}</Text>
+                </View>
+              ) : null}
             </View>
             <Text style={[styles.label, focused ? styles.labelActive : styles.labelIdle]}>
               {presentation.label}

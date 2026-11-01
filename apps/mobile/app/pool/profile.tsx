@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -38,7 +39,7 @@ import {
   savePoolCredential,
   updatePoolMember,
 } from '@/state/actions';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, radii, spacing } from '@/theme';
 
 type SheetKind = 'concelho' | 'freguesia';
 
@@ -55,31 +56,54 @@ export default function PoolProfileScreen() {
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let active = true;
+
     const load = async () => {
+      setReady(false);
+      setLoadError(null);
+
       const stored = await getPoolCredential().catch(() => null);
+      if (!active) {
+        return;
+      }
       if (!stored) {
+        setCredential(null);
         setReady(true);
         return;
       }
 
-      const { data } = await getPoolMember(stored);
-      if (data) {
-        setCredential(stored);
-        setConcelho(data.concelho);
-        setFreguesia(data.freguesia ?? '');
-        setAge(ageLabel(data.age_band));
-        setGender(genderLabel(data.gender));
-        setSituation(situationLabel(data.occupation));
-        setTransport(transportLabel(data.usual_transport));
-        setLanguages(languageLabels(data.languages));
+      // A stored credential means the member already exists: never fall back to joining.
+      setCredential(stored);
+      const { data, error: apiError } = await getPoolMember(stored);
+      if (!active) {
+        return;
       }
+      if (!data) {
+        setLoadError(apiErrorMessage(apiError));
+        setReady(true);
+        return;
+      }
+
+      setConcelho(data.concelho);
+      setFreguesia(data.freguesia ?? '');
+      setAge(ageLabel(data.age_band));
+      setGender(genderLabel(data.gender));
+      setSituation(situationLabel(data.occupation));
+      setTransport(transportLabel(data.usual_transport));
+      setLanguages(languageLabels(data.languages));
       setReady(true);
     };
 
     void load();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
 
   const toggleLanguage = (option: string) => {
     setLanguages((current) =>
@@ -132,6 +156,29 @@ export default function PoolProfileScreen() {
       <Screen contentStyle={styles.loading}>
         <StatusBar style="dark" />
         <Text style={styles.loadingText}>{ta('account.loading')}</Text>
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen contentStyle={styles.loadErrorContent}>
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <BackButton onPress={() => router.back()} />
+        </View>
+        <View style={styles.loadErrorCard}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={28}
+            color={colors.primaryDark}
+          />
+          <Text style={styles.loadErrorText}>{loadError}</Text>
+          <Button
+            label={ta('common.retry')}
+            onPress={() => setAttempt((value) => value + 1)}
+          />
+        </View>
       </Screen>
     );
   }
@@ -277,6 +324,26 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 15,
     color: colors.textMuted,
+  },
+  loadErrorContent: {
+    gap: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
+  loadErrorCard: {
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radii.card,
+    padding: spacing.xl,
+    backgroundColor: colors.surface,
+  },
+  loadErrorText: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textBody,
   },
   header: {
     paddingTop: spacing.lg,

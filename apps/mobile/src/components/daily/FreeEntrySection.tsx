@@ -43,64 +43,94 @@ function usedLabel(activity: FreeEntryActivity): string {
 }
 
 export function FreeEntrySection({ activities, main, onOpen }: FreeEntrySectionProps) {
+  const activity =
+    activities.find((item) => !availabilityOf(item).disabled) ?? activities[0];
+
+  if (!activity) {
+    return null;
+  }
+
+  const { disabled, reason } = availabilityOf(activity);
+
+  if (main) {
+    return (
+      <View style={[styles.card, styles.cardMain]}>
+        <View style={styles.iconMain}>
+          <Ionicons name="create-outline" size={28} color={colors.primary} />
+        </View>
+        <Text style={styles.titleMain}>{td('today.freeTitle')}</Text>
+        <Text style={styles.bodyMain}>{td('today.freeBody')}</Text>
+        <View style={styles.spacer} />
+        <Text style={styles.usedMain}>{usedLabel(activity)}</Text>
+        <Pressable
+          accessibilityLabel={`${td('today.freeAction')}: ${activity.title}`}
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={() => onOpen(activity)}
+          style={({ pressed }) => [
+            styles.actionMain,
+            disabled && styles.actionDisabled,
+            pressed && !disabled && styles.pressed,
+          ]}
+        >
+          <Ionicons
+            name="add"
+            size={22}
+            color={disabled ? colors.disabledText : colors.white}
+          />
+          <Text
+            style={[
+              styles.actionMainLabel,
+              disabled && styles.actionLabelDisabled,
+            ]}
+          >
+            {td('today.freeAction')}
+          </Text>
+        </Pressable>
+        {reason ? <Text style={styles.reason}>{reason}</Text> : null}
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.card, main && styles.cardMain]}>
-      <View style={styles.header}>
-        <View style={styles.icon}>
-          <Ionicons name="create-outline" size={22} color={colors.primary} />
-        </View>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>{td('today.freeTitle')}</Text>
-          <Text style={styles.body}>{td('today.freeBody')}</Text>
-        </View>
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{td('today.freeTitle')}</Text>
+        <Text style={styles.used}>{usedLabel(activity)}</Text>
       </View>
-
-      <View style={styles.list}>
-        {activities.map((activity) => {
-          const { disabled, reason } = availabilityOf(activity);
-
-          return (
-            <View key={activity.id} style={styles.row}>
-              <View style={styles.rowText}>
-                <Text style={styles.activity}>{activity.title}</Text>
-                <Text style={styles.used}>{usedLabel(activity)}</Text>
-                {reason ? <Text style={styles.reason}>{reason}</Text> : null}
-              </View>
-              <Pressable
-                accessibilityLabel={`${td('today.freeAction')}: ${activity.title}`}
-                accessibilityRole="button"
-                accessibilityState={{ disabled }}
-                disabled={disabled}
-                onPress={() => onOpen(activity)}
-                style={({ pressed }) => [
-                  styles.action,
-                  disabled && styles.actionDisabled,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text
-                  style={[styles.actionLabel, disabled && styles.actionLabelDisabled]}
-                >
-                  {td('today.freeAction')}
-                </Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color={disabled ? colors.disabledText : colors.white}
-                />
-              </Pressable>
-            </View>
-          );
-        })}
-      </View>
+      <Pressable
+        accessibilityLabel={`${td('today.freeAction')}: ${activity.title}`}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={() => onOpen(activity)}
+        style={({ pressed }) => [
+          styles.action,
+          disabled && styles.actionDisabled,
+          pressed && !disabled && styles.pressed,
+        ]}
+      >
+        <Ionicons
+          name="add"
+          size={20}
+          color={disabled ? colors.disabledText : colors.white}
+        />
+        <Text
+          style={[styles.actionLabel, disabled && styles.actionLabelDisabled]}
+        >
+          {td('today.freeAction')}
+        </Text>
+      </Pressable>
+      {reason ? <Text style={styles.reason}>{reason}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.lg,
-    paddingVertical: spacing.lg,
+    gap: spacing.md,
+    paddingVertical: 18,
     paddingHorizontal: spacing.xl,
     borderRadius: radii.card,
     borderWidth: 1,
@@ -108,62 +138,58 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   cardMain: {
-    borderWidth: 2,
-    borderColor: colors.primary,
+    gap: 14,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: 22,
+    borderRadius: radii.hero,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  icon: {
-    width: 44,
-    height: 44,
+  iconMain: {
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    borderRadius: 28,
     backgroundColor: colors.primarySoft,
   },
-  headerText: {
-    minWidth: 0,
-    flex: 1,
-    gap: 4,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
   title: {
     fontFamily: fonts.extrabold,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 18,
+    lineHeight: 24,
     color: colors.text,
   },
-  body: {
+  titleMain: {
+    fontFamily: fonts.extrabold,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.32,
+    color: colors.text,
+  },
+  bodyMain: {
     fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 18,
+    lineHeight: 27,
     color: colors.textBody,
   },
-  list: {
-    gap: spacing.md,
-  },
-  row: {
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
-  },
-  rowText: {
-    gap: 2,
-  },
-  activity: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    lineHeight: 21,
-    color: colors.text,
-  },
   used: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-    lineHeight: 18,
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    lineHeight: 19,
     color: colors.textMuted,
+  },
+  usedMain: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textMuted,
+  },
+  spacer: {
+    flexGrow: 1,
   },
   reason: {
     fontFamily: fonts.semibold,
@@ -172,7 +198,7 @@ const styles = StyleSheet.create({
     color: '#9B1C1C',
   },
   action: {
-    height: 48,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -180,13 +206,30 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: colors.primary,
   },
+  actionMain: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: radii.xl,
+    backgroundColor: colors.primary,
+  },
   actionDisabled: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
     backgroundColor: colors.disabledBackground,
   },
   actionLabel: {
     fontFamily: fonts.extrabold,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.white,
+  },
+  actionMainLabel: {
+    fontFamily: fonts.extrabold,
+    fontSize: 20,
+    lineHeight: 26,
     color: colors.white,
   },
   actionLabelDisabled: {

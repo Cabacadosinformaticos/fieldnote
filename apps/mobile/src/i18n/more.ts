@@ -14,6 +14,8 @@ const more = {
   'studies.declined': 'Não aprovado',
   'studies.openRequest': '1 pedido em aberto',
   'studies.openRequestUntil': '1 pedido em aberto até às {time}',
+  'studies.otherOpenRequestOne': '1 pedido em aberto noutro estudo',
+  'studies.otherOpenRequests': '{count} pedidos em aberto noutro estudo',
   'studies.erasingNote': 'Os dados deste estudo vão ser apagados',
   'studies.activeNote': 'Em curso',
   'studies.endedOn': 'Terminou a {date}',

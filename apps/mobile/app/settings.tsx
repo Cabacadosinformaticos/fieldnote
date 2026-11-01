@@ -15,7 +15,6 @@ import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { Screen } from '@/components/Screen';
 import { BackLink } from '@/components/more/BackLink';
 import { Bullets } from '@/components/more/Bullets';
-import { LanguageToggle } from '@/components/more/LanguageToggle';
 import { SettingsRow } from '@/components/more/SettingsRow';
 import { moreHref } from '@/components/more/navigation';
 import { formatDate } from '@/components/join/format';
@@ -98,7 +97,13 @@ export default function SettingsScreen() {
         if (!firstDue && due) {
           firstDue = due;
         }
-        await clearStudyQueue(row.studyId).catch(() => undefined);
+        try {
+          await clearStudyQueue(row.studyId);
+        } catch {
+          setBusy(false);
+          setError(tm('settings.eraseError'));
+          return;
+        }
         continue;
       }
 
@@ -118,12 +123,20 @@ export default function SettingsScreen() {
           return;
         }
 
-        await clearStudyQueue(row.studyId).catch(() => undefined);
+        // Store the due date first: if the queue wipe fails now, the scheduled purge retries it.
         await setErasureDue(row.studyId, data.erasure_due_at).catch(
           () => undefined,
         );
         if (!firstDue && data.erasure_due_at) {
           firstDue = data.erasure_due_at;
+        }
+
+        try {
+          await clearStudyQueue(row.studyId);
+        } catch {
+          setBusy(false);
+          setError(tm('settings.eraseError'));
+          return;
         }
       } catch {
         setBusy(false);
@@ -203,12 +216,7 @@ export default function SettingsScreen() {
           subtitle={accountSubtitle}
           title={tm('settings.account')}
         />
-        <SettingsRow
-          divider
-          icon="globe-outline"
-          title={tm('settings.language')}
-          trailing={<LanguageToggle />}
-        />
+        {/* PT/EN selector removed until English exists. */}
         <SettingsRow
           divider
           icon="people-outline"

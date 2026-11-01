@@ -121,7 +121,9 @@ export default function AccountEmailScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => {
-              void send();
+              setStep('email');
+              setCode('');
+              setError(null);
             }}
           >
             <Text style={styles.change}>{ta('accountEmail.change')}</Text>
