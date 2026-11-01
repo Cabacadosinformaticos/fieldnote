@@ -217,7 +217,7 @@ const pt = {
   'settings.consent.placeholder': 'Texto de consentimento…',
   'settings.section.questions': 'Perguntas ao entrar',
   'settings.questions.subtitle':
-    'Perguntas curtas que cada participante responde depois de aceitar o consentimento, para perceber quem é e como usa o jardim.',
+    'Perguntas curtas que cada participante responde depois de aceitar o consentimento, para o caracterizar melhor.',
   'settings.questions.count': '{count} perguntas',
   'settings.questions.countOne': '1 pergunta',
   'settings.questions.error': 'Escreva a pergunta e pelo menos duas opções.',
@@ -228,6 +228,8 @@ const pt = {
   'settings.questions.editAria': 'Editar a pergunta {number}',
   'settings.questions.removeAria': 'Remover a pergunta {number}',
   'settings.questions.reorderAria': 'Mudar a ordem da pergunta {number}',
+  'settings.questions.moveUpAria': 'Mover a pergunta {number} para cima',
+  'settings.questions.moveDownAria': 'Mover a pergunta {number} para baixo',
   'settings.questions.add': 'Adicionar pergunta',
   'settings.questions.addTitle': 'Adicionar pergunta',
   'settings.questions.editTitle': 'Editar pergunta',

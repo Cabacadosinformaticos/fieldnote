@@ -298,6 +298,20 @@ export default function StudySettingsPage() {
     deleteQuestion.mutate(questionId)
   }
 
+  function moveQuestion(index: number, delta: number) {
+    if (!canDesign) {
+      return
+    }
+    const to = index + delta
+    if (to < 0 || to >= questions.length) {
+      return
+    }
+    const ids = questions.map((question) => question.id)
+    const [moved] = ids.splice(index, 1)
+    ids.splice(to, 0, moved)
+    reorderQuestions.mutate(ids)
+  }
+
   function reorderQuestion(targetId: string) {
     if (!dragId || dragId === targetId || !canDesign) {
       setDragId(null)
@@ -657,6 +671,28 @@ export default function StudySettingsPage() {
                       <span className="ac-sub">{question.options.join(' · ')}</span>
                     </div>
                     <div className="ac-question-actions">
+                      <button
+                        type="button"
+                        className="btn btn-sm ac-icon-only"
+                        disabled={!canDesign || index === 0 || reorderQuestions.isPending}
+                        aria-label={t('settings.questions.moveUpAria', { number: index + 1 })}
+                        onClick={() => moveQuestion(index, -1)}
+                      >
+                        <span aria-hidden="true">↑</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm ac-icon-only"
+                        disabled={
+                          !canDesign ||
+                          index === questions.length - 1 ||
+                          reorderQuestions.isPending
+                        }
+                        aria-label={t('settings.questions.moveDownAria', { number: index + 1 })}
+                        onClick={() => moveQuestion(index, 1)}
+                      >
+                        <span aria-hidden="true">↓</span>
+                      </button>
                       <button
                         type="button"
                         className="btn btn-sm ac-icon-only"

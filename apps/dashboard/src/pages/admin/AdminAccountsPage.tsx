@@ -244,7 +244,7 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
 
       {actionError ? (
         <div className="ad-error-notice" role="alert">
-          {accountErrorText(actionError)}
+          {actionError}
         </div>
       ) : null}
 

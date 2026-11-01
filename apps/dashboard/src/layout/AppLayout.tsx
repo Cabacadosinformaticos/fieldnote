@@ -1,5 +1,6 @@
-import { useState, type ComponentType, type SVGProps } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type SVGProps } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { emailDisplayName, emailInitials } from '../components/participants/format'
 import { useAuth } from '../auth/useAuth'
 import { useErasures } from '../api/admin'
 import { statusFromApi, useStudies } from '../api/studies'
@@ -49,6 +50,29 @@ export default function AppLayout() {
   const params = useParams<{ studyId?: string }>()
   const studyId = params.studyId
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  const switcherRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!switcherOpen) {
+      return
+    }
+    const closeOnKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSwitcherOpen(false)
+      }
+    }
+    const closeOnOutside = (event: MouseEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(event.target as Node)) {
+        setSwitcherOpen(false)
+      }
+    }
+    window.addEventListener('keydown', closeOnKey)
+    window.addEventListener('mousedown', closeOnOutside)
+    return () => {
+      window.removeEventListener('keydown', closeOnKey)
+      window.removeEventListener('mousedown', closeOnOutside)
+    }
+  }, [switcherOpen])
 
   const isAdmin = user?.role === 'admin'
   const studiesQuery = useStudies()
@@ -79,9 +103,9 @@ export default function AppLayout() {
 
   const userEmail = user?.email ?? ''
   const userCard = {
-    name: userEmail,
+    name: userEmail ? emailDisplayName(userEmail) : '',
     role: t(isAdmin ? 'user.role.admin' : 'user.role.researcher'),
-    initials: userEmail.split('@')[0].slice(0, 2).toUpperCase(),
+    initials: userEmail ? emailInitials(userEmail) : '',
   }
   const pendingErasures = erasuresQuery.data?.scheduled.length ?? 0
 
@@ -105,7 +129,7 @@ export default function AppLayout() {
           </div>
 
           {!isAdmin && studyId ? (
-            <div className="study-switcher-wrap">
+            <div className="study-switcher-wrap" ref={switcherRef}>
               <button
                 type="button"
                 className="study-switcher"

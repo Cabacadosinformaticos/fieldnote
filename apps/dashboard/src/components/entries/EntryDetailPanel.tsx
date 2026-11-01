@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import { t } from '../../i18n/entries'
 import { CheckIcon } from '../icons'
 import {
@@ -52,6 +52,8 @@ export default function EntryDetailPanel({
 }: EntryDetailPanelProps) {
   const [playing, setPlaying] = useState(false)
   const [tagMenuOpen, setTagMenuOpen] = useState(false)
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [newTag, setNewTag] = useState('')
   const kind = entryKindMeta[entry.entry_type]
   const status = entryStatusOf(entry)
@@ -74,6 +76,30 @@ export default function EntryDetailPanel({
   )
   const activity = entry.activity_title ?? t('activity.unknown')
   const alias = entryAlias(entry)
+
+  function toggleAudio() {
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+    if (audio.paused) {
+      void audio.play().catch(() => setPlaying(false))
+    } else {
+      audio.pause()
+    }
+  }
+
+  async function openVideoFullscreen() {
+    const video = videoRef.current
+    if (!video) {
+      return
+    }
+    try {
+      await video.requestFullscreen()
+    } catch {
+      // The browser may refuse fullscreen; the inline controls still work.
+    }
+  }
 
   function submitTag(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== 'Enter') {
@@ -171,12 +197,13 @@ export default function EntryDetailPanel({
             type="button"
             className="en-audio-play"
             aria-label={playing ? t('detail.pause') : t('detail.play')}
-            onClick={() => setPlaying((value) => !value)}
+            onClick={toggleAudio}
           >
             {playing ? <PauseIcon width={20} height={20} /> : <PlayIcon width={20} height={20} />}
           </button>
           <Waveform color="#7FD3BF" />
           <audio
+            ref={audioRef}
             controls
             src={media.url}
             className="en-detail-media-file"
@@ -191,6 +218,7 @@ export default function EntryDetailPanel({
       return (
         <div className="en-detail-media">
           <video
+            ref={videoRef}
             controls
             playsInline
             preload="metadata"
@@ -198,7 +226,11 @@ export default function EntryDetailPanel({
             className="en-detail-media-file"
           />
           <div className="en-video-controls">
-            <button type="button" aria-label={t('detail.fullscreen')}>
+            <button
+              type="button"
+              aria-label={t('detail.fullscreen')}
+              onClick={() => void openVideoFullscreen()}
+            >
               <FullscreenIcon width={20} height={20} />
             </button>
           </div>

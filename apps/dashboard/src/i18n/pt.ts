@@ -33,10 +33,6 @@ export const pt = {
   'study.status.draft': 'Rascunho',
   'study.status.finished': 'Terminado',
 
-  'user.researcher.name': 'Inês Marques',
-  'user.researcher.role': 'Investigadora',
-  'user.admin.name': 'Carla Nunes',
-  'user.admin.role': 'Administradora',
   'user.role.researcher': 'Investigadora',
   'user.role.admin': 'Administradora',
 
