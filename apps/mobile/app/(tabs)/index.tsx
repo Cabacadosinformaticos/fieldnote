@@ -291,34 +291,43 @@ export default function TodayScreen() {
               <Text style={styles.otherTitle}>
                 {td('today.otherPrompts', { count: others.length })}
               </Text>
-              {others.map((activity) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={activity.promptId ?? activity.id}
-                  onPress={() => openActivity(activity)}
-                  style={({ pressed }) => [
-                    styles.otherRow,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View style={styles.otherText}>
-                    <Text numberOfLines={1} style={styles.otherName}>
-                      {activity.title}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.otherStudy}>
-                      {td('today.fromStudy', {
-                        study: activity.studyTitle,
-                        types: typeLabels(activity),
-                      })}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={colors.textMuted}
-                  />
-                </Pressable>
-              ))}
+              {others.map((activity) => {
+                // Same rule as the main card: a prompt with no capture type the app can record
+                // cannot be opened, so its row is disabled and says why in its own subtitle.
+                const unavailable = activity.captureTypes.length === 0;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: unavailable }}
+                    disabled={unavailable}
+                    key={activity.promptId ?? activity.id}
+                    onPress={() => openActivity(activity)}
+                    style={({ pressed }) => [
+                      styles.otherRow,
+                      unavailable && styles.otherRowDisabled,
+                      pressed && !unavailable && styles.pressed,
+                    ]}
+                  >
+                    <View style={styles.otherText}>
+                      <Text numberOfLines={1} style={styles.otherName}>
+                        {activity.title}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.otherStudy}>
+                        {td('today.fromStudy', {
+                          study: activity.studyTitle,
+                          types: typeLabels(activity),
+                        })}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={unavailable ? 'ban-outline' : 'chevron-forward'}
+                      size={20}
+                      color={unavailable ? colors.disabledText : colors.textMuted}
+                    />
+                  </Pressable>
+                );
+              })}
             </View>
           ) : null}
         </>
@@ -519,6 +528,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: colors.textMuted,
+  },
+  otherRowDisabled: {
+    opacity: 0.55,
   },
   noRequestCard: {
     flexDirection: 'row',

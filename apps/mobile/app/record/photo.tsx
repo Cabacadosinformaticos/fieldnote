@@ -110,7 +110,7 @@ export default function PhotoRecordScreen() {
     setSaving(true);
     setError(null);
     try {
-      await saveEntry({
+      const entryId = await saveEntry({
         activity,
         type: 'photo',
         body: note,
@@ -121,7 +121,7 @@ export default function PhotoRecordScreen() {
           },
         ],
       });
-      router.replace('/record/saved');
+      router.replace({ pathname: '/record/saved', params: { id: entryId } });
     } catch {
       setError(td('record.saveError'));
       setSaving(false);

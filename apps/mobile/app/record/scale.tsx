@@ -43,6 +43,7 @@ export default function ScaleRecordScreen() {
   const { activity, loading } = useCachedActivity(activityId);
   const [selected, setSelected] = useState<number | null>(null);
   const [sliderValue, setSliderValue] = useState(50);
+  const [sliderTouched, setSliderTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +92,10 @@ export default function ScaleRecordScreen() {
     (label, index) => label || fallbacks[index] || '',
   );
   const labels = scale.type === 'faces' ? displayFaceLabels : [];
-  const value = scale.type === 'slider' ? sliderValue : selected;
+  // The slider thumb starts in the middle, but that is only a position: until the participant
+  // moves it the answer is still empty and Save stays disabled.
+  const value =
+    scale.type === 'slider' ? (sliderTouched ? sliderValue : null) : selected;
 
   const save = async () => {
     if (saving || value === null) {
@@ -100,13 +104,13 @@ export default function ScaleRecordScreen() {
     setSaving(true);
     setError(null);
     try {
-      await saveEntry({
+      const entryId = await saveEntry({
         activity,
         type: 'scale',
         value,
         scaleShown: scaleShownFor(scale, labels),
       });
-      router.replace('/record/saved');
+      router.replace({ pathname: '/record/saved', params: { id: entryId } });
     } catch {
       setError(td('record.saveError'));
       setSaving(false);
@@ -127,7 +131,10 @@ export default function ScaleRecordScreen() {
         {scale.type === 'slider' ? (
           <ScaleSlider
             endLabel={scale.endLabel}
-            onChange={setSliderValue}
+            onChange={(next) => {
+              setSliderValue(next);
+              setSliderTouched(true);
+            }}
             startLabel={scale.startLabel}
             value={sliderValue}
           />

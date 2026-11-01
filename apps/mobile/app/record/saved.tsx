@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import {
@@ -16,7 +16,7 @@ import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Sparkles } from '@/components/daily/Sparkles';
 import { td } from '@/i18n/td';
-import { useOutboxEntries } from '@/queue/hooks';
+import { useOutboxEntries, useOutboxEntry } from '@/queue/hooks';
 import { summaryOf } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
@@ -27,12 +27,18 @@ const waitingColors = {
 } as const;
 
 export default function SavedScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const progress = useAnimatedValue(0);
-  const { entries } = useOutboxEntries();
+  const { entries, loading: listLoading } = useOutboxEntries();
+  const { entry: savedEntry, loading: entryLoading } = useOutboxEntry(id);
   const summary = summaryOf(entries);
-  const latest = entries[0];
+  // The record just saved is identified by id: the newest queued entry is not necessarily it.
+  const latest = id ? savedEntry : entries[0];
+  const ready = id ? !entryLoading : !listLoading;
   const failed = latest?.state === 'failed';
-  const sent = latest?.state === 'sent' || (!latest && summary.waiting === 0);
+  const sent =
+    ready &&
+    (latest?.state === 'sent' || (!latest && !id && summary.waiting === 0));
 
   useEffect(() => {
     let mounted = true;
@@ -95,57 +101,61 @@ export default function SavedScreen() {
           </View>
         </Animated.View>
 
-        <Text style={styles.title}>
-          {failed
-            ? td('saved.failedTitle')
-            : sent
-              ? td('saved.sentTitle')
-              : td('saved.title')}
-        </Text>
-        <Text style={styles.body}>
-          {failed
-            ? td('saved.failedBody')
-            : sent
-              ? td('saved.sentBody')
-              : td('saved.body')}
-        </Text>
+        {ready ? (
+          <>
+            <Text style={styles.title}>
+              {failed
+                ? td('saved.failedTitle')
+                : sent
+                  ? td('saved.sentTitle')
+                  : td('saved.title')}
+            </Text>
+            <Text style={styles.body}>
+              {failed
+                ? td('saved.failedBody')
+                : sent
+                  ? td('saved.sentBody')
+                  : td('saved.body')}
+            </Text>
 
-        {failed ? (
-          <View style={styles.failedCard}>
-            <Ionicons name="warning-outline" size={22} color="#9B1C1C" />
-            <Text style={styles.failedText}>{td('saved.failedBody')}</Text>
-          </View>
-        ) : sent ? (
-          <View style={styles.sentCard}>
-            <Ionicons
-              name="cloud-done-outline"
-              size={22}
-              color={colors.successText}
-            />
-            <Text style={styles.sentText}>{td('saved.sentBody')}</Text>
-          </View>
-        ) : (
-          <View style={styles.statusCard}>
-            <View style={styles.statusHeader}>
-              <View style={styles.statusIcon}>
-                <Ionicons
-                  name="cloud-offline-outline"
-                  size={24}
-                  color={waitingColors.text}
-                />
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>{summary.waiting}</Text>
-                </View>
+            {failed ? (
+              <View style={styles.failedCard}>
+                <Ionicons name="warning-outline" size={22} color="#9B1C1C" />
+                <Text style={styles.failedText}>{td('saved.failedBody')}</Text>
               </View>
-              <Text style={styles.statusTitle}>
-                {td('saved.waiting', { count: summary.waiting })}
-              </Text>
-            </View>
+            ) : sent ? (
+              <View style={styles.sentCard}>
+                <Ionicons
+                  name="cloud-done-outline"
+                  size={22}
+                  color={colors.successText}
+                />
+                <Text style={styles.sentText}>{td('saved.sentBody')}</Text>
+              </View>
+            ) : (
+              <View style={styles.statusCard}>
+                <View style={styles.statusHeader}>
+                  <View style={styles.statusIcon}>
+                    <Ionicons
+                      name="cloud-offline-outline"
+                      size={24}
+                      color={waitingColors.text}
+                    />
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusBadgeText}>{summary.waiting}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.statusTitle}>
+                    {td('saved.waiting', { count: summary.waiting })}
+                  </Text>
+                </View>
 
-            <Text style={styles.warningText}>{td('saved.warning')}</Text>
-            <Text style={styles.statusNote}>{td('saved.note')}</Text>
-          </View>
-        )}
+                <Text style={styles.warningText}>{td('saved.warning')}</Text>
+                <Text style={styles.statusNote}>{td('saved.note')}</Text>
+              </View>
+            )}
+          </>
+        ) : null}
       </View>
 
       <View style={styles.spacer} />

@@ -215,7 +215,7 @@ export default function AudioRecordScreen() {
     setSaving(true);
     setError(null);
     try {
-      await saveEntry({
+      const entryId = await saveEntry({
         activity,
         type: 'audio',
         mediaUris: [
@@ -225,7 +225,7 @@ export default function AudioRecordScreen() {
           },
         ],
       });
-      router.replace('/record/saved');
+      router.replace({ pathname: '/record/saved', params: { id: entryId } });
     } catch {
       setError(td('record.saveError'));
       setSaving(false);
@@ -239,8 +239,8 @@ export default function AudioRecordScreen() {
     setSaving(true);
     setError(null);
     try {
-      await saveEntry({ activity, type: 'text', body: answer });
-      router.replace('/record/saved');
+      const entryId = await saveEntry({ activity, type: 'text', body: answer });
+      router.replace({ pathname: '/record/saved', params: { id: entryId } });
     } catch {
       setError(td('record.saveError'));
       setSaving(false);

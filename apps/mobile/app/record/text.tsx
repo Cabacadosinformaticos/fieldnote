@@ -69,8 +69,8 @@ export default function TextRecordScreen() {
     setSaving(true);
     setError(null);
     try {
-      await saveEntry({ activity, type: 'text', body: answer });
-      router.replace('/record/saved');
+      const entryId = await saveEntry({ activity, type: 'text', body: answer });
+      router.replace({ pathname: '/record/saved', params: { id: entryId } });
     } catch {
       setError(td('record.saveError'));
       setSaving(false);

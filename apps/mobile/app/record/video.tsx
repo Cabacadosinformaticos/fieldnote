@@ -182,7 +182,7 @@ export default function VideoRecordScreen() {
     setSaving(true);
     setError(null);
     try {
-      await saveEntry({
+      const entryId = await saveEntry({
         activity,
         type: 'video',
         mediaUris: [
@@ -192,7 +192,7 @@ export default function VideoRecordScreen() {
           },
         ],
       });
-      router.replace('/record/saved');
+      router.replace({ pathname: '/record/saved', params: { id: entryId } });
     } catch {
       setError(td('record.saveError'));
       setSaving(false);
