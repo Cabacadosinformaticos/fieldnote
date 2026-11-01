@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SecureStore from 'expo-secure-store';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -44,6 +45,42 @@ type Interval = {
   to: number;
   days: boolean[];
 };
+
+type JoinStatus = 'active' | 'pending_approval';
+
+type PendingJoin = {
+  deviceToken: string;
+  status: JoinStatus;
+};
+
+const PENDING_JOIN_PREFIX = 'fieldnote.join.pending.';
+
+function pendingJoinKey(studyId: string): string {
+  return `${PENDING_JOIN_PREFIX}${studyId}`;
+}
+
+/**
+ * The accept call runs once. If the availability PUT fails afterwards, this record lets the
+ * retry send only the hours instead of accepting the invitation again.
+ */
+async function readPendingJoin(studyId: string): Promise<PendingJoin | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(pendingJoinKey(studyId));
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<PendingJoin>;
+    if (
+      typeof parsed.deviceToken !== 'string' ||
+      (parsed.status !== 'active' && parsed.status !== 'pending_approval')
+    ) {
+      return null;
+    }
+    return { deviceToken: parsed.deviceToken, status: parsed.status };
+  } catch {
+    return null;
+  }
+}
 
 type SheetState = {
   id: number | null;
@@ -159,55 +196,75 @@ export default function AvailabilityScreen() {
     setSubmitting(true);
     setSubmitError(null);
 
+    const studyId = lookup.study.id;
+
     try {
-      const storedToken = await getDeviceToken(lookup.study.id);
-      const accountToken = lookup.requires_account
-        ? await getAccountToken().catch(() => null)
-        : null;
-      const client = accountToken
-        ? accountClient(accountToken)
-        : storedToken
-          ? deviceClient(storedToken)
-          : api;
-      const accepted = await client.POST(
-        '/api/v1/participation/invitations/accept',
-        {
-          body: {
-            code: code ?? '',
-            android_id: getAndroidId(),
-            locale: 'pt',
-            consent_version: lookup.consent_version,
-            answers,
+      // A previous attempt may have accepted the invitation and then failed to save the
+      // hours. In that case only the availability PUT is retried.
+      let joined = await readPendingJoin(studyId);
+
+      if (!joined) {
+        const storedToken = await getDeviceToken(studyId);
+        const accountToken = lookup.requires_account
+          ? await getAccountToken().catch(() => null)
+          : null;
+        const client = accountToken
+          ? accountClient(accountToken)
+          : storedToken
+            ? deviceClient(storedToken)
+            : api;
+        const accepted = await client.POST(
+          '/api/v1/participation/invitations/accept',
+          {
+            body: {
+              code: code ?? '',
+              android_id: getAndroidId(),
+              locale: 'pt',
+              consent_version: lookup.consent_version,
+              answers,
+            },
           },
-        },
-      );
+        );
 
-      if (!accepted.data) {
-        setSubmitError(apiErrorMessage(accepted.error));
-        return;
+        if (!accepted.data) {
+          setSubmitError(apiErrorMessage(accepted.error));
+          return;
+        }
+
+        if (accepted.data.device_token) {
+          await saveDeviceToken(studyId, accepted.data.device_token);
+        }
+
+        const deviceToken = accepted.data.device_token ?? storedToken;
+        if (!deviceToken) {
+          setSubmitError(tj('error.generic'));
+          return;
+        }
+
+        await saveParticipation({
+          studyId,
+          title: lookup.study.title,
+          status: accepted.data.participant.status,
+          alias: accepted.data.participant.alias,
+          startsOn: lookup.study.starts_on,
+          endsOn: lookup.study.ends_on,
+          timezone: lookup.study.timezone,
+        });
+
+        const status = accepted.data.participant.status;
+        if (status !== 'pending_approval' && status !== 'active') {
+          setSubmitError(tj('error.generic'));
+          return;
+        }
+
+        joined = { deviceToken, status };
+        await SecureStore.setItemAsync(
+          pendingJoinKey(studyId),
+          JSON.stringify(joined),
+        ).catch(() => undefined);
       }
 
-      if (accepted.data.device_token) {
-        await saveDeviceToken(lookup.study.id, accepted.data.device_token);
-      }
-
-      const deviceToken = accepted.data.device_token ?? storedToken;
-      if (!deviceToken) {
-        setSubmitError(tj('error.generic'));
-        return;
-      }
-
-      await saveParticipation({
-        studyId: lookup.study.id,
-        title: lookup.study.title,
-        status: accepted.data.participant.status,
-        alias: accepted.data.participant.alias,
-        startsOn: lookup.study.starts_on,
-        endsOn: lookup.study.ends_on,
-        timezone: lookup.study.timezone,
-      });
-
-      const saved = await deviceClient(deviceToken).PUT(
+      const saved = await deviceClient(joined.deviceToken).PUT(
         '/api/v1/participation/me/availability',
         { body: availability },
       );
@@ -217,22 +274,20 @@ export default function AvailabilityScreen() {
         return;
       }
 
-      const status = accepted.data.participant.status;
-      if (status !== 'pending_approval' && status !== 'active') {
-        setSubmitError(tj('error.generic'));
-        return;
-      }
+      await SecureStore.deleteItemAsync(pendingJoinKey(studyId)).catch(
+        () => undefined,
+      );
 
-      const studyId = lookup.study.id;
       // Unmount the join stack before leaving, so its screens stop reacting to
       // the session while we navigate to the study.
       router.dismissAll();
-
-      if (status === 'pending_approval') {
-        router.replace({ pathname: '/join/waiting', params: { studyId } });
-      } else {
-        router.replace('/(tabs)');
-      }
+      router.replace({
+        pathname: '/notifications',
+        params: {
+          next: joined.status === 'pending_approval' ? 'waiting' : 'today',
+          studyId,
+        },
+      });
     } catch {
       setSubmitError(networkErrorMessage());
     } finally {
@@ -254,15 +309,15 @@ export default function AvailabilityScreen() {
       <Text style={styles.body}>{tj('availability.body')}</Text>
 
       <View style={styles.anyCard}>
-        <View style={styles.anyHeader}>
+        <Pressable
+          accessibilityLabel={tj('availability.any')}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: anyTime }}
+          onPress={() => setAnyTime((value) => !value)}
+          style={styles.anyHeader}
+        >
           <Text style={styles.anyLabel}>{tj('availability.any')}</Text>
-          <Pressable
-            accessibilityLabel={tj('availability.any')}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: anyTime }}
-            onPress={() => setAnyTime((value) => !value)}
-            style={styles.switchButton}
-          >
+          <View style={styles.switchButton}>
             <View
               style={[
                 styles.switchTrack,
@@ -271,8 +326,8 @@ export default function AvailabilityScreen() {
             >
               <View style={[styles.switchKnob, anyTime && styles.switchKnobOn]} />
             </View>
-          </Pressable>
-        </View>
+          </View>
+        </Pressable>
         <Text style={styles.anyBody}>{tj('availability.anyBody')}</Text>
       </View>
 

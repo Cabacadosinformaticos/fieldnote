@@ -218,7 +218,7 @@ export default function WaitingScreen() {
 
       <Button
         label={tj('waiting.openStudies')}
-        onPress={() => router.replace('/')}
+        onPress={() => router.replace('/(tabs)/studies')}
       />
     </Screen>
   );

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
@@ -10,11 +11,37 @@ import { InfoRow } from '@/components/more/InfoRow';
 import { StepProgress } from '@/components/join/StepProgress';
 import { moreHref } from '@/components/more/navigation';
 import { tm } from '@/i18n/tm';
+import { enableNotifications } from '@/notifications';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const SAMPLE_NOTIFICATION_ID = 'sample';
 
 export default function NotificationsScreen() {
+  const [busy, setBusy] = useState(false);
+  const { next, studyId } = useLocalSearchParams<{ next?: string; studyId?: string }>();
+
+  // A person waiting for the team's approval continues to the waiting screen.
+  const goOn = () => {
+    if (next === 'waiting' && studyId) {
+      router.replace({ pathname: '/join/waiting', params: { studyId } });
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
+  const allow = async () => {
+    if (busy) {
+      return;
+    }
+
+    setBusy(true);
+    const sentToSettings = await enableNotifications().catch(() => false);
+    setBusy(false);
+    if (!sentToSettings) {
+      goOn();
+    }
+  };
+
   return (
     <Screen contentStyle={styles.content}>
       <StatusBar style="dark" />
@@ -78,12 +105,15 @@ export default function NotificationsScreen() {
               color={colors.white}
             />
           }
+          disabled={busy}
           label={tm('notifications.allow')}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => {
+            void allow();
+          }}
         />
         <Button
           label={tm('notifications.notNow')}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={goOn}
           variant="secondary"
         />
       </View>

@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import { Linking } from 'react-native';
 
 import { deviceClientForStudy } from '@/api/client';
 import { showTopBanner } from '@/components/TopBanner';
@@ -41,6 +42,10 @@ async function registerForParticipation(
     .catch(() => undefined);
 }
 
+/**
+ * Registers the phone silently. The OS dialog is only shown from the explicit "Permitir avisos"
+ * action, so a participant who has not granted permission is never asked at launch.
+ */
 async function registerPushTokens(): Promise<void> {
   const id = projectId();
   if (!id) {
@@ -51,12 +56,7 @@ async function registerPushTokens(): Promise<void> {
     () => null,
   );
   if (!permission?.granted) {
-    const requested = await Notifications.requestPermissionsAsync()
-      .then((response) => response.granted)
-      .catch(() => false);
-    if (!requested) {
-      return;
-    }
+    return;
   }
 
   const token = await Notifications.getExpoPushTokenAsync({ projectId: id })
@@ -70,6 +70,34 @@ async function registerPushTokens(): Promise<void> {
   for (const participation of participations) {
     await registerForParticipation(participation.studyId, token);
   }
+}
+
+/**
+ * Asks for the OS permission from the "Permitir avisos" button. When Android no longer lets the
+ * app ask, the only way to turn notifications on is the system settings, so it opens them and
+ * returns true so the screen stays there for the participant to try again on the way back.
+ */
+export async function enableNotifications(): Promise<boolean> {
+  const permission = await Notifications.getPermissionsAsync().catch(
+    () => null,
+  );
+
+  if (!permission?.granted) {
+    if (permission?.canAskAgain === false) {
+      await Linking.openSettings().catch(() => undefined);
+      return true;
+    }
+
+    const granted = await Notifications.requestPermissionsAsync()
+      .then((response) => response.granted)
+      .catch(() => false);
+    if (!granted) {
+      return false;
+    }
+  }
+
+  await registerPushTokens().catch(() => undefined);
+  return false;
 }
 
 async function openPrompt(promptId: string): Promise<void> {
