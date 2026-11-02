@@ -21,6 +21,7 @@ import ParticipantDetailPage from './pages/participants/ParticipantDetailPage'
 import ParticipantsPage from './pages/participants/ParticipantsPage'
 import PosterPage from './pages/participants/PosterPage'
 import RecruitPage from './pages/participants/RecruitPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import SignInPage from './pages/SignInPage'
 import StudiesListPage from './pages/studies/StudiesListPage'
 import StudyNewPage from './pages/studies/StudyNewPage'
@@ -33,6 +34,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/estudos" replace />} />
       <Route path="/entrar" element={<SignInPage />} />
       <Route path="/entrar/codigo" element={<TotpPage />} />
+      <Route path="/recuperar" element={<ResetPasswordPage />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/estudos" element={<AppLayout />}>

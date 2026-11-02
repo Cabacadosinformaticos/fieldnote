@@ -208,6 +208,12 @@
   color: var(--fn-color-danger-text);
 }
 
+.signin-alert.is-success:not(:empty) {
+  border-color: var(--fn-color-success-text);
+  background: var(--fn-color-success-bg);
+  color: var(--fn-color-success-text);
+}
+
 .signin-submit {
   display: flex;
   align-items: center;
@@ -219,6 +225,7 @@
   color: var(--fn-color-white);
   font-size: var(--fn-text-16);
   font-weight: 800;
+  text-decoration: none;
   cursor: pointer;
 }
 

@@ -68,13 +68,47 @@ export const pt = {
   'signIn.submitting': 'A entrar…',
   'signIn.forgot': 'Esqueci-me da palavra-passe',
   'signIn.forgotNote':
-    'Se esqueceu a palavra-passe, enviamos para o seu email uma ligação que funciona uma vez e expira em 30 minutos.',
+    'Se esqueceu a palavra-passe, enviamos para o seu email uma ligação que funciona uma vez e expira em 1 hora.',
   'signIn.adminNote':
     'Contas de administrador: depois da palavra-passe é pedido um código de 6 dígitos.',
   'signIn.error': 'Não foi possível entrar. Verifique o email e a palavra-passe.',
   'signIn.accountLocked': 'Demasiadas tentativas falhadas. Tente novamente mais tarde.',
   'signIn.totpEnrolmentRequired':
     'Esta conta de administrador ainda não tem um autenticador configurado.',
+  'signIn.forgotTitle': 'Recuperar palavra-passe',
+  'signIn.forgotSubtitle':
+    'Indique o email da conta de investigação. Enviamos uma ligação para definir uma nova palavra-passe.',
+  'signIn.forgotSubmit': 'Enviar ligação',
+  'signIn.forgotSubmitting': 'A enviar…',
+  'signIn.forgotBack': 'Voltar a entrar',
+  'signIn.forgotSent':
+    'Se o email pertencer a uma conta de investigação, enviámos uma mensagem de recuperação.',
+  'signIn.forgotSentNote':
+    'Verifique também o lixo eletrónico. A ligação funciona uma vez e expira ao fim de 1 hora.',
+  'signIn.forgotError': 'Não foi possível pedir a recuperação. Tente novamente.',
+  'signIn.forgotMailUnavailable':
+    'O envio de email está indisponível de momento. Tente novamente mais tarde.',
+  'signIn.resetDone': 'Palavra-passe alterada. Entre com a nova palavra-passe.',
+
+  'reset.heroTitle': 'Defina uma nova palavra-passe para voltar ao seu estudo.',
+  'reset.heroBody':
+    'A ligação que recebeu por email serve para uma única alteração. Depois de guardar, todas as sessões abertas são terminadas.',
+  'reset.title': 'Nova palavra-passe',
+  'reset.subtitle': 'Escolha uma palavra-passe com pelo menos 12 caracteres.',
+  'reset.newPassword': 'Nova palavra-passe',
+  'reset.repeatPassword': 'Repetir palavra-passe',
+  'reset.showPassword': 'Mostrar palavra-passe',
+  'reset.submit': 'Guardar palavra-passe',
+  'reset.submitting': 'A guardar…',
+  'reset.back': 'Voltar a entrar',
+  'reset.invalidTitle': 'Ligação inválida',
+  'reset.invalidBody':
+    'Esta ligação de recuperação não é válida ou já expirou. Peça uma nova em «Esqueci-me da palavra-passe».',
+  'reset.error.invalidToken': 'Esta ligação já não é válida. Peça uma nova recuperação.',
+  'reset.error.tooShort': 'A palavra-passe tem de ter pelo menos 12 caracteres.',
+  'reset.error.isEmail': 'A palavra-passe não pode ser igual ao seu email.',
+  'reset.error.mismatch': 'As duas palavras-passe não coincidem.',
+  'reset.error.generic': 'Não foi possível guardar a palavra-passe. Tente novamente.',
   'auth.loading': 'A restaurar a sessão…',
   'totp.submitting': 'A verificar…',
   'totp.error.invalid': 'Código inválido. Verifique o código e tente novamente.',

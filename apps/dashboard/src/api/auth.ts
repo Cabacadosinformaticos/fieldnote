@@ -66,6 +66,28 @@ export async function refresh(): Promise<AuthUser | null> {
   return session?.user ?? null
 }
 
+export async function requestPasswordReset(email: string): Promise<string> {
+  const { data, error, response } = await client.POST('/auth/password-reset/request', {
+    body: { email },
+  })
+  if (data) {
+    return data.message
+  }
+  throw toAuthError(error, response)
+}
+
+export async function confirmPasswordReset(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  const { error, response } = await client.POST('/auth/password-reset/confirm', {
+    body: { token, new_password: newPassword },
+  })
+  if (!response.ok) {
+    throw toAuthError(error, response)
+  }
+}
+
 export async function signOut(): Promise<void> {
   try {
     await client.POST('/auth/logout')
