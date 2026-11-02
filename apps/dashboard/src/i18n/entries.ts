@@ -19,7 +19,7 @@ const pt = {
 
   'list.title': 'Registos',
   'list.subtitle':
-    'Nesta página: {total} registos, {tagged} com etiqueta. Cada registo mostra quando foi gravado e quando chegou.',
+    'Neste filtro: {total} registos, {tagged} com etiqueta nesta página. Cada registo mostra quando foi gravado e quando chegou.',
   'list.viewList': 'Por registo',
   'list.viewTimeline': 'Linha do tempo',
   'list.export': 'Exportar',
@@ -55,6 +55,8 @@ const pt = {
   'list.recorded': 'Gravado',
   'list.received': 'Recebido',
   'list.retry': 'Tentar de novo',
+  'list.retrying': 'A tentar de novo…',
+  'list.retryError': 'Não foi possível tentar de novo: {message}',
   'list.loading': 'A carregar registos…',
   'list.live': 'Em direto',
   'list.offline': 'Sem ligação em direto',
@@ -114,6 +116,7 @@ const pt = {
   'detail.mediaFailed': 'A conversão falhou. Pode tentar de novo na lista de registos.',
   'detail.mediaUnavailable': 'Ficheiro indisponível',
   'detail.photoAlt': 'Fotografia de {alias}',
+  'detail.videoAlt': 'Vídeo de {alias}',
 
   'error.notFound': 'Estudo ou registo não encontrado.',
   'error.forbidden': 'A sua conta não tem acesso a esta área do estudo.',

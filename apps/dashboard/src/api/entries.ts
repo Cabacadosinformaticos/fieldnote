@@ -15,6 +15,7 @@ export type EntryType = components['schemas']['EntryType']
 export type MediaOut = components['schemas']['MediaOut']
 export type TagOut = components['schemas']['TagOut']
 export type EntryListResponse = components['schemas']['EntryListResponse']
+export type MediaRetryOut = components['schemas']['MediaRetryOut']
 export type TimelineResponse = components['schemas']['TimelineResponse']
 export type TimelineLane = components['schemas']['TimelineLane']
 export type TimelineEntry = components['schemas']['TimelineEntry']
@@ -56,6 +57,9 @@ export type EntryFilters = {
   tagId?: string
   dateFrom?: string
   dateTo?: string
+  q?: string
+  freeOnly?: boolean
+  lateOnly?: boolean
   cursor?: string | null
   limit?: number
 }
@@ -107,6 +111,9 @@ export function useEntries(studyId: string | undefined, filters: EntryFilters) {
             ...(filters.tagId ? { tag_id: filters.tagId } : {}),
             ...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
             ...(filters.dateTo ? { date_to: filters.dateTo } : {}),
+            ...(filters.q ? { q: filters.q } : {}),
+            ...(filters.freeOnly ? { free_only: true } : {}),
+            ...(filters.lateOnly ? { late_only: true } : {}),
             ...(filters.cursor ? { cursor: filters.cursor } : {}),
           },
         },
@@ -115,6 +122,27 @@ export function useEntries(studyId: string | undefined, filters: EntryFilters) {
         return data
       }
       throw toApiError(error, response)
+    },
+  })
+}
+
+export function useRetryEntryMedia(studyId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (entryId: string): Promise<MediaRetryOut> => {
+      const { data, error, response } = await client.POST(
+        '/studies/{study_id}/entries/{entry_id}/media/retry',
+        { params: { path: { study_id: studyId, entry_id: entryId } } },
+      )
+      if (data) {
+        return data
+      }
+      throw toApiError(error, response)
+    },
+    onSuccess: (_data, entryId) => {
+      void queryClient.invalidateQueries({ queryKey: entryKeys.detail(studyId, entryId) })
+      void queryClient.invalidateQueries({ queryKey: entryKeys.all(studyId) })
     },
   })
 }

@@ -449,6 +449,13 @@
   height: 100%;
 }
 
+.en-art-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .en-art-play {
   position: absolute;
   display: flex;
@@ -516,6 +523,19 @@
 .en-art-state-failed {
   background: var(--fn-color-danger-bg);
   color: var(--fn-color-danger-text);
+}
+
+.en-retry-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fn-space-6);
+  align-items: flex-start;
+}
+
+.en-retry-error {
+  color: var(--fn-color-danger-text);
+  font-size: var(--fn-text-12);
+  font-weight: 600;
 }
 
 .en-scenic {

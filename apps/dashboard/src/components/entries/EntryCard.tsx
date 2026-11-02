@@ -1,4 +1,5 @@
-import { useState, type KeyboardEvent } from 'react'
+import type { KeyboardEvent } from 'react'
+import { useRetryEntryMedia } from '../../api/entries'
 import { t } from '../../i18n/entries'
 import {
   entryAlias,
@@ -17,6 +18,7 @@ import EntryArtwork from './EntryArtwork'
 
 type EntryCardProps = {
   entry: EntryOut
+  studyId: string
   tags: TagOut[]
   timeZone: string
   selected: boolean
@@ -26,15 +28,18 @@ type EntryCardProps = {
 
 export default function EntryCard({
   entry,
+  studyId,
   tags,
   timeZone,
   selected,
   layout,
   onSelect,
 }: EntryCardProps) {
-  // Local fallback: the API has no endpoint to retry media processing, so the button only
-  // shows the processing state until the entry is reloaded.
-  const [retrying, setRetrying] = useState(false)
+  const retryMedia = useRetryEntryMedia(studyId)
+  const retrying = retryMedia.isPending
+  const retryError = retryMedia.error
+    ? t('list.retryError', { message: retryMedia.error.message })
+    : null
   const kind = entryKindMeta[entry.entry_type]
   const status = retrying ? 'processing' : entryStatusOf(entry)
   const failed = status === 'failed'
@@ -62,18 +67,26 @@ export default function EntryCard({
     </span>
   ) : null
 
-  const retryButton = failed ? (
-    <button
-      type="button"
-      className="btn btn-sm en-retry"
-      onClick={(event) => {
-        event.stopPropagation()
-        setRetrying(true)
-      }}
-    >
-      <RefreshIcon width={16} height={16} />
-      {t('list.retry')}
-    </button>
+  const retryButton = failed || retrying ? (
+    <span className="en-retry-wrap">
+      <button
+        type="button"
+        className="btn btn-sm en-retry"
+        disabled={retrying}
+        onClick={(event) => {
+          event.stopPropagation()
+          retryMedia.mutate(entry.id)
+        }}
+      >
+        <RefreshIcon width={16} height={16} />
+        {retrying ? t('list.retrying') : t('list.retry')}
+      </button>
+      {retryError ? (
+        <span className="en-retry-error" role="alert">
+          {retryError}
+        </span>
+      ) : null}
+    </span>
   ) : null
 
   if (layout === 'rows') {

@@ -1,5 +1,6 @@
 import { t } from '../../i18n/entries'
 import {
+  entryAlias,
   entryStatusOf,
   isFree,
   paletteFor,
@@ -148,6 +149,35 @@ export default function EntryArtwork({ entry, retrying }: { entry: EntryOut; ret
     return (
       <div className="en-art en-art-audio">
         <Waveform />
+      </div>
+    )
+  }
+
+  // Cards use the thumbnail; the full-size file is only loaded in the detail panel.
+  const media = (entry.media ?? []).find(
+    (item) => item.status === 'processed' && (item.thumbnail_url || item.url),
+  )
+  const imageUrl = media?.thumbnail_url ?? media?.url
+
+  if (imageUrl) {
+    return (
+      <div className="en-art">
+        <img
+          className="en-art-img"
+          src={imageUrl}
+          alt={
+            entry.entry_type === 'video'
+              ? t('detail.videoAlt', { alias: entryAlias(entry) })
+              : t('detail.photoAlt', { alias: entryAlias(entry) })
+          }
+          loading="lazy"
+        />
+        {entry.entry_type === 'video' ? (
+          <span className="en-art-play">
+            <PlayIcon width={18} height={18} />
+          </span>
+        ) : null}
+        {isFree(entry) ? <span className="pill ne en-art-free">{t('list.free')}</span> : null}
       </div>
     )
   }

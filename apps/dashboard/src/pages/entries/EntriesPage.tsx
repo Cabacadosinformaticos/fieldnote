@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   useActivities,
@@ -11,7 +11,6 @@ import {
   useStudyEvents,
   useTags,
   type EntryFilters,
-  type EntryOut,
   type EntryType,
   type StudyOut,
 } from '../../api/entries'
@@ -35,11 +34,8 @@ import { ExportIcon } from '../../components/icons'
 import {
   addDays,
   dayStartIso,
-  entryAlias,
   entryKindMeta,
   formatShortDate,
-  isFree,
-  isLate,
   shortId,
 } from '../../components/entries/entryMeta'
 import { t, type EntriesKey } from '../../i18n/entries'
@@ -79,20 +75,6 @@ function buildDateOptions(study: StudyOut | undefined, timeZone: string): DateOp
   return [all, ...days]
 }
 
-function matchesSearch(entry: EntryOut, query: string): boolean {
-  const haystack = [
-    entryAlias(entry),
-    entry.body ?? '',
-    entry.choice ?? '',
-    entry.activity_title ?? '',
-    (entry.tags ?? []).map((tag) => tag.name).join(' '),
-    t(entryKindMeta[entry.entry_type].labelKey),
-  ]
-    .join(' ')
-    .toLowerCase()
-  return haystack.includes(query.trim().toLowerCase())
-}
-
 const kindCountKeys: Record<EntryType, EntriesKey> = {
   photo: 'count.photo',
   text: 'count.text',
@@ -109,6 +91,7 @@ export default function EntriesPage() {
   const [searchParams] = useSearchParams()
 
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'rows'>('grid')
   const [filters, setFilters] = useState<FilterState>({
     participant: 'all',
@@ -140,37 +123,39 @@ export default function EntriesPage() {
   const selectedDate = dateOptions.find((option) => option.value === filters.dates)
   const cursor = cursorStack[cursorStack.length - 1] ?? null
 
-  const apiFilters: EntryFilters = {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  const baseFilters: EntryFilters = {
     participantId: filters.participant !== 'all' ? filters.participant : undefined,
     activityId: filters.activity !== 'all' ? filters.activity : undefined,
     entryType: filters.kind !== 'all' ? (filters.kind as EntryType) : undefined,
     tagId: filters.tag !== 'all' ? filters.tag : undefined,
     dateFrom: selectedDate?.from,
     dateTo: selectedDate?.to,
+    q: debouncedQuery || undefined,
+  }
+
+  const apiFilters: EntryFilters = {
+    ...baseFilters,
+    freeOnly,
+    lateOnly,
     cursor,
     limit: PAGE_SIZE,
   }
 
   const entriesQuery = useEntries(studyId, apiFilters)
   const items = entriesQuery.data?.items ?? []
+  const total = entriesQuery.data?.total ?? 0
   const nextCursor = entriesQuery.data?.next_cursor ?? null
+  const freeCountQuery = useEntries(studyId, { ...baseFilters, freeOnly: true, limit: 1 })
+  const lateCountQuery = useEntries(studyId, { ...baseFilters, lateOnly: true, limit: 1 })
+  const freeCount = freeCountQuery.data?.total ?? 0
+  const lateCount = lateCountQuery.data?.total ?? 0
 
-  // Local fallback: the list endpoint has no search, free-entry or late filter, so these three
-  // narrow the page the API returned instead of changing the server query.
-  const visible = items.filter((entry) => {
-    if (freeOnly && !isFree(entry)) {
-      return false
-    }
-    if (lateOnly && !isLate(entry)) {
-      return false
-    }
-    if (query.trim() && !matchesSearch(entry, query)) {
-      return false
-    }
-    return true
-  })
-
-  const selectedEntryId = selectedId ?? visible[0]?.id ?? items[0]?.id ?? null
+  const selectedEntryId = selectedId ?? items[0]?.id ?? null
   const detailQuery = useEntry(studyId, selectedEntryId)
   const selectedEntry =
     detailQuery.data ?? items.find((entry) => entry.id === selectedEntryId) ?? null
@@ -253,7 +238,7 @@ export default function EntriesPage() {
     label: option.label,
   }))
 
-  const kindCounts = visible.reduce<Record<EntryType, number>>(
+  const kindCounts = items.reduce<Record<EntryType, number>>(
     (counts, entry) => {
       counts[entry.entry_type] += 1
       return counts
@@ -264,15 +249,13 @@ export default function EntriesPage() {
   const tagCounts = (tagsQuery.data ?? [])
     .map((tag) => ({
       tag,
-      count: visible.filter((entry) =>
+      count: items.filter((entry) =>
         (entry.tags ?? []).some((item) => item.id === tag.id),
       ).length,
     }))
     .filter((item) => item.count > 0)
     .sort((left, right) => right.count - left.count)
 
-  const freeCount = items.filter(isFree).length
-  const lateCount = items.filter(isLate).length
   const taggedCount = items.filter((entry) => (entry.tags ?? []).length > 0).length
   const page = cursorStack.length
 
@@ -282,7 +265,7 @@ export default function EntriesPage() {
         <div className="en-header-copy">
           <h1 className="en-title">{t('list.title')}</h1>
           <p className="en-subtitle">
-            {t('list.subtitle', { total: items.length, tagged: taggedCount })}
+            {t('list.subtitle', { total, tagged: taggedCount })}
           </p>
         </div>
         <div className="en-header-actions">
@@ -428,9 +411,13 @@ export default function EntriesPage() {
 
           <div className="en-results-meta">
             <span>
-              {visible.length === 0
+              {total === 0
                 ? t('list.showingNone')
-                : t('list.showingPage', { count: visible.length })}
+                : t('list.showing', {
+                    from: (page - 1) * PAGE_SIZE + 1,
+                    to: (page - 1) * PAGE_SIZE + items.length,
+                    total,
+                  })}
             </span>
             <span className="en-kind-counts">
               {(Object.keys(kindCounts) as EntryType[]).map((kind) => (
@@ -448,15 +435,16 @@ export default function EntriesPage() {
             />
           ) : entriesQuery.isLoading ? (
             <EntryLoadingState />
-          ) : visible.length > 0 ? (
+          ) : items.length > 0 ? (
             <section
               className={viewMode === 'grid' ? 'en-grid' : 'en-rows'}
               aria-label={t('list.title')}
             >
-              {visible.map((entry) => (
+              {items.map((entry) => (
                 <EntryCard
                   key={entry.id}
                   entry={entry}
+                  studyId={studyId}
                   tags={entry.tags ?? []}
                   timeZone={timeZone}
                   selected={entry.id === selectedEntry?.id}
