@@ -7,6 +7,7 @@ from app.models.account import (
 from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.entry import Entry, EntryTag, MediaObject
+from app.models.erasure import ErasureFileDeletion
 from app.models.outbox import OutboxEvent
 from app.models.participant import (
     Availability,
@@ -19,7 +20,7 @@ from app.models.participant import (
 from app.models.pool import PoolInvitation, PoolMember
 from app.models.scheduling import LeaderLease, PlanRun, Prompt
 from app.models.study import Activity, Study, StudyMember, StudyQuestion, Tag
-from app.models.user import RefreshToken, UserAccount
+from app.models.user import PasswordResetToken, RefreshToken, UserAccount
 
 __all__ = [
     "AccountDeviceToken",
@@ -32,6 +33,7 @@ __all__ = [
     "Consent",
     "Entry",
     "EntryTag",
+    "ErasureFileDeletion",
     "InviteCode",
     "LeaderLease",
     "MediaObject",
@@ -39,6 +41,7 @@ __all__ = [
     "Participant",
     "ParticipantAccount",
     "ParticipantIdentity",
+    "PasswordResetToken",
     "PlanRun",
     "PoolInvitation",
     "PoolMember",

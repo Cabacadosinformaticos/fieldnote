@@ -879,6 +879,159 @@
         "title": "AdherenceSummary",
         "type": "object"
       },
+      "AdminPoolConcelhoOut": {
+        "properties": {
+          "concelho": {
+            "title": "Concelho",
+            "type": "string"
+          },
+          "members": {
+            "title": "Members",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "concelho",
+          "members"
+        ],
+        "title": "AdminPoolConcelhoOut",
+        "type": "object"
+      },
+      "AdminPoolFieldsOut": {
+        "properties": {
+          "age_band": {
+            "title": "Age Band",
+            "type": "integer"
+          },
+          "concelho": {
+            "title": "Concelho",
+            "type": "integer"
+          },
+          "freguesia": {
+            "title": "Freguesia",
+            "type": "integer"
+          },
+          "gender": {
+            "title": "Gender",
+            "type": "integer"
+          },
+          "languages": {
+            "title": "Languages",
+            "type": "integer"
+          },
+          "occupation": {
+            "title": "Occupation",
+            "type": "integer"
+          },
+          "usual_transport": {
+            "title": "Usual Transport",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "concelho",
+          "freguesia",
+          "age_band",
+          "gender",
+          "occupation",
+          "usual_transport",
+          "languages"
+        ],
+        "title": "AdminPoolFieldsOut",
+        "type": "object"
+      },
+      "AdminPoolInvitationResultsOut": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "declined": {
+            "title": "Declined",
+            "type": "integer"
+          },
+          "expired": {
+            "title": "Expired",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          },
+          "study_id": {
+            "format": "uuid",
+            "title": "Study Id",
+            "type": "string"
+          },
+          "study_title": {
+            "title": "Study Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "study_id",
+          "study_title",
+          "sent",
+          "accepted",
+          "declined",
+          "expired"
+        ],
+        "title": "AdminPoolInvitationResultsOut",
+        "type": "object"
+      },
+      "AdminPoolOverviewOut": {
+        "properties": {
+          "concelhos": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPoolConcelhoOut"
+            },
+            "title": "Concelhos",
+            "type": "array"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/AdminPoolFieldsOut"
+          },
+          "invitation_results": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPoolInvitationResultsOut"
+            },
+            "title": "Invitation Results",
+            "type": "array"
+          },
+          "invitations_accepted": {
+            "title": "Invitations Accepted",
+            "type": "integer"
+          },
+          "invitations_sent": {
+            "title": "Invitations Sent",
+            "type": "integer"
+          },
+          "members_paused": {
+            "title": "Members Paused",
+            "type": "integer"
+          },
+          "members_total": {
+            "title": "Members Total",
+            "type": "integer"
+          },
+          "top_concelhos": {
+            "title": "Top Concelhos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members_total",
+          "members_paused",
+          "top_concelhos",
+          "invitations_sent",
+          "invitations_accepted",
+          "concelhos",
+          "fields",
+          "invitation_results"
+        ],
+        "title": "AdminPoolOverviewOut",
+        "type": "object"
+      },
       "AdminStudyOut": {
         "properties": {
           "ends_on": {
@@ -1247,6 +1400,27 @@
         "title": "AvailabilityOut",
         "type": "object"
       },
+      "AvailabilitySummaryOut": {
+        "properties": {
+          "any_time": {
+            "title": "Any Time",
+            "type": "boolean"
+          },
+          "intervals": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityIntervalOut"
+            },
+            "title": "Intervals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "any_time",
+          "intervals"
+        ],
+        "title": "AvailabilitySummaryOut",
+        "type": "object"
+      },
       "AvailabilityUpdate": {
         "properties": {
           "any_time": {
@@ -1427,10 +1601,15 @@
               }
             ],
             "title": "Next Cursor"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
           }
         },
         "required": [
-          "items"
+          "items",
+          "total"
         ],
         "title": "EntryListResponse",
         "type": "object"
@@ -1817,6 +1996,17 @@
             },
             "title": "Completed",
             "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           },
           "scheduled": {
             "items": {
@@ -2270,6 +2460,29 @@
           "status": {
             "$ref": "#/components/schemas/MediaStatus"
           },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "thumbnail_url_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url Expires At"
+          },
           "url": {
             "anyOf": [
               {
@@ -2301,6 +2514,29 @@
           "status"
         ],
         "title": "MediaOut",
+        "type": "object"
+      },
+      "MediaRetryOut": {
+        "properties": {
+          "entry_id": {
+            "format": "uuid",
+            "title": "Entry Id",
+            "type": "string"
+          },
+          "media_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Media Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entry_id",
+          "media_ids"
+        ],
+        "title": "MediaRetryOut",
         "type": "object"
       },
       "MediaStatus": {
@@ -2773,6 +3009,28 @@
             ],
             "title": "Alias"
           },
+          "availability_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AvailabilitySummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consented_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consented At"
+          },
           "entered_at": {
             "anyOf": [
               {
@@ -2815,6 +3073,28 @@
           },
           "invite_code": {
             "$ref": "#/components/schemas/PersonalInviteCodeOut"
+          },
+          "last_entry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Entry At"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "$ref": "#/components/schemas/ParticipantStatus"
@@ -3026,6 +3306,28 @@
             ],
             "title": "Alias"
           },
+          "availability_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AvailabilitySummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consented_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consented At"
+          },
           "entered_at": {
             "anyOf": [
               {
@@ -3066,6 +3368,28 @@
             "title": "Id",
             "type": "string"
           },
+          "last_entry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Entry At"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "$ref": "#/components/schemas/ParticipantStatus"
           }
@@ -3092,6 +3416,56 @@
         ],
         "title": "ParticipantStatus",
         "type": "string"
+      },
+      "PasswordResetConfirm": {
+        "properties": {
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "PasswordResetConfirm",
+        "type": "object"
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PasswordResetRequestOut": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "PasswordResetRequestOut",
+        "type": "object"
       },
       "PersonalInviteCodeOut": {
         "properties": {
@@ -4202,6 +4576,27 @@
         "title": "SignInOut",
         "type": "object"
       },
+      "StudyAdherenceOut": {
+        "properties": {
+          "answered": {
+            "default": 0,
+            "title": "Answered",
+            "type": "integer"
+          },
+          "out": {
+            "default": 0,
+            "title": "Out",
+            "type": "integer"
+          },
+          "percentage": {
+            "default": 0.0,
+            "title": "Percentage",
+            "type": "number"
+          }
+        },
+        "title": "StudyAdherenceOut",
+        "type": "object"
+      },
       "StudyAnswerIn": {
         "properties": {
           "answer": {
@@ -4606,6 +5001,24 @@
       },
       "StudyCreate": {
         "properties": {
+          "collaborators": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Collaborators",
+            "type": "array"
+          },
+          "consent_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent Text"
+          },
           "description": {
             "anyOf": [
               {
@@ -4678,6 +5091,23 @@
       "StudyListItemOut": {
         "description": "A study on the dashboard list, with the counts the cards show.",
         "properties": {
+          "adherence_study": {
+            "$ref": "#/components/schemas/StudyAdherenceOut"
+          },
+          "adherence_today": {
+            "$ref": "#/components/schemas/StudyAdherenceOut"
+          },
+          "consent_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent Text"
+          },
           "description": {
             "anyOf": [
               {
@@ -4761,7 +5191,9 @@
           "max_prompts_per_slot",
           "schedule_style",
           "entry_count",
-          "participant_count"
+          "participant_count",
+          "adherence_today",
+          "adherence_study"
         ],
         "title": "StudyListItemOut",
         "type": "object"
@@ -4821,6 +5253,17 @@
       },
       "StudyOut": {
         "properties": {
+          "consent_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent Text"
+          },
           "description": {
             "anyOf": [
               {
@@ -5205,6 +5648,17 @@
       },
       "StudyUpdate": {
         "properties": {
+          "consent_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent Text"
+          },
           "description": {
             "anyOf": [
               {
@@ -6693,6 +7147,37 @@
       "get": {
         "description": "FR-44, FR-85: erasures scheduled from the app (read only) and those already run.",
         "operationId": "list_erasures_api_v1_admin_erasures_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -6703,6 +7188,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -6760,6 +7255,33 @@
           }
         ],
         "summary": "Erase Participant",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/pool/overview": {
+      "get": {
+        "description": "Aggregates for the administrator pool screen; never a member profile.",
+        "operationId": "pool_overview_api_v1_admin_pool_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPoolOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Pool Overview",
         "tags": [
           "admin"
         ]
@@ -6872,6 +7394,82 @@
           }
         ],
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset/confirm": {
+      "post": {
+        "operationId": "confirm_password_reset_api_v1_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Password Reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset/request": {
+      "post": {
+        "description": "Start the recovery flow. The answer never says whether the email has an account.",
+        "operationId": "request_password_reset_api_v1_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Password Reset",
         "tags": [
           "auth"
         ]
@@ -9009,6 +9607,42 @@
           },
           {
             "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "free_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Free Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "late_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Late Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
             "name": "cursor",
             "required": false,
             "schema": {
@@ -9122,6 +9756,64 @@
           }
         ],
         "summary": "Entry Detail",
+        "tags": [
+          "entries"
+        ]
+      }
+    },
+    "/api/v1/studies/{study_id}/entries/{entry_id}/media/retry": {
+      "post": {
+        "operationId": "retry_entry_media_api_v1_studies__study_id__entries__entry_id__media_retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaRetryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Retry Entry Media",
         "tags": [
           "entries"
         ]
