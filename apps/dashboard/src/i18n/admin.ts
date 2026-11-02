@@ -134,18 +134,25 @@ const pt = {
   'pool.title': 'Bolsa de voluntários',
   'pool.subtitle':
     'Pessoas que aceitaram receber convites para estudos. Aqui só se veem totais: nunca há perfis nem pessoas individuais, nem para a administração.',
-  'pool.localTitle': 'Resumo local.',
-  'pool.localBody':
-    ' A API ainda não expõe os totais da bolsa de voluntários; os números desta página vêm dos dados de demonstração.',
+  'pool.loading': 'A carregar os totais da bolsa…',
+  'pool.loadError': 'Não foi possível carregar os totais da bolsa.',
+  'pool.retry': 'Tentar de novo',
   'pool.kpi.members': 'Membros na bolsa',
-  'pool.kpi.towns': 'Lisboa, Amadora e Odivelas',
+  'pool.kpi.membersNote': 'Sem nomes nem contactos',
+  'pool.kpi.topTowns': 'Concelhos com mais membros',
+  'pool.kpi.topTownsNote': '{names}',
+  'pool.kpi.topTownsNoteEmpty': 'Ainda sem membros',
   'pool.kpi.invited': 'Convites enviados',
+  'pool.kpi.invitedNote': '{pending} por aceitar',
   'pool.kpi.accepted': 'Convites aceites',
+  'pool.kpi.acceptedNote': '{percent} % dos enviados',
   'pool.townsTitle': 'Membros por concelho',
   'pool.townsNote':
     'Número de membros, total {total}. Os 8 concelhos com mais membros e os restantes juntos.',
   'pool.townsFootnote':
-    'Em “Outros” estão 57 membros de concelhos com menos de 8 cada. Grupos com menos de 5 pessoas nunca aparecem em separado.',
+    'Em “Outros” estão {others} membros de concelhos com menos de 5 cada. Grupos com menos de 5 pessoas nunca aparecem em separado.',
+  'pool.townsFootnoteEmpty':
+    'Grupos com menos de 5 pessoas nunca aparecem em separado.',
   'pool.town.other': 'Outros',
   'pool.fieldsTitle': 'Campos preenchidos',
   'pool.fieldsNote':
@@ -161,7 +168,8 @@ const pt = {
   'pool.field.languages': 'Línguas',
   'pool.invitesTitle': 'Convites enviados e resultado',
   'pool.invitesNote': 'Por estudo. Cada convite vale 7 dias.',
-  'pool.invitesMeta': '{count} convites enviados a {when}',
+  'pool.invitesMeta': '{count} convites enviados',
+  'pool.invitesEmpty': 'Ainda não há convites enviados a partir da bolsa.',
   'pool.invitesBarAria':
     'Dos {total} convites, {accepted} aceites, {refused} recusados e {expired} expirados',
   'pool.legend.accepted': 'aceites',

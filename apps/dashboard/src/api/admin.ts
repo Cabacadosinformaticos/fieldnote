@@ -13,6 +13,7 @@ export type ScheduledErasure = components['schemas']['ScheduledErasureOut']
 export type CompletedErasure = components['schemas']['CompletedErasureOut']
 export type ErasureResult = components['schemas']['ErasureResultOut']
 export type UserRole = components['schemas']['UserRole']
+export type PoolOverview = components['schemas']['AdminPoolOverviewOut']
 
 export class AdminApiError extends Error {
   readonly code: string
@@ -159,6 +160,14 @@ export async function fetchErasures(): Promise<ErasureList> {
   throw await toAdminError(error, response)
 }
 
+export async function fetchPoolOverview(): Promise<PoolOverview> {
+  const { data, error, response } = await client.GET('/admin/pool/overview')
+  if (data) {
+    return data
+  }
+  throw await toAdminError(error, response)
+}
+
 export async function eraseParticipant(participantId: string): Promise<ErasureResult> {
   const { data, error, response } = await client.POST(
     '/admin/participants/{participant_id}/erasure',
@@ -175,6 +184,7 @@ const keys = {
   studies: ['admin', 'studies'] as const,
   erasures: ['admin', 'erasures'] as const,
   audit: ['admin', 'audit'] as const,
+  pool: ['admin', 'pool'] as const,
 }
 
 export function useAccounts() {
@@ -191,6 +201,10 @@ export function useErasures(enabled = true) {
     queryFn: fetchErasures,
     enabled,
   })
+}
+
+export function usePoolOverview() {
+  return useQuery({ queryKey: keys.pool, queryFn: fetchPoolOverview })
 }
 
 export function useAuditLog(filters: AuditFilters) {
