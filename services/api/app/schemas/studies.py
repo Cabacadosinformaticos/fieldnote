@@ -54,6 +54,8 @@ class StudyCreate(BaseModel):
     max_prompts_per_day: int = Field(ge=1)
     max_prompts_per_slot: int = Field(ge=1)
     schedule_style: ScheduleStyle
+    consent_text: str | None = None
+    collaborators: list[str] = Field(default_factory=list)
 
     @field_validator("title")
     @classmethod
@@ -81,6 +83,7 @@ class StudyUpdate(BaseModel):
     max_prompts_per_day: int | None = None
     max_prompts_per_slot: int | None = None
     schedule_style: ScheduleStyle | None = None
+    consent_text: str | None = None
 
 
 class StudyOut(BaseModel):
@@ -96,6 +99,13 @@ class StudyOut(BaseModel):
     max_prompts_per_day: int
     max_prompts_per_slot: int
     schedule_style: ScheduleStyle
+    consent_text: str | None = None
+
+
+class StudyAdherenceOut(BaseModel):
+    answered: int = 0
+    out: int = 0
+    percentage: float = 0.0
 
 
 class StudyListItemOut(StudyOut):
@@ -103,6 +113,8 @@ class StudyListItemOut(StudyOut):
 
     entry_count: int
     participant_count: int
+    adherence_today: StudyAdherenceOut
+    adherence_study: StudyAdherenceOut
 
 
 class StudyMemberCreate(BaseModel):

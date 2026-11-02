@@ -12,6 +12,8 @@ from app.models import Participant, Study
 from app.models.enums import ParticipantStatus, StudyRole
 from app.schemas.participants import (
     ApprovalOut,
+    AvailabilityIntervalOut,
+    AvailabilitySummaryOut,
     ParticipantAddedOut,
     ParticipantCreate,
     ParticipantIdentityOut,
@@ -42,11 +44,30 @@ def _participant(session: Session, study_id: uuid.UUID, participant_id: uuid.UUI
 
 
 def _out(
-    session: Session, participant: Participant, routes: dict[uuid.UUID, str | None] | None = None
+    session: Session,
+    participant: Participant,
+    routes: dict[uuid.UUID, str | None] | None = None,
+    metadata: dict[uuid.UUID, service.ParticipantMetadata] | None = None,
 ) -> ParticipantOut:
     if routes is None:
         routes = service.entry_routes(session, [participant])
+    if metadata is None:
+        metadata = service.participant_metadata(session, [participant])
     hidden = participant.status == ParticipantStatus.ERASURE_SCHEDULED
+    details = metadata[participant.id]
+    summary = None
+    if not hidden:
+        summary = AvailabilitySummaryOut(
+            any_time=participant.availability_any_time,
+            intervals=[
+                AvailabilityIntervalOut(
+                    start_time=row.start_time,
+                    end_time=row.end_time,
+                    weekdays=row.weekdays,
+                )
+                for row in details.availability
+            ],
+        )
     return ParticipantOut(
         id=participant.id,
         alias=participant.alias,
@@ -54,6 +75,10 @@ def _out(
         entered_at=None if hidden else participant.entered_at,
         erasure_due_at=participant.erasure_due_at,
         entry_route=None if hidden else routes[participant.id],
+        consented_at=None if hidden else details.consented_at,
+        locale=None if hidden else participant.locale,
+        availability_summary=summary,
+        last_entry_at=None if hidden else details.last_entry_at,
     )
 
 
@@ -89,7 +114,8 @@ def list_participants(
     _study(session, study_id)
     participants = service.list_participants(session, study_id)
     routes = service.entry_routes(session, participants)
-    return [_out(session, participant, routes) for participant in participants]
+    metadata = service.participant_metadata(session, participants)
+    return [_out(session, participant, routes, metadata) for participant in participants]
 
 
 @router.get("/participants/{participant_id}", response_model=ParticipantOut)

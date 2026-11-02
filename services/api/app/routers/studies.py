@@ -10,6 +10,7 @@ from app.db import get_session
 from app.models import UserAccount
 from app.models.enums import StudyRole
 from app.schemas.studies import (
+    StudyAdherenceOut,
     StudyConsentOut,
     StudyCreate,
     StudyListItemOut,
@@ -60,11 +61,13 @@ def list_my_studies(
 ) -> list[StudyListItemOut]:
     return [
         StudyListItemOut(
-            **StudyOut.model_validate(study).model_dump(),
-            entry_count=entry_count,
-            participant_count=participant_count,
+            **StudyOut.model_validate(row.study).model_dump(),
+            entry_count=row.entry_count,
+            participant_count=row.participant_count,
+            adherence_today=StudyAdherenceOut(**row.adherence_today),
+            adherence_study=StudyAdherenceOut(**row.adherence_study),
         )
-        for study, entry_count, participant_count in studies.list_studies(session, user)
+        for row in studies.list_studies(session, user)
     ]
 
 

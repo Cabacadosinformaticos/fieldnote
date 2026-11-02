@@ -2,6 +2,8 @@
 
 import re
 import uuid
+from collections import defaultdict
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete as sa_delete
@@ -12,6 +14,7 @@ from app.errors import ApiError
 from app.models import (
     Availability,
     Consent,
+    Entry,
     InviteCode,
     Participant,
     ParticipantIdentity,
@@ -52,6 +55,51 @@ def list_participants(session: Session, study_id: uuid.UUID) -> list[Participant
             )
         )
     )
+
+
+@dataclass(frozen=True)
+class ParticipantMetadata:
+    consented_at: datetime | None
+    last_entry_at: datetime | None
+    availability: list[Availability]
+
+
+def participant_metadata(
+    session: Session, participants: list[Participant]
+) -> dict[uuid.UUID, ParticipantMetadata]:
+    """Consent, last entry and availability for every row, in three grouped queries."""
+    if not participants:
+        return {}
+    ids = [participant.id for participant in participants]
+    consented = dict(
+        session.execute(
+            select(Consent.participant_id, func.max(Consent.accepted_at))
+            .where(Consent.participant_id.in_(ids))
+            .group_by(Consent.participant_id)
+        ).all()
+    )
+    last_entries = dict(
+        session.execute(
+            select(Entry.participant_id, func.max(Entry.received_at))
+            .where(Entry.participant_id.in_(ids))
+            .group_by(Entry.participant_id)
+        ).all()
+    )
+    availability: dict[uuid.UUID, list[Availability]] = defaultdict(list)
+    for row in session.scalars(
+        select(Availability)
+        .where(Availability.participant_id.in_(ids))
+        .order_by(Availability.participant_id, Availability.start_time, Availability.id)
+    ):
+        availability[row.participant_id].append(row)
+    return {
+        participant.id: ParticipantMetadata(
+            consented_at=consented.get(participant.id),
+            last_entry_at=last_entries.get(participant.id),
+            availability=availability.get(participant.id, []),
+        )
+        for participant in participants
+    }
 
 
 def entry_routes(session: Session, participants: list[Participant]) -> dict[uuid.UUID, str | None]:

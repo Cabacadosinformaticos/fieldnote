@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import ParticipantStatus
+from app.models.enums import Locale, ParticipantStatus
 
 
 class ParticipantCreate(BaseModel):
@@ -17,6 +17,17 @@ class PersonalInviteCodeOut(BaseModel):
     expires_at: datetime
 
 
+class AvailabilityIntervalOut(BaseModel):
+    start_time: time
+    end_time: time
+    weekdays: list[int]
+
+
+class AvailabilitySummaryOut(BaseModel):
+    any_time: bool
+    intervals: list[AvailabilityIntervalOut]
+
+
 class ParticipantOut(BaseModel):
     id: uuid.UUID
     alias: str | None
@@ -24,6 +35,10 @@ class ParticipantOut(BaseModel):
     entered_at: datetime | None
     erasure_due_at: datetime | None
     entry_route: str | None
+    consented_at: datetime | None = None
+    locale: Locale | None = None
+    availability_summary: AvailabilitySummaryOut | None = None
+    last_entry_at: datetime | None = None
 
 
 class ParticipantAddedOut(ParticipantOut):

@@ -47,6 +47,7 @@ class Study(Base):
     max_prompts_per_slot: Mapped[int] = mapped_column(Integer)
     schedule_style: Mapped[ScheduleStyle] = mapped_column(schedule_style)
     device_salt: Mapped[bytes] = mapped_column(LargeBinary(32))
+    consent_text: Mapped[str | None] = mapped_column(Text)
 
 
 class StudyMember(Base):

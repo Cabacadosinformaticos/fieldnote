@@ -1,13 +1,31 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AuditLog, Entry, Study, StudyMember, StudyQuestion, Tag, UserAccount
-from app.models.enums import EntryType, ParticipantStatus, StudyRole, StudyStatus, UserRole
+from app.models import (
+    Activity,
+    AuditLog,
+    Entry,
+    Prompt,
+    Study,
+    StudyMember,
+    StudyQuestion,
+    Tag,
+    UserAccount,
+)
+from app.models.enums import (
+    EntryType,
+    ParticipantStatus,
+    PromptStatus,
+    StudyRole,
+    StudyStatus,
+    UserRole,
+)
 
 STUDIES = "/api/v1/studies"
 
@@ -92,6 +110,44 @@ def test_create_study_validates_the_timezone_and_the_dates(
     assert bad_dates.status_code == 422
 
 
+def test_create_study_accepts_consent_text_and_collaborators(
+    client: TestClient, session: Session, make_user, bearer_headers
+) -> None:
+    creator = make_user(email="creator-consent@example.org")
+    collaborator = make_user(email="collaborator@example.org")
+
+    response = client.post(
+        STUDIES,
+        headers=bearer_headers(creator),
+        json=_payload(
+            consent_text="Texto de consentimento informado.",
+            collaborators=[collaborator.email, creator.email],
+        ),
+    )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["consent_text"] == "Texto de consentimento informado."
+    members = session.scalars(
+        select(StudyMember).where(StudyMember.study_id == uuid.UUID(body["id"]))
+    ).all()
+    roles = {member.user_id: member.role for member in members}
+    assert roles == {
+        creator.id: StudyRole.PRINCIPAL_INVESTIGATOR,
+        collaborator.id: StudyRole.MEMBER,
+    }
+    shared = client.get(STUDIES, headers=bearer_headers(collaborator))
+    assert [row["title"] for row in shared.json()] == ["Urban walks"]
+
+    missing = client.post(
+        STUDIES,
+        headers=bearer_headers(creator),
+        json=_payload(collaborators=["nobody@example.org"]),
+    )
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "user_not_found"
+
+
 def test_list_shows_only_the_studies_where_the_user_is_a_member(
     client: TestClient,
     session: Session,
@@ -158,6 +214,62 @@ def test_list_includes_entry_and_active_participant_counts(
     assert rows["Counted"]["participant_count"] == 2
     assert rows["Empty"]["entry_count"] == 0
     assert rows["Empty"]["participant_count"] == 0
+    for row in rows.values():
+        assert row["adherence_today"] == {"answered": 0, "out": 0, "percentage": 0.0}
+        assert row["adherence_study"] == {"answered": 0, "out": 0, "percentage": 0.0}
+
+
+def test_list_includes_today_and_study_adherence(
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study(title="Adherent")
+    researcher = make_user(email="adherence@example.org")
+    _add_member(session, study.id, researcher, StudyRole.MEMBER)
+    participant = make_participant(study)
+    activity = Activity(
+        study_id=study.id,
+        title="Walk",
+        entry_types=[EntryType.TEXT.value],
+        prompts_per_day=4,
+        window_start=time(8, 0),
+        window_end=time(20, 0),
+        min_gap_minutes=30,
+        expected_minutes=5,
+    )
+    session.add(activity)
+    session.flush()
+    today = datetime.now(ZoneInfo("Europe/Lisbon")).date()
+    yesterday = today - timedelta(days=1)
+    rows = [
+        (PromptStatus.ANSWERED, today),
+        (PromptStatus.SENT, today),
+        (PromptStatus.EXPIRED, today),
+        (PromptStatus.PLANNED, today),
+        (PromptStatus.ANSWERED, yesterday),
+    ]
+    for occurrence, (status, plan_date) in enumerate(rows):
+        session.add(
+            Prompt(
+                participant_id=participant.id,
+                activity_id=activity.id,
+                plan_date=plan_date,
+                occurrence=occurrence,
+                status=status,
+            )
+        )
+    session.commit()
+
+    response = client.get(STUDIES, headers=bearer_headers(researcher))
+
+    assert response.status_code == 200, response.text
+    row = next(item for item in response.json() if item["title"] == "Adherent")
+    assert row["adherence_today"] == {"answered": 1, "out": 3, "percentage": 33.3}
+    assert row["adherence_study"] == {"answered": 2, "out": 4, "percentage": 50.0}
 
 
 def test_get_a_study_checks_membership_and_administration(

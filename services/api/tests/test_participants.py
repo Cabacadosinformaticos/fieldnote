@@ -1,12 +1,16 @@
 from datetime import UTC, date, datetime, time, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import (
     Activity,
     AuditLog,
+    Availability,
+    Consent,
     Entry,
     InviteCode,
     Participant,
@@ -17,6 +21,7 @@ from app.models import (
 from app.models.enums import (
     EntryType,
     InviteCodeKind,
+    Locale,
     ParticipantStatus,
     PromptStatus,
     StudyRole,
@@ -209,6 +214,61 @@ def test_list_shows_states_and_how_each_participant_entered(
     assert rows[str(erasing.id)]["entry_route"] is None
 
 
+def test_list_and_detail_include_consent_availability_and_last_entry(
+    client: TestClient, session: Session, make_user, make_study, make_participant, bearer_headers
+) -> None:
+    study = make_study()
+    user = make_user()
+    _add_member(session, study, user)
+    headers = bearer_headers(user)
+    participant = make_participant(study, alias="P-20")
+    participant.locale = Locale.PT
+    consented_at = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+    latest = datetime(2026, 10, 3, 18, 0, tzinfo=UTC)
+    session.add_all(
+        [
+            Consent(participant_id=participant.id, version="1.0", accepted_at=consented_at),
+            Availability(
+                participant_id=participant.id,
+                start_time=time(9, 0),
+                end_time=time(12, 0),
+                weekdays=[1, 2, 3],
+            ),
+            Entry(
+                participant_id=participant.id,
+                entry_type=EntryType.TEXT,
+                content_sha256="a" * 64,
+                recorded_at=latest - timedelta(hours=1),
+                received_at=latest - timedelta(hours=1),
+            ),
+            Entry(
+                participant_id=participant.id,
+                entry_type=EntryType.TEXT,
+                content_sha256="b" * 64,
+                recorded_at=latest,
+                received_at=latest,
+            ),
+        ]
+    )
+    session.commit()
+
+    listed = client.get(_url(study), headers=headers)
+    detail = client.get(_url(study, f"/{participant.id}"), headers=headers)
+
+    assert listed.status_code == detail.status_code == 200
+    row = next(item for item in listed.json() if item["id"] == str(participant.id))
+    for body in (row, detail.json()):
+        assert datetime.fromisoformat(body["consented_at"].replace("Z", "+00:00")) == consented_at
+        assert body["locale"] == "pt"
+        assert body["availability_summary"]["any_time"] is False
+        assert body["availability_summary"]["intervals"] == [
+            {"start_time": "09:00:00", "end_time": "12:00:00", "weekdays": [1, 2, 3]}
+        ]
+        assert datetime.fromisoformat(body["last_entry_at"].replace("Z", "+00:00")) == latest
+        assert "name" not in body
+        assert "email" not in body
+
+
 def test_get_one_participant_is_scoped_to_the_study(
     client: TestClient, session: Session, make_user, make_study, bearer_headers
 ) -> None:
@@ -358,3 +418,21 @@ def test_identity_is_hidden_while_an_erasure_is_scheduled(
         session.scalar(select(AuditLog).where(AuditLog.action == "participant_identity_read"))
         is None
     )
+
+
+def test_two_participants_of_a_study_cannot_share_an_alias(
+    session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    make_participant(study, alias="P-01")
+    session.add(
+        Participant(
+            study_id=study.id,
+            alias="P-01",
+            entered_at=datetime.now(UTC),
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()

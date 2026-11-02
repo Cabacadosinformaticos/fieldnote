@@ -2,6 +2,10 @@
 
 import secrets
 import uuid
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -12,13 +16,20 @@ from app.models import (
     Consent,
     Entry,
     Participant,
+    Prompt,
     Study,
     StudyMember,
     StudyQuestion,
     Tag,
     UserAccount,
 )
-from app.models.enums import ParticipantStatus, StudyRole, StudyStatus, UserRole
+from app.models.enums import (
+    ParticipantStatus,
+    PromptStatus,
+    StudyRole,
+    StudyStatus,
+    UserRole,
+)
 from app.schemas.studies import (
     StudyCreate,
     StudyQuestionCreate,
@@ -46,11 +57,89 @@ def ensure_writable(study: Study) -> None:
         raise ApiError(409, "study_closed", STUDY_CLOSED)
 
 
-def list_studies(session: Session, user: UserAccount) -> list[tuple[Study, int, int]]:
-    """The studies the user may see, with entry and active-participant counts.
+# Prompt statuses that count towards adherence: a prompt that went out and was answered, is
+# still waiting or expired. Planned prompts have not gone out yet (overview.py uses the same rule).
+_ADHERENCE_STATUSES = frozenset({PromptStatus.ANSWERED, PromptStatus.SENT, PromptStatus.EXPIRED})
+_RESEARCHER_VISIBLE_STATUSES = (
+    ParticipantStatus.ACTIVE,
+    ParticipantStatus.WITHDRAWN,
+    ParticipantStatus.REMOVED,
+)
 
-    Both counts come from grouped subqueries joined in this one statement, so the list never
-    issues a query per study.
+
+@dataclass(frozen=True)
+class StudyListRow:
+    study: Study
+    entry_count: int
+    participant_count: int
+    adherence_today: dict[str, object]
+    adherence_study: dict[str, object]
+
+
+def _adherence(counter: Counter) -> dict[str, object]:
+    answered = counter.get(PromptStatus.ANSWERED, 0)
+    out = sum(counter.get(status, 0) for status in _ADHERENCE_STATUSES)
+    return {
+        "answered": answered,
+        "out": out,
+        "percentage": round(answered * 100 / out, 1) if out else 0.0,
+    }
+
+
+def _today_in(timezone_name: str, now: datetime) -> date:
+    try:
+        timezone = ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        timezone = ZoneInfo("UTC")
+    return now.astimezone(timezone).date()
+
+
+def _adherence_counts(
+    session: Session, studies: list[Study]
+) -> tuple[dict[uuid.UUID, Counter], dict[uuid.UUID, Counter]]:
+    """Two grouped queries for every study on the list, never one query per study."""
+    study_ids = [study.id for study in studies]
+    if not study_ids:
+        return {}, {}
+    now = datetime.now(UTC)
+    today_by_study = {study.id: _today_in(study.timezone, now) for study in studies}
+    today_dates = set(today_by_study.values())
+
+    study_counts: dict[uuid.UUID, Counter] = defaultdict(Counter)
+    for study_id, status, count in session.execute(
+        select(Participant.study_id, Prompt.status, func.count())
+        .join(Prompt, Prompt.participant_id == Participant.id)
+        .where(
+            Participant.study_id.in_(study_ids),
+            Participant.status.in_(_RESEARCHER_VISIBLE_STATUSES),
+            Prompt.status.in_(_ADHERENCE_STATUSES),
+        )
+        .group_by(Participant.study_id, Prompt.status)
+    ).all():
+        study_counts[study_id][status] += count
+
+    today_counts: dict[uuid.UUID, Counter] = defaultdict(Counter)
+    for study_id, plan_date, status, count in session.execute(
+        select(Participant.study_id, Prompt.plan_date, Prompt.status, func.count())
+        .join(Prompt, Prompt.participant_id == Participant.id)
+        .where(
+            Participant.study_id.in_(study_ids),
+            Participant.status.in_(_RESEARCHER_VISIBLE_STATUSES),
+            Prompt.status.in_(_ADHERENCE_STATUSES),
+            Prompt.plan_date.in_(today_dates),
+        )
+        .group_by(Participant.study_id, Prompt.plan_date, Prompt.status)
+    ).all():
+        if plan_date == today_by_study.get(study_id):
+            today_counts[study_id][status] += count
+    return study_counts, today_counts
+
+
+def list_studies(session: Session, user: UserAccount) -> list[StudyListRow]:
+    """The studies the user may see, with entry, participant and adherence figures.
+
+    The counts come from grouped subqueries joined in this one statement and the adherence from
+    two grouped queries for all studies, so the list never issues a query per study.
     """
     entry_totals = (
         select(Participant.study_id, func.count(Entry.id).label("entry_count"))
@@ -78,10 +167,40 @@ def list_studies(session: Session, user: UserAccount) -> list[tuple[Study, int, 
         statement = statement.join(StudyMember, StudyMember.study_id == Study.id).where(
             StudyMember.user_id == user.id
         )
-    return [tuple(row) for row in session.execute(statement).all()]
+    rows = session.execute(statement).all()
+    study_counts, today_counts = _adherence_counts(session, [row[0] for row in rows])
+    return [
+        StudyListRow(
+            study=study,
+            entry_count=entry_count,
+            participant_count=participant_count,
+            adherence_today=_adherence(today_counts.get(study.id, Counter())),
+            adherence_study=_adherence(study_counts.get(study.id, Counter())),
+        )
+        for study, entry_count, participant_count in rows
+    ]
+
+
+def _resolve_collaborators(session: Session, emails: list[str]) -> list[UserAccount]:
+    """Resolve the collaborator emails of the creation form, keeping their order."""
+    normalised = list(dict.fromkeys(email.strip().lower() for email in emails if email.strip()))
+    if not normalised:
+        return []
+    users = list(
+        session.scalars(select(UserAccount).where(func.lower(UserAccount.email).in_(normalised)))
+    )
+    by_email = {user.email.lower(): user for user in users}
+    missing = [email for email in normalised if email not in by_email]
+    if missing:
+        raise ApiError(404, "user_not_found", f"No account uses the email address {missing[0]}.")
+    for user in users:
+        if user.role != UserRole.RESEARCHER:
+            raise ApiError(409, "not_a_researcher", "Only researcher accounts can join a study.")
+    return [by_email[email] for email in normalised]
 
 
 def create_study(session: Session, user: UserAccount, payload: StudyCreate) -> Study:
+    collaborators = _resolve_collaborators(session, payload.collaborators)
     study = Study(
         title=payload.title,
         description=payload.description,
@@ -93,6 +212,7 @@ def create_study(session: Session, user: UserAccount, payload: StudyCreate) -> S
         max_prompts_per_slot=payload.max_prompts_per_slot,
         schedule_style=payload.schedule_style,
         device_salt=secrets.token_bytes(32),
+        consent_text=payload.consent_text,
     )
     session.add(study)
     session.flush()
@@ -103,6 +223,21 @@ def create_study(session: Session, user: UserAccount, payload: StudyCreate) -> S
             role=StudyRole.PRINCIPAL_INVESTIGATOR,
         )
     )
+    for collaborator in collaborators:
+        if collaborator.id == user.id:
+            continue
+        session.add(StudyMember(study_id=study.id, user_id=collaborator.id, role=StudyRole.MEMBER))
+        record(
+            session,
+            user,
+            "study_member_added",
+            target=str(collaborator.id),
+            details={
+                "study_id": str(study.id),
+                "email": collaborator.email,
+                "role": StudyRole.MEMBER.value,
+            },
+        )
     record(
         session,
         user,
@@ -129,6 +264,7 @@ def update_study(
         "max_prompts_per_day": study.max_prompts_per_day,
         "max_prompts_per_slot": study.max_prompts_per_slot,
         "schedule_style": study.schedule_style,
+        "consent_text": study.consent_text,
     }
     changes = payload.model_dump(exclude_unset=True)
     merged.update(changes)
