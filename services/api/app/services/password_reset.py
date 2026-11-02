@@ -15,6 +15,10 @@ from app.security.audit import record
 from app.services import mail
 
 RESET_TOKEN_LIFETIME = timedelta(hours=1)
+# At most this many recovery messages per account in the window, so the endpoint cannot flood an
+# inbox. Over the limit the answer is the same generic 202 and nothing is written.
+RESET_TOKENS_PER_HOUR = 3
+RESET_WINDOW = timedelta(hours=1)
 GENERIC_MESSAGE = "If the email belongs to a researcher account, a recovery message has been sent."
 INVALID_TOKEN_MESSAGE = "The recovery token is invalid or has expired."
 
@@ -32,8 +36,19 @@ def request_reset(session: Session, email: str) -> None:
         passwords.dummy_verify(email)
         return
 
-    raw = secrets.token_urlsafe(32)
     now = datetime.now(UTC)
+    recent = session.scalar(
+        select(func.count())
+        .select_from(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.created_at > now - RESET_WINDOW,
+        )
+    )
+    if (recent or 0) >= RESET_TOKENS_PER_HOUR:
+        return
+
+    raw = secrets.token_urlsafe(32)
     session.add(
         PasswordResetToken(
             user_id=user.id,
@@ -74,6 +89,7 @@ def confirm_reset(session: Session, raw_token: str, new_password: str) -> uuid.U
     if user is None:
         raise ApiError(400, "invalid_reset_token", INVALID_TOKEN_MESSAGE)
 
+    passwords.validate_new_password(new_password, user.email)
     user.password_hash = passwords.hash_password(new_password)
     row.used_at = now
     # Links issued before this one stop working as soon as one is used.

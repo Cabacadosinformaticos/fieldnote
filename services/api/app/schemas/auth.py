@@ -22,7 +22,8 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordResetConfirm(BaseModel):
     token: str = Field(min_length=1, max_length=512)
-    new_password: str = Field(min_length=1, max_length=1024)
+    # The length and email rule lives in app.security.passwords so the error carries its code.
+    new_password: str
 
 
 class PasswordResetRequestOut(BaseModel):

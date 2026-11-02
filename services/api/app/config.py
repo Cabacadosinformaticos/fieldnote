@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     media_public_endpoint: str = "http://127.0.0.1:8080"
     # Origin of the gateway as the researcher's browser sees it; signed download URLs use it.
     media_dashboard_endpoint: str = "http://127.0.0.1:8080"
+    # Origin of the researcher dashboard, used to build recovery links sent by email.
+    dashboard_base_url: str = "http://127.0.0.1:5173"
 
     jwt_secret: str | None = None
     jwt_algorithm: str = "HS256"

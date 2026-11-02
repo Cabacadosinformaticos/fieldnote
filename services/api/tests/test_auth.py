@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, settings
@@ -382,6 +382,133 @@ def test_password_reset_confirm_rejects_an_expired_token(
     assert response.json()["error"]["code"] == "invalid_reset_token"
     session.expire_all()
     assert not passwords.verify_password(user.password_hash, "new password")
+
+
+def _request_reset_token(client: TestClient, monkeypatch: pytest.MonkeyPatch, email: str) -> str:
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_password_reset", lambda to, token: sent.append((to, token)))
+    client.post(PASSWORD_RESET_REQUEST, json={"email": email})
+    return sent[-1][1]
+
+
+def test_password_reset_confirm_rejects_a_short_password(
+    client: TestClient, session: Session, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    raw = _request_reset_token(client, monkeypatch, user.email)
+
+    response = client.post(
+        PASSWORD_RESET_CONFIRM, json={"token": raw, "new_password": "eleven char"}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "password_too_short"
+    session.expire_all()
+    assert passwords.verify_password(user.password_hash, "correct horse battery staple")
+
+
+def test_password_reset_confirm_rejects_the_email_as_the_password(
+    client: TestClient, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    raw = _request_reset_token(client, monkeypatch, user.email)
+
+    response = client.post(
+        PASSWORD_RESET_CONFIRM,
+        json={"token": raw, "new_password": user.email.upper()},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "password_is_email"
+
+
+def test_password_reset_confirm_rejects_a_password_over_the_maximum(
+    client: TestClient, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    raw = _request_reset_token(client, monkeypatch, user.email)
+
+    response = client.post(
+        PASSWORD_RESET_CONFIRM,
+        json={"token": raw, "new_password": "a" * (passwords.MAX_PASSWORD_LENGTH + 1)},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "password_too_long"
+
+
+def test_new_password_rule_accepts_the_minimum_length() -> None:
+    passwords.validate_new_password("a" * passwords.MIN_PASSWORD_LENGTH, "researcher@example.org")
+
+
+def test_login_still_accepts_a_short_password_from_an_old_account(
+    client: TestClient, make_user
+) -> None:
+    user = make_user(password="short")
+
+    response = client.post(LOGIN, json={"email": user.email, "password": "short"})
+
+    assert response.status_code == 200
+
+
+def test_password_reset_requests_are_limited_to_three_per_hour(
+    client: TestClient, session: Session, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_password_reset", lambda to, token: sent.append((to, token)))
+
+    responses = [client.post(PASSWORD_RESET_REQUEST, json={"email": user.email}) for _ in range(4)]
+
+    assert [response.status_code for response in responses] == [202, 202, 202, 202]
+    assert all(response.json() == responses[0].json() for response in responses)
+    assert len(sent) == 3
+    tokens = session.scalars(
+        select(PasswordResetToken).where(PasswordResetToken.user_id == user.id)
+    ).all()
+    assert len(tokens) == 3
+    audit_rows = session.scalar(
+        select(func.count())
+        .select_from(AuditLog)
+        .where(AuditLog.action == "password_reset_requested")
+    )
+    assert audit_rows == 3
+    # The refused request wrote no audit row and did not touch the account itself.
+    session.expire_all()
+    assert user.failed_logins == 0
+
+
+def test_password_reset_mail_carries_a_dashboard_link(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_send(to: str, subject: str, body: str) -> None:
+        captured.update(to=to, subject=subject, body=body)
+
+    monkeypatch.setattr(mail, "_send", fake_send)
+
+    mail.send_password_reset("researcher@example.org", "raw-token")
+
+    assert captured["to"] == "researcher@example.org"
+    link = f"{settings.dashboard_base_url}/recuperar#token=raw-token"
+    assert link in captured["body"]
+    assert "Use este token" not in captured["body"]
+
+
+def test_the_generated_temporary_password_meets_the_new_rule(
+    client: TestClient, make_user, bearer_headers
+) -> None:
+    admin = make_user(email="admin@example.org", role=UserRole.ADMIN)
+
+    response = client.post(
+        "/api/v1/admin/accounts",
+        headers=bearer_headers(admin),
+        json={"email": "new.researcher@example.org"},
+    )
+
+    assert response.status_code == 201
+    passwords.validate_new_password(
+        response.json()["temporary_password"], "new.researcher@example.org"
+    )
 
 
 def test_password_hashes_use_argon2id_with_the_required_parameters() -> None:

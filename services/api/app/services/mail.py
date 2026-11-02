@@ -9,11 +9,14 @@ from email.message import EmailMessage
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.config import settings as app_settings
+
 SUBJECT = "O seu código de acesso Fieldnote"
 BODY = "O seu código é {code}. É válido durante 10 minutos."
 PASSWORD_RESET_SUBJECT = "Recuperação de palavra-passe Fieldnote"
+# The token travels in the URL fragment so the dashboard can read it but servers never log it.
 PASSWORD_RESET_BODY = (
-    "Use este token para definir uma nova palavra-passe: {token}. "
+    "Use este link para definir uma nova palavra-passe: {link}. "
     "É válido durante 1 hora e só pode ser usado uma vez."
 )
 
@@ -60,5 +63,14 @@ def send_email_code(to: str, code: str) -> None:
     _send(to, SUBJECT, BODY.format(code=code))
 
 
+def password_reset_link(token: str) -> str:
+    base = app_settings.dashboard_base_url.rstrip("/")
+    return f"{base}/recuperar#token={token}"
+
+
 def send_password_reset(to: str, token: str) -> None:
-    _send(to, PASSWORD_RESET_SUBJECT, PASSWORD_RESET_BODY.format(token=token))
+    _send(
+        to,
+        PASSWORD_RESET_SUBJECT,
+        PASSWORD_RESET_BODY.format(link=password_reset_link(token)),
+    )
