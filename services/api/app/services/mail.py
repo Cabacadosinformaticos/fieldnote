@@ -11,6 +11,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 SUBJECT = "O seu código de acesso Fieldnote"
 BODY = "O seu código é {code}. É válido durante 10 minutos."
+PASSWORD_RESET_SUBJECT = "Recuperação de palavra-passe Fieldnote"
+PASSWORD_RESET_BODY = (
+    "Use este token para definir uma nova palavra-passe: {token}. "
+    "É válido durante 1 hora e só pode ser usado uma vez."
+)
 
 
 class MailSettings(BaseSettings):
@@ -32,12 +37,12 @@ class MailUnavailable(RuntimeError):
     """The SMTP server could not take the message."""
 
 
-def send_email_code(to: str, code: str) -> None:
+def _send(to: str, subject: str, body: str) -> None:
     message = EmailMessage()
     message["From"] = settings.smtp_from
     message["To"] = to
-    message["Subject"] = SUBJECT
-    message.set_content(BODY.format(code=code))
+    message["Subject"] = subject
+    message.set_content(body)
     try:
         with smtplib.SMTP(
             settings.smtp_host, settings.smtp_port, timeout=settings.smtp_timeout_seconds
@@ -49,3 +54,11 @@ def send_email_code(to: str, code: str) -> None:
             smtp.send_message(message)
     except (OSError, smtplib.SMTPException) as exc:
         raise MailUnavailable("The mail server is unavailable.") from exc
+
+
+def send_email_code(to: str, code: str) -> None:
+    _send(to, SUBJECT, BODY.format(code=code))
+
+
+def send_password_reset(to: str, token: str) -> None:
+    _send(to, PASSWORD_RESET_SUBJECT, PASSWORD_RESET_BODY.format(token=token))

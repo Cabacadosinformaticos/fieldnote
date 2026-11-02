@@ -7,17 +7,20 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, settings
-from app.models import AuditLog, RefreshToken
+from app.models import AuditLog, PasswordResetToken, RefreshToken
 from app.models.enums import AuditActorType, UserRole
 from app.security import passwords, totp
 from app.security.passwords import hash_password
 from app.security.tokens import create_access_token, decode_access_token, hash_token
+from app.services import mail
 
 LOGIN = "/api/v1/auth/login"
 REFRESH = "/api/v1/auth/refresh"
 LOGOUT = "/api/v1/auth/logout"
 ME = "/api/v1/auth/me"
 TOTP_ENROLMENT = "/api/v1/auth/totp/enrolment"
+PASSWORD_RESET_REQUEST = "/api/v1/auth/password-reset/request"
+PASSWORD_RESET_CONFIRM = "/api/v1/auth/password-reset/confirm"
 COOKIE = "fieldnote_refresh"
 INVALID_BODY = {"error": {"code": "invalid_credentials", "message": "Invalid email or password."}}
 
@@ -264,6 +267,121 @@ def test_administrator_must_enrol_and_then_supply_totp(client: TestClient, make_
     )
     assert rejected.status_code == 401
     assert rejected.json()["error"]["code"] == "invalid_credentials"
+
+
+def test_password_reset_request_answers_the_same_for_known_and_unknown_emails(
+    client: TestClient, session: Session, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_password_reset", lambda to, token: sent.append((to, token)))
+
+    known = client.post(PASSWORD_RESET_REQUEST, json={"email": user.email})
+    unknown = client.post(PASSWORD_RESET_REQUEST, json={"email": "nobody@example.org"})
+
+    assert known.status_code == unknown.status_code == 202
+    assert known.json() == unknown.json()
+    assert [to for to, _ in sent] == [user.email]
+
+    raw = sent[0][1]
+    row = session.scalar(select(PasswordResetToken).where(PasswordResetToken.user_id == user.id))
+    assert row is not None
+    assert row.token_hash == hash_token(raw)
+    assert row.token_hash != raw
+    assert row.used_at is None
+    assert timedelta(minutes=59) < row.expires_at - datetime.now(UTC) <= timedelta(hours=1)
+
+
+def test_password_reset_request_sends_nothing_to_non_researcher_accounts(
+    client: TestClient, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    admin = make_user(email="admin-recovery@example.org", role=UserRole.ADMIN)
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_password_reset", lambda to, token: sent.append((to, token)))
+
+    response = client.post(PASSWORD_RESET_REQUEST, json={"email": admin.email})
+
+    assert response.status_code == 202
+    assert sent == []
+
+
+def test_password_reset_confirm_changes_the_password_once_and_revokes_sessions(
+    client: TestClient, session: Session, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_password_reset", lambda to, token: sent.append((to, token)))
+
+    login = client.post(
+        LOGIN, json={"email": user.email, "password": "correct horse battery staple"}
+    )
+    assert login.status_code == 200
+    assert client.cookies.get(COOKIE)
+
+    client.post(PASSWORD_RESET_REQUEST, json={"email": user.email})
+    first = sent[-1][1]
+    client.post(PASSWORD_RESET_REQUEST, json={"email": user.email})
+    second = sent[-1][1]
+
+    response = client.post(
+        PASSWORD_RESET_CONFIRM, json={"token": second, "new_password": "a brand new password"}
+    )
+
+    assert response.status_code == 204
+    session.expire_all()
+    assert passwords.verify_password(user.password_hash, "a brand new password")
+    tokens = session.scalars(select(RefreshToken).where(RefreshToken.user_id == user.id)).all()
+    assert tokens
+    assert all(token.revoked_at is not None for token in tokens)
+    assert client.post(REFRESH).status_code == 401
+
+    actions = set(
+        session.scalars(
+            select(AuditLog.action).where(
+                AuditLog.action.in_(["password_reset_requested", "password_reset_completed"])
+            )
+        )
+    )
+    assert actions == {"password_reset_requested", "password_reset_completed"}
+
+    replay = client.post(
+        PASSWORD_RESET_CONFIRM, json={"token": second, "new_password": "another password"}
+    )
+    assert replay.status_code == 400
+    assert replay.json()["error"]["code"] == "invalid_reset_token"
+    older = client.post(
+        PASSWORD_RESET_CONFIRM, json={"token": first, "new_password": "another password"}
+    )
+    assert older.status_code == 400
+    assert older.json()["error"]["code"] == "invalid_reset_token"
+
+    old_login = client.post(LOGIN, json={"email": user.email, "password": "wrong password"})
+    assert old_login.status_code == 401
+    new_login = client.post(LOGIN, json={"email": user.email, "password": "a brand new password"})
+    assert new_login.status_code == 200
+
+
+def test_password_reset_confirm_rejects_an_expired_token(
+    client: TestClient, session: Session, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_password_reset", lambda to, token: sent.append((to, token)))
+    client.post(PASSWORD_RESET_REQUEST, json={"email": user.email})
+
+    row = session.scalar(select(PasswordResetToken).where(PasswordResetToken.user_id == user.id))
+    assert row is not None
+    row.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    session.commit()
+
+    response = client.post(
+        PASSWORD_RESET_CONFIRM, json={"token": sent[-1][1], "new_password": "new password"}
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_reset_token"
+    session.expire_all()
+    assert not passwords.verify_password(user.password_hash, "new password")
 
 
 def test_password_hashes_use_argon2id_with_the_required_parameters() -> None:

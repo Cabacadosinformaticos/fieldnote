@@ -17,6 +17,9 @@ from app.models import UserAccount
 from app.models.enums import AuditActorType, UserRole
 from app.schemas.auth import (
     LoginRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    PasswordResetRequestOut,
     TokenResponse,
     TotpEnrolmentRequest,
     TotpEnrolmentResponse,
@@ -25,6 +28,7 @@ from app.schemas.auth import (
 from app.security import passwords, tokens, totp
 from app.security.audit import record
 from app.security.deps import current_user
+from app.services import password_reset
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -248,6 +252,24 @@ def logout(
             )
             session.commit()
     _delete_refresh_cookie(response)
+
+
+@router.post("/password-reset/request", status_code=202, response_model=PasswordResetRequestOut)
+def request_password_reset(
+    payload: PasswordResetRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> PasswordResetRequestOut:
+    """Start the recovery flow. The answer never says whether the email has an account."""
+    password_reset.request_reset(session, payload.email)
+    return PasswordResetRequestOut(message=password_reset.GENERIC_MESSAGE)
+
+
+@router.post("/password-reset/confirm", status_code=204)
+def confirm_password_reset(
+    payload: PasswordResetConfirm,
+    session: Annotated[Session, Depends(get_session)],
+) -> None:
+    password_reset.confirm_reset(session, payload.token, payload.new_password)
 
 
 @router.get("/me", response_model=UserOut)
