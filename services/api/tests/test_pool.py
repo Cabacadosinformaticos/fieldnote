@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -25,6 +26,7 @@ from app.models.enums import (
     PoolInvitationStatus,
     StudyRole,
     StudyStatus,
+    UserRole,
 )
 from app.security import codes
 from app.services import participation as participation_service
@@ -544,6 +546,141 @@ def test_an_expired_invitation_is_shown_as_expired_and_cannot_be_answered(
         assert response.status_code == 409, response.text
         assert response.json()["error"]["code"] == "invitation_expired"
     assert other.id is not None
+
+
+def test_a_closed_study_cannot_accept_an_invitation(
+    client: TestClient, session: Session, make_study, make_user, bearer_headers
+) -> None:
+    study = make_study()
+    researcher = _add_researcher(session, study, make_user)
+    members = [_add_member(session) for _ in range(5)]
+    _, credential = members[0]
+    assert _send(client, study, {}, bearer_headers(researcher)).status_code == 201
+    invitation_id = client.get(f"{BASE}/invitations", headers=_pool(credential)).json()[0]["id"]
+    study.status = StudyStatus.CLOSED
+    session.commit()
+
+    response = client.post(
+        f"{BASE}/invitations/{invitation_id}/accept",
+        json={"consent_version": "1.0", "android_id": "android-1"},
+        headers=_pool(credential),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "study_closed"
+    assert session.get(PoolInvitation, uuid.UUID(invitation_id)).status == PoolInvitationStatus.SENT
+    assert session.scalar(select(Participant).where(Participant.study_id == study.id)) is None
+
+
+def test_a_duplicate_device_hash_is_answered_with_already_participating(
+    client: TestClient,
+    session: Session,
+    make_study,
+    make_user,
+    bearer_headers,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    study = make_study()
+    researcher = _add_researcher(session, study, make_user)
+    existing = Participant(
+        study_id=study.id,
+        alias="P-01",
+        device_hash=participation_service.compute_device_hash(study, "android-1"),
+        status=ParticipantStatus.ACTIVE,
+        entered_at=datetime.now(UTC),
+    )
+    session.add(existing)
+    session.commit()
+    members = [_add_member(session) for _ in range(5)]
+    _, credential = members[0]
+    assert _send(client, study, {}, bearer_headers(researcher)).status_code == 201
+    invitation_id = client.get(f"{BASE}/invitations", headers=_pool(credential)).json()[0]["id"]
+    # Simulate the check losing the race: the row appears only at the unique constraint.
+    monkeypatch.setattr(pool_service, "_existing_participation", lambda *args: None)
+
+    response = client.post(
+        f"{BASE}/invitations/{invitation_id}/accept",
+        json={"consent_version": "1.0", "android_id": "android-1"},
+        headers=_pool(credential),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "already_participating"
+    assert (
+        session.scalar(
+            select(func.count()).select_from(Participant).where(Participant.study_id == study.id)
+        )
+        == 1
+    )
+
+
+def test_admin_pool_overview_aggregates_and_hides_small_groups(
+    client: TestClient, session: Session, make_user, make_study, bearer_headers
+) -> None:
+    for _ in range(6):
+        _add_member(session, concelho="Lisboa", freguesia="Centro", age_band="25-34")
+    for _ in range(5):
+        _add_member(session, concelho="Porto", freguesia="Centro")
+    for _ in range(4):
+        _add_member(session, concelho="Faro")
+    for _ in range(3):
+        _add_member(session, concelho="Braga")
+    study = make_study(title="Diary")
+    now = datetime.now(UTC)
+    statuses = (
+        [PoolInvitationStatus.SENT] * 6
+        + [PoolInvitationStatus.ACCEPTED] * 2
+        + [PoolInvitationStatus.DECLINED]
+        + [PoolInvitationStatus.EXPIRED]
+    )
+    for status in statuses:
+        session.add(
+            PoolInvitation(
+                study_id=study.id,
+                status=status,
+                sent_at=now,
+                expires_at=now + timedelta(days=7),
+                responded_at=now if status != PoolInvitationStatus.SENT else None,
+            )
+        )
+    session.commit()
+    admin = make_user(email="pool-admin@example.org", role=UserRole.ADMIN)
+    researcher = make_user(email="pool-researcher@example.org")
+
+    response = client.get("/api/v1/admin/pool/overview", headers=bearer_headers(admin))
+    refused = client.get("/api/v1/admin/pool/overview", headers=bearer_headers(researcher))
+
+    assert refused.status_code == 403
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["members_total"] == 18
+    assert body["top_concelhos"] == 15
+    assert body["concelhos"] == [
+        {"concelho": "Lisboa", "members": 6},
+        {"concelho": "Porto", "members": 5},
+        {"concelho": "Outros", "members": 7},
+    ]
+    assert body["fields"] == {
+        "concelho": 18,
+        "freguesia": 11,
+        "age_band": 6,
+        "gender": 0,
+        "occupation": 0,
+        "usual_transport": 0,
+        "languages": 0,
+    }
+    assert body["invitations_sent"] == 10
+    assert body["invitations_accepted"] == 2
+    assert body["invitation_results"] == [
+        {
+            "study_id": str(study.id),
+            "study_title": "Diary",
+            "sent": 6,
+            "accepted": 2,
+            "declined": 1,
+            "expired": 1,
+        }
+    ]
 
 
 def test_a_closed_study_cannot_send_invitations(

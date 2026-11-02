@@ -441,6 +441,22 @@ def link_to_account(
     return account
 
 
+def link_in_session(
+    session: Session,
+    account: ParticipantAccount,
+    device_tokens: list[str],
+    pool_credential: str | None = None,
+) -> None:
+    """Link the rows without committing, for a caller that owns the transaction."""
+    if account.confirmed_at is None:
+        raise ApiError(
+            409,
+            "account_unconfirmed",
+            "Confirm that the recovery code was saved before linking participations.",
+        )
+    _link(session, account, device_tokens, pool_credential)
+
+
 def _restore(
     session: Session,
     account: ParticipantAccount,
@@ -704,7 +720,9 @@ def add_email_method(
         )
     )
     if other is not None:
-        session.rollback()
+        # Keep the consumption that ``_consume_email_code`` just did: rolling it back would let
+        # the same code be replayed once the address is freed.
+        session.commit()
         raise ApiError(409, "email_in_use", "That address already signs in to another account.")
     account.email_lookup = lookup
     account.email_encrypted = encrypt_email(email, account.id)

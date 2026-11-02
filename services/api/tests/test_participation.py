@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -32,8 +33,10 @@ from app.models.enums import (
     PromptStatus,
     QuestionKind,
     StudyRole,
+    StudyStatus,
 )
 from app.security import codes
+from app.services import account as account_service
 from app.services.participation import compute_device_hash
 
 LOOKUP = "/api/v1/participation/invitations/lookup"
@@ -780,6 +783,69 @@ def test_accept_refuses_an_invalid_account_token(
     assert response.json()["error"]["code"] == "invalid_account_token"
 
 
+def test_a_closed_study_refuses_a_code_before_joining(
+    client: TestClient, session: Session, make_study
+) -> None:
+    study = make_study()
+    raw, code = _study_code(session, study, approval=False)
+    study.status = StudyStatus.CLOSED
+    session.commit()
+
+    response = _accept(client, raw, android_id="android-1")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "study_closed"
+    session.refresh(code)
+    assert code.uses == 0
+    assert session.scalar(select(Participant).where(Participant.study_id == study.id)) is None
+
+
+def test_a_failed_link_does_not_leave_a_study_code_join_persisted(
+    client: TestClient, session: Session, make_study, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    study = make_study()
+    raw, code = _study_code(session, study, requires_account=True, approval=False)
+    account_token = _confirmed_account(client)
+
+    def failing_link(*_args, **_kwargs) -> None:
+        raise RuntimeError("account link failed")
+
+    monkeypatch.setattr(account_service, "_link", failing_link)
+    with pytest.raises(RuntimeError):
+        _accept(client, raw, android_id="android-1", account_token=account_token)
+    session.rollback()
+
+    assert session.scalar(select(Participant).where(Participant.study_id == study.id)) is None
+    session.refresh(code)
+    assert code.uses == 0
+
+
+def test_a_failed_link_does_not_leave_a_personal_code_join_persisted(
+    client: TestClient,
+    session: Session,
+    make_study,
+    make_participant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    raw, code = _personal_code(session, participant)
+    account_token = _confirmed_account(client)
+
+    def failing_link(*_args, **_kwargs) -> None:
+        raise RuntimeError("account link failed")
+
+    monkeypatch.setattr(account_service, "_link", failing_link)
+    with pytest.raises(RuntimeError):
+        _accept(client, raw, android_id="android-1", account_token=account_token)
+    session.rollback()
+
+    session.refresh(code)
+    assert code.used_at is None
+    session.refresh(participant)
+    assert participant.device_hash is None
+
+
 def test_a_code_without_the_option_links_the_participation_when_signed_in(
     client: TestClient, session: Session, make_study
 ) -> None:
@@ -810,6 +876,7 @@ def _add_entry(
         entry_type=EntryType.TEXT,
         content_sha256="a" * 64,
         recorded_at=recorded_at,
+        received_at=recorded_at,
         body="A note",
     )
     session.add(entry)

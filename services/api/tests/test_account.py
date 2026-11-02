@@ -353,6 +353,53 @@ def test_add_and_remove_an_email_method(
     assert {"account_method_added", "account_method_removed"} <= actions
 
 
+def test_a_conflicting_add_email_consumes_the_code(
+    client: TestClient,
+    session: Session,
+    sent_mail: list[tuple[str, str]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(account_service.settings, "account_email_resend_seconds", 0)
+    email = "taken@example.org"
+
+    _request_email_code(client, email)
+    signed_in = client.post(
+        EMAIL_VERIFY, json={"email": email, "code": sent_mail[-1][1], "device_tokens": []}
+    )
+    assert signed_in.status_code == 200, signed_in.text
+
+    created = _create_recovery(client)
+    assert _confirm(client, created["account_token"]).status_code == 200
+    headers = _account(created["account_token"])
+    _request_email_code(client, email, created["account_token"])
+    code = sent_mail[-1][1]
+
+    conflict = client.post(EMAIL_VERIFY, json={"email": email, "code": code}, headers=headers)
+
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "email_in_use"
+    consumed = session.scalar(
+        select(AccountEmailCode).where(
+            AccountEmailCode.email_lookup == account_service._email_lookup(email),
+            AccountEmailCode.purpose == "add_method",
+        )
+    )
+    assert consumed is not None and consumed.consumed_at is not None
+
+    owner = session.scalar(
+        select(ParticipantAccount).where(
+            ParticipantAccount.email_lookup == account_service._email_lookup(email)
+        )
+    )
+    assert owner is not None
+    session.delete(owner)
+    session.commit()
+
+    replay = client.post(EMAIL_VERIFY, json={"email": email, "code": code}, headers=headers)
+
+    assert replay.status_code == 401
+
+
 def test_the_last_method_cannot_be_removed(
     client: TestClient,
 ) -> None:

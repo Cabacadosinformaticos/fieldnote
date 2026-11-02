@@ -603,6 +603,69 @@ def test_free_entries_respect_the_daily_cap(
     assert refused.json()["error"]["code"] == "free_entry_limit_reached"
 
 
+def test_backdating_recorded_at_does_not_bypass_the_free_cap(
+    client: TestClient,
+    participant: Participant,
+    make_activity,
+) -> None:
+    activity = make_activity(
+        ("text",),
+        allow_free_entries=True,
+        max_free_entries_per_day=1,
+    )
+
+    accepted = client.post(
+        ENTRIES,
+        headers=device_headers(),
+        json=entry_payload(activity, recorded_at=datetime.now(UTC).isoformat()),
+    )
+    backdated = client.post(
+        ENTRIES,
+        headers=device_headers(),
+        json=entry_payload(
+            activity, recorded_at=(datetime.now(UTC) - timedelta(days=1)).isoformat()
+        ),
+    )
+
+    assert accepted.status_code == 200, accepted.text
+    assert backdated.status_code == 409
+    assert backdated.json()["error"]["code"] == "free_entry_limit_reached"
+
+
+def test_the_free_cap_uses_the_server_receipt_day(
+    client: TestClient,
+    session: Session,
+    participant: Participant,
+    make_activity,
+) -> None:
+    activity = make_activity(
+        ("text",),
+        allow_free_entries=True,
+        max_free_entries_per_day=1,
+    )
+    now = datetime.now(UTC)
+    session.add(
+        Entry(
+            participant_id=participant.id,
+            activity_id=activity.id,
+            entry_type="text",
+            content_sha256=SHA_B,
+            recorded_at=now,
+            received_at=now - timedelta(days=1),
+            body="Yesterday on the server",
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        ENTRIES,
+        headers=device_headers(),
+        json=entry_payload(activity, recorded_at=now.isoformat()),
+    )
+
+    assert response.status_code == 200, response.text
+
+
 def test_free_entries_are_refused_when_the_activity_does_not_allow_them(
     client: TestClient, participant: Participant, make_activity
 ) -> None:

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import any_, func, literal, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
@@ -22,7 +23,7 @@ from app.models import (
     Study,
     UserAccount,
 )
-from app.models.enums import ParticipantStatus, PoolInvitationStatus
+from app.models.enums import ParticipantStatus, PoolInvitationStatus, StudyStatus
 from app.schemas.pool import (
     MINIMUM_GROUP_SIZE,
     PoolCriteria,
@@ -267,9 +268,14 @@ def accept_invitation(
         session.commit()
         raise ApiError(409, "invitation_expired", "The invitation has expired.")
 
-    study = session.get(Study, invitation.study_id)
+    # Lock the study before the duplicate check and the alias numbering: two acceptances for the
+    # same study are serialised here, so the second sees the first participant and never takes
+    # the same ``P-NN`` alias.
+    study = session.scalar(select(Study).where(Study.id == invitation.study_id).with_for_update())
     if study is None:
         raise ApiError(404, "study_not_found", "The study does not exist.")
+    if study.status == StudyStatus.CLOSED:
+        raise ApiError(409, "study_closed", "The study is closed and no longer accepts entries.")
 
     digest = participation_service.compute_device_hash(study, request.android_id)
     if _existing_participation(session, member, study, digest) is not None:
@@ -297,27 +303,37 @@ def accept_invitation(
         locale=request.locale,
         status=ParticipantStatus.ACTIVE,
     )
-    session.add(participant)
-    session.flush()
-    session.add(
-        Consent(
-            participant_id=participant.id,
-            version=request.consent_version,
-            accepted_at=now,
-        )
-    )
-    participation_service._store_answers(session, participant, prepared, now)
-    if member.account_id is not None:
+    try:
+        session.add(participant)
+        session.flush()
         session.add(
-            AccountParticipation(
+            Consent(
                 participant_id=participant.id,
-                account_id=member.account_id,
-                study_id=study.id,
+                version=request.consent_version,
+                accepted_at=now,
             )
         )
-    invitation.status = PoolInvitationStatus.ACCEPTED
-    invitation.responded_at = now
-    session.commit()
+        participation_service._store_answers(session, participant, prepared, now)
+        if member.account_id is not None:
+            session.add(
+                AccountParticipation(
+                    participant_id=participant.id,
+                    account_id=member.account_id,
+                    study_id=study.id,
+                )
+            )
+        invitation.status = PoolInvitationStatus.ACCEPTED
+        invitation.responded_at = now
+        session.commit()
+    except IntegrityError as exc:
+        # The (study_id, device_hash) unique constraint is the last line of defence; the caller
+        # gets the same answer as when the check saw the other row.
+        session.rollback()
+        raise ApiError(
+            409,
+            "already_participating",
+            "This phone or account already takes part in this study.",
+        ) from exc
     return PoolAcceptance(participant=participant, device_token=raw, invitation=invitation)
 
 
@@ -334,6 +350,104 @@ def decline_invitation(
     invitation.responded_at = now
     session.commit()
     return invitation
+
+
+def admin_overview(session: Session) -> dict[str, object]:
+    """Aggregates for the administrator pool screen; no member row ever leaves this function.
+
+    A concelho below ``MINIMUM_GROUP_SIZE`` is never returned as its own row: its members are
+    folded into ``Outros`` (which is itself omitted while below the threshold).
+    """
+    members_total = session.scalar(select(func.count()).select_from(PoolMember)) or 0
+    members_paused = (
+        session.scalar(
+            select(func.count())
+            .select_from(PoolMember)
+            .where(PoolMember.invitations_paused.is_(True))
+        )
+        or 0
+    )
+    invitations_sent = session.scalar(select(func.count()).select_from(PoolInvitation)) or 0
+    invitations_accepted = (
+        session.scalar(
+            select(func.count())
+            .select_from(PoolInvitation)
+            .where(PoolInvitation.status == PoolInvitationStatus.ACCEPTED)
+        )
+        or 0
+    )
+
+    concelho_rows = session.execute(
+        select(PoolMember.concelho, func.count())
+        .group_by(PoolMember.concelho)
+        .order_by(func.count().desc(), PoolMember.concelho)
+    ).all()
+    visible = [
+        {"concelho": concelho, "members": count}
+        for concelho, count in concelho_rows
+        if count >= MINIMUM_GROUP_SIZE
+    ][:8]
+    shown = {row["concelho"] for row in visible}
+    others = sum(count for concelho, count in concelho_rows if concelho not in shown)
+    if others >= MINIMUM_GROUP_SIZE:
+        visible.append({"concelho": "Outros", "members": others})
+    top_concelhos = sum(count for _concelho, count in concelho_rows[:3])
+
+    field_counts = session.execute(
+        select(
+            func.count().filter(PoolMember.freguesia.is_not(None)),
+            func.count().filter(PoolMember.age_band.is_not(None)),
+            func.count().filter(PoolMember.gender.is_not(None)),
+            func.count().filter(PoolMember.occupation.is_not(None)),
+            func.count().filter(PoolMember.usual_transport.is_not(None)),
+            func.count().filter(func.cardinality(PoolMember.languages) > 0),
+        ).select_from(PoolMember)
+    ).one()
+    fields = {
+        "concelho": members_total,
+        "freguesia": field_counts[0],
+        "age_band": field_counts[1],
+        "gender": field_counts[2],
+        "occupation": field_counts[3],
+        "usual_transport": field_counts[4],
+        "languages": field_counts[5],
+    }
+
+    status_counts: dict[uuid.UUID, dict[str, int]] = {}
+    for study_id, status, count in session.execute(
+        select(PoolInvitation.study_id, PoolInvitation.status, func.count()).group_by(
+            PoolInvitation.study_id, PoolInvitation.status
+        )
+    ).all():
+        status_counts.setdefault(study_id, {})[status.value] = count
+    titles = dict(
+        session.execute(
+            select(Study.id, Study.title).where(Study.id.in_(list(status_counts)))
+        ).all()
+    )
+    results = [
+        {
+            "study_id": study_id,
+            "study_title": titles.get(study_id, ""),
+            "sent": counts.get(PoolInvitationStatus.SENT.value, 0),
+            "accepted": counts.get(PoolInvitationStatus.ACCEPTED.value, 0),
+            "declined": counts.get(PoolInvitationStatus.DECLINED.value, 0),
+            "expired": counts.get(PoolInvitationStatus.EXPIRED.value, 0),
+        }
+        for study_id, counts in status_counts.items()
+    ]
+    results.sort(key=lambda row: (row["study_title"], str(row["study_id"])))
+
+    return {
+        "members_total": members_total,
+        "members_paused": members_paused,
+        "top_concelhos": top_concelhos,
+        "invitations_sent": invitations_sent,
+        "invitations_accepted": invitations_accepted,
+        "concelhos": visible,
+        "fields": fields,
+        "invitation_results": results,
+    }
 
 
 def profile_changes(payload: PoolProfileUpdate) -> dict[str, object]:

@@ -37,6 +37,7 @@ from app.models.enums import (
     ParticipantStatus,
     PromptStatus,
     QuestionKind,
+    StudyStatus,
 )
 from app.security import codes
 from app.security.audit import record
@@ -420,8 +421,9 @@ def _require_confirmed_account(account: ParticipantAccount | None) -> None:
 
 
 def _link_account(session: Session, account: ParticipantAccount | None, device_token: str) -> None:
+    """Link before the single commit, so a link failure cannot leave a joined-unlinked row."""
     if account is not None:
-        account_service.link_to_account(session, account, [device_token], None)
+        account_service.link_in_session(session, account, [device_token])
 
 
 def accept_invitation(
@@ -447,6 +449,8 @@ def accept_invitation(
     study = session.scalar(select(Study).where(Study.id == preliminary.study_id).with_for_update())
     if study is None:
         raise _invalid_code()
+    if study.status == StudyStatus.CLOSED:
+        raise ApiError(409, "study_closed", "The study is closed and no longer accepts entries.")
     code = session.scalar(
         select(InviteCode).where(InviteCode.id == preliminary.id).with_for_update()
     )
@@ -496,8 +500,8 @@ def accept_invitation(
         code.used_at = now
         _add_consent(session, participant, consent_version, now)
         _store_answers(session, participant, prepared, now)
-        session.commit()
         _link_account(session, account, raw)
+        session.commit()
         return Acceptance("joined", raw, participant)
 
     # Only a switched-off code is refused before the device check: a person already in the study
@@ -542,8 +546,8 @@ def accept_invitation(
         target=str(code.id),
         details={"study_id": str(study.id)},
     )
-    session.commit()
     _link_account(session, account, raw)
+    session.commit()
     return Acceptance("pending_approval" if pending else "joined", raw, participant)
 
 

@@ -34,6 +34,7 @@ class Participant(Base):
     __tablename__ = "participant"
     __table_args__ = (
         UniqueConstraint("study_id", "device_hash", name="uq_participant_study_device_hash"),
+        UniqueConstraint("study_id", "alias", name="uq_participant_study_alias"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)

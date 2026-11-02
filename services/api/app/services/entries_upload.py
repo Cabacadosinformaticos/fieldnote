@@ -7,7 +7,7 @@ tell a duplicate resend (200) from a UUID collision (409).
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select, update
@@ -125,7 +125,13 @@ def submit_entry(
     prompt = _find_prompt(session, participant, activity, payload.prompt_id)
     _validate_fields(payload, activity)
     if prompt is None:
-        _check_free_entry(session, participant, activity, payload.recorded_at)
+        # Serialise the free-entry count and insert for this participant: two submissions that
+        # read the count together would both pass the cap. The lock lasts until this entry's
+        # commit. The day comes from the server clock, never from the phone's ``recorded_at``.
+        session.execute(
+            select(Participant.id).where(Participant.id == participant.id).with_for_update()
+        )
+        _check_free_entry(session, participant, activity, datetime.now(UTC))
     media_objects = _validate_media(session, participant, payload)
 
     statement = (
@@ -325,7 +331,11 @@ def free_entries_used_today(
     activity: Activity,
     at: datetime,
 ) -> int:
-    """Free entries of this activity in the local day of ``at`` (FR-13)."""
+    """Free entries of this activity in the local day of ``at`` (FR-13).
+
+    ``received_at`` is set by the server, so a phone cannot move an entry into or out of today
+    by changing ``recorded_at``.
+    """
     study = session.get(Study, participant.study_id)
     timezone = ZoneInfo(study.timezone if study is not None else "UTC")
     local_day: date = at.astimezone(timezone).date()
@@ -338,8 +348,8 @@ def free_entries_used_today(
             Entry.participant_id == participant.id,
             Entry.activity_id == activity.id,
             Entry.prompt_id.is_(None),
-            Entry.recorded_at >= day_start,
-            Entry.recorded_at < day_end,
+            Entry.received_at >= day_start,
+            Entry.received_at < day_end,
         )
     )
     return used or 0
@@ -349,13 +359,13 @@ def _check_free_entry(
     session: Session,
     participant: Participant,
     activity: Activity,
-    recorded_at: datetime,
+    at: datetime,
 ) -> None:
     if not activity.allow_free_entries:
         raise ApiError(403, "free_entries_not_allowed", "The activity does not allow free entries.")
     if activity.max_free_entries_per_day is None:
         return
-    used = free_entries_used_today(session, participant, activity, recorded_at)
+    used = free_entries_used_today(session, participant, activity, at)
     if used >= activity.max_free_entries_per_day:
         raise ApiError(409, "free_entry_limit_reached", "The daily limit of free entries is used.")
 
