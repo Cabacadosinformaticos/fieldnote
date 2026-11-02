@@ -15,6 +15,10 @@ from app.schemas.admin import (
     AccountCreatedOut,
     AccountOut,
     AccountRoleUpdate,
+    AdminPoolConcelhoOut,
+    AdminPoolFieldsOut,
+    AdminPoolInvitationResultsOut,
+    AdminPoolOverviewOut,
     AdminStudyOut,
     AuditEventOut,
     AuditLogPage,
@@ -27,6 +31,7 @@ from app.schemas.admin import (
 from app.security.deps import require_admin
 from app.services import admin as service
 from app.services import erasure as erasure_service
+from app.services import pool as pool_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -171,10 +176,37 @@ def list_audit_log(
     )
 
 
+@router.get("/pool/overview", response_model=AdminPoolOverviewOut)
+def pool_overview(session: SessionDep, _admin: AdminUser) -> AdminPoolOverviewOut:
+    """Aggregates for the administrator pool screen; never a member profile."""
+    overview = pool_service.admin_overview(session)
+    return AdminPoolOverviewOut(
+        members_total=overview["members_total"],
+        members_paused=overview["members_paused"],
+        top_concelhos=overview["top_concelhos"],
+        invitations_sent=overview["invitations_sent"],
+        invitations_accepted=overview["invitations_accepted"],
+        concelhos=[
+            AdminPoolConcelhoOut(**row)
+            for row in overview["concelhos"]  # type: ignore[arg-type]
+        ],
+        fields=AdminPoolFieldsOut(**overview["fields"]),  # type: ignore[arg-type]
+        invitation_results=[
+            AdminPoolInvitationResultsOut(**row)
+            for row in overview["invitation_results"]  # type: ignore[arg-type]
+        ],
+    )
+
+
 @router.get("/erasures", response_model=ErasureListOut)
-def list_erasures(session: SessionDep, _admin: AdminUser) -> ErasureListOut:
+def list_erasures(
+    session: SessionDep,
+    _admin: AdminUser,
+    cursor: Annotated[int | None, Query(ge=1)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+) -> ErasureListOut:
     """FR-44, FR-85: erasures scheduled from the app (read only) and those already run."""
-    listing = service.list_erasures(session)
+    listing = service.list_erasures(session, cursor=cursor, limit=limit)
     study_ids = {participant.study_id for participant in listing.scheduled}
     for row in listing.completed:
         details = row.details or {}
@@ -216,6 +248,7 @@ def list_erasures(session: SessionDep, _admin: AdminUser) -> ErasureListOut:
             for participant in listing.scheduled
         ],
         completed=completed,
+        next_cursor=listing.next_cursor,
     )
 
 

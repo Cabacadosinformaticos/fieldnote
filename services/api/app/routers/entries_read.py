@@ -15,6 +15,7 @@ from app.schemas.entries_read import (
     EntryOut,
     EntryTagsOut,
     EntryTagsUpdate,
+    MediaRetryOut,
     TimelineResponse,
 )
 from app.security.deps import StudyAccess, require_study_role
@@ -36,6 +37,9 @@ def list_entries(
     tag_id: uuid.UUID | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
+    q: str | None = None,
+    free_only: bool = False,
+    late_only: bool = False,
     cursor: str | None = None,
     limit: Annotated[
         int, Query(ge=1, le=entries_read.MAX_PAGE_SIZE)
@@ -50,6 +54,9 @@ def list_entries(
         tag_id=tag_id,
         date_from=date_from,
         date_to=date_to,
+        q=q,
+        free_only=free_only,
+        late_only=late_only,
         cursor=cursor,
         limit=limit,
     )
@@ -63,6 +70,16 @@ def entry_detail(
     access: Annotated[StudyAccess, Depends(study_member)],
 ) -> dict[str, object]:
     return entries_read.get_entry(session, study_id, entry_id, access.user)
+
+
+@router.post("/entries/{entry_id}/media/retry", response_model=MediaRetryOut)
+def retry_entry_media(
+    study_id: uuid.UUID,
+    entry_id: uuid.UUID,
+    session: Annotated[Session, Depends(get_session)],
+    access: Annotated[StudyAccess, Depends(study_member)],
+) -> dict[str, object]:
+    return entries_read.retry_media(session, study_id, entry_id, access.user)
 
 
 @router.put("/entries/{entry_id}/tags", response_model=EntryTagsOut)

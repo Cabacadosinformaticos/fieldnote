@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import and_, delete, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
@@ -31,7 +31,7 @@ from app.models import (
 )
 from app.models.enums import EntryType, MediaStatus, ParticipantStatus, PromptStatus
 from app.security.audit import record
-from app.services import storage
+from app.services import outbox, storage
 
 RESEARCHER_VISIBLE_STATUSES = (
     ParticipantStatus.ACTIVE,
@@ -41,6 +41,8 @@ RESEARCHER_VISIBLE_STATUSES = (
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
+# Same threshold as the dashboard's ``isLate`` (apps/dashboard/src/components/entries/entryMeta.ts).
+LATE_THRESHOLD = timedelta(minutes=15)
 
 ADHERENCE_STATES = ("answered", "expired", "sent_pending", "not_sent")
 
@@ -136,8 +138,10 @@ def _entry_dict(
     media: list[MediaObject],
     *,
     urls: dict[uuid.UUID, tuple[str, datetime]] | None = None,
+    thumbnail_urls: dict[uuid.UUID, tuple[str, datetime]] | None = None,
 ) -> dict[str, object]:
     urls = urls or {}
+    thumbnail_urls = thumbnail_urls or {}
     return {
         "id": entry.id,
         "participant_id": entry.participant_id,
@@ -163,6 +167,12 @@ def _entry_dict(
                 "status": item.status,
                 "url": urls[item.id][0] if item.id in urls else None,
                 "url_expires_at": urls[item.id][1] if item.id in urls else None,
+                "thumbnail_url": (
+                    thumbnail_urls[item.id][0] if item.id in thumbnail_urls else None
+                ),
+                "thumbnail_url_expires_at": (
+                    thumbnail_urls[item.id][1] if item.id in thumbnail_urls else None
+                ),
             }
             for item in media
         ],
@@ -179,20 +189,23 @@ def list_entries(
     tag_id: uuid.UUID | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
+    q: str | None = None,
+    free_only: bool = False,
+    late_only: bool = False,
     cursor: str | None = None,
     limit: int = DEFAULT_PAGE_SIZE,
 ) -> dict[str, object]:
     limit = max(1, min(limit, MAX_PAGE_SIZE))
-    statement = _entry_statement(study_id)
+    conditions = [_visible_participant_clause(study_id)]
 
     if participant_id is not None:
-        statement = statement.where(Entry.participant_id == participant_id)
+        conditions.append(Entry.participant_id == participant_id)
     if activity_id is not None:
-        statement = statement.where(Entry.activity_id == activity_id)
+        conditions.append(Entry.activity_id == activity_id)
     if entry_type is not None:
-        statement = statement.where(Entry.entry_type == entry_type)
+        conditions.append(Entry.entry_type == entry_type)
     if tag_id is not None:
-        statement = statement.where(
+        conditions.append(
             Entry.id.in_(
                 select(EntryTag.entry_id)
                 .join(Tag, Tag.id == EntryTag.tag_id)
@@ -200,9 +213,28 @@ def list_entries(
             )
         )
     if date_from is not None:
-        statement = statement.where(Entry.recorded_at >= _as_utc(date_from))
+        conditions.append(Entry.recorded_at >= _as_utc(date_from))
     if date_to is not None:
-        statement = statement.where(Entry.recorded_at <= _as_utc(date_to))
+        conditions.append(Entry.recorded_at <= _as_utc(date_to))
+    if q is not None and q.strip():
+        conditions.append(Entry.body.ilike(f"%{q.strip()}%"))
+    if free_only:
+        conditions.append(Entry.prompt_id.is_(None))
+    if late_only:
+        conditions.append(Entry.received_at > Entry.recorded_at + LATE_THRESHOLD)
+
+    # ``total`` counts every match under the same filters, independent of the cursor and page.
+    total = (
+        session.scalar(
+            select(func.count())
+            .select_from(Entry)
+            .join(Participant, Participant.id == Entry.participant_id)
+            .where(*conditions)
+        )
+        or 0
+    )
+
+    statement = _entry_statement(study_id).where(*conditions)
     if cursor is not None:
         cursor_at, cursor_id = decode_cursor(cursor)
         statement = statement.where(
@@ -235,7 +267,7 @@ def list_entries(
     if has_more and rows:
         last = rows[-1][0]
         next_cursor = encode_cursor(last.recorded_at, last.id)
-    return {"items": items, "next_cursor": next_cursor}
+    return {"items": items, "next_cursor": next_cursor, "total": total}
 
 
 def get_entry(
@@ -253,6 +285,7 @@ def get_entry(
     media = _media_by_entry(session, [entry.id])
 
     urls: dict[uuid.UUID, tuple[str, datetime]] = {}
+    thumbnail_urls: dict[uuid.UUID, tuple[str, datetime]] = {}
     for item in media.get(entry.id, []):
         if item.status != MediaStatus.PROCESSED:
             # Until processing succeeds the original is not offered for download or export
@@ -260,6 +293,9 @@ def get_entry(
             continue
         url, expires_at = storage.presign_get(item.object_key)
         urls[item.id] = (url, expires_at)
+        thumbnail_key = f"{item.object_key}{storage.THUMBNAIL_SUFFIX}"
+        if storage.object_exists(thumbnail_key):
+            thumbnail_urls[item.id] = storage.presign_get(thumbnail_key)
         record(
             session,
             user,
@@ -281,7 +317,41 @@ def get_entry(
         tags.get(entry.id, []),
         media.get(entry.id, []),
         urls=urls,
+        thumbnail_urls=thumbnail_urls,
     )
+
+
+def retry_media(
+    session: Session,
+    study_id: uuid.UUID,
+    entry_id: uuid.UUID,
+    user: UserAccount,
+) -> dict[str, object]:
+    """Re-publish the processing event of the failed media of one entry (FR-42 retry)."""
+    row = session.execute(_entry_statement(study_id).where(Entry.id == entry_id)).one_or_none()
+    if row is None:
+        raise ApiError(404, "not_found", "The entry was not found.")
+    entry = row[0]
+    failed = [
+        item
+        for item in _media_by_entry(session, [entry.id]).get(entry.id, [])
+        if item.status == MediaStatus.FAILED
+    ]
+    for item in failed:
+        item.status = MediaStatus.UPLOADED
+        outbox.enqueue_media_process(session, item)
+    record(
+        session,
+        user,
+        "media_retry_requested",
+        target=str(entry.id),
+        details={
+            "study_id": str(study_id),
+            "media_object_ids": [str(item.id) for item in failed],
+        },
+    )
+    session.commit()
+    return {"entry_id": entry.id, "media_ids": [item.id for item in failed]}
 
 
 def set_entry_tags(

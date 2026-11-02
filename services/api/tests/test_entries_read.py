@@ -151,6 +151,7 @@ def test_list_entries_filters_and_cursor_pagination(
     body = first_page.json()
     assert [item["id"] for item in body["items"]] == [str(four.id), str(three.id)]
     assert body["next_cursor"]
+    assert body["total"] == 4
 
     second_page = client.get(
         url, params={"limit": 2, "cursor": body["next_cursor"]}, headers=headers
@@ -159,6 +160,7 @@ def test_list_entries_filters_and_cursor_pagination(
     second_body = second_page.json()
     assert [item["id"] for item in second_body["items"]] == [str(two.id), str(one.id)]
     assert second_body["next_cursor"] is None
+    assert second_body["total"] == 4
 
     listed = next(item for item in body["items"] if item["id"] == str(three.id))
     assert listed["participant_alias"] == "P02"
@@ -191,6 +193,113 @@ def test_list_entries_filters_and_cursor_pagination(
     invalid = client.get(url, params={"cursor": "not-a-cursor"}, headers=headers)
     assert invalid.status_code == 400
     assert invalid.json()["error"]["code"] == "invalid_cursor"
+
+
+def test_list_entries_filters_text_free_and_late(
+    client: TestClient, session: Session, make_user, make_study, make_participant, bearer_headers
+) -> None:
+    study = make_study()
+    user = make_user()
+    _add_member(session, study, user)
+    participant = make_participant(study)
+    activity = _make_activity(session, study)
+    prompt = _make_prompt(
+        session,
+        participant,
+        activity,
+        plan_date=date(2026, 1, 5),
+        occurrence=0,
+        status=PromptStatus.ANSWERED,
+    )
+    free_walk = _make_entry(
+        session, participant, activity, recorded_at=BASE, body="A walk in the morning"
+    )
+    prompted = _make_entry(
+        session, participant, activity, recorded_at=BASE + timedelta(hours=1), body="A walk later"
+    )
+    prompted.prompt_id = prompt.id
+    late = _make_entry(
+        session, participant, activity, recorded_at=BASE + timedelta(hours=2), body="Slept in"
+    )
+    late.received_at = late.recorded_at + timedelta(minutes=20)
+    session.commit()
+    headers = bearer_headers(user)
+    url = f"/api/v1/studies/{study.id}/entries"
+
+    by_text = client.get(url, params={"q": "WALK"}, headers=headers)
+    assert {item["id"] for item in by_text.json()["items"]} == {str(free_walk.id), str(prompted.id)}
+    assert by_text.json()["total"] == 2
+
+    free = client.get(url, params={"free_only": True}, headers=headers)
+    assert {item["id"] for item in free.json()["items"]} == {str(free_walk.id), str(late.id)}
+    assert free.json()["total"] == 2
+
+    late_only = client.get(url, params={"late_only": True}, headers=headers)
+    assert [item["id"] for item in late_only.json()["items"]] == [str(late.id)]
+    assert late_only.json()["total"] == 1
+
+    combined = client.get(url, params={"q": "walk", "free_only": True}, headers=headers)
+    assert [item["id"] for item in combined.json()["items"]] == [str(free_walk.id)]
+    assert combined.json()["total"] == 1
+
+
+def test_retrying_failed_media_publishes_an_event_and_audits_it(
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    from app.models import OutboxEvent
+
+    study = make_study()
+    user = make_user()
+    _add_member(session, study, user)
+    participant = make_participant(study)
+    activity = _make_activity(session, study)
+    entry = _make_entry(session, participant, activity, recorded_at=BASE)
+    failed = MediaObject(
+        entry_id=entry.id,
+        object_key=f"entries/{participant.id}/{entry.id}/failed",
+        mime_type="image/jpeg",
+        size_bytes=10,
+        sha256="d" * 64,
+        status=MediaStatus.FAILED,
+    )
+    processed = MediaObject(
+        entry_id=entry.id,
+        object_key=f"entries/{participant.id}/{entry.id}/processed",
+        mime_type="image/jpeg",
+        size_bytes=10,
+        sha256="e" * 64,
+        status=MediaStatus.PROCESSED,
+    )
+    session.add_all([failed, processed])
+    session.commit()
+
+    response = client.post(
+        f"/api/v1/studies/{study.id}/entries/{entry.id}/media/retry",
+        headers=bearer_headers(user),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "entry_id": str(entry.id),
+        "media_ids": [str(failed.id)],
+    }
+    session.refresh(failed)
+    session.refresh(processed)
+    assert failed.status == MediaStatus.UPLOADED
+    assert processed.status == MediaStatus.PROCESSED
+    events = session.scalars(
+        select(OutboxEvent).where(OutboxEvent.event_type == "media.process")
+    ).all()
+    assert [event.payload["media_object_id"] for event in events] == [str(failed.id)]
+    audit = session.scalar(select(AuditLog).where(AuditLog.action == "media_retry_requested"))
+    assert audit is not None
+    assert audit.target == str(entry.id)
+    assert audit.details["media_object_ids"] == [str(failed.id)]
 
 
 def test_only_visible_participant_states_appear(
@@ -242,8 +351,17 @@ def test_entries_require_membership_but_administrators_pass(
 
 
 def test_entry_detail_signs_only_processed_media_and_audits_the_issue(
-    client: TestClient, session: Session, make_user, make_study, make_participant, bearer_headers
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
 ) -> None:
+    from app.services import storage
+
+    monkeypatch.setattr(storage, "object_exists", lambda key: key.endswith(".thumb.jpg"))
     study = make_study()
     user = make_user()
     _add_member(session, study, user)
@@ -283,7 +401,11 @@ def test_entry_detail_signs_only_processed_media_and_audits_the_issue(
     assert "X-Amz-Expires=600" in signed["url"]
     assert f"/studies/{study.id}/photo.jpg" in signed["url"]
     assert signed["url_expires_at"]
+    assert signed["thumbnail_url"] is not None
+    assert f"/studies/{study.id}/photo.jpg.thumb.jpg" in signed["thumbnail_url"]
+    assert signed["thumbnail_url_expires_at"]
     assert media[str(failed.id)]["url"] is None
+    assert media[str(failed.id)]["thumbnail_url"] is None
 
     audits = session.scalars(select(AuditLog).where(AuditLog.action == "media_url_issued")).all()
     assert len(audits) == 1

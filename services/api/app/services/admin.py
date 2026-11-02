@@ -52,6 +52,7 @@ class AuditPage:
 class ErasureListing:
     scheduled: list[Participant]
     completed: list[AuditLog]
+    next_cursor: int | None = None
 
 
 def _get_account(session: Session, user_id: uuid.UUID) -> UserAccount:
@@ -275,8 +276,17 @@ def list_audit(
     )
 
 
-def list_erasures(session: Session) -> ErasureListing:
-    """Erasures scheduled from the app (read only) and the erasures already run."""
+def list_erasures(
+    session: Session,
+    *,
+    cursor: int | None = None,
+    limit: int = COMPLETED_ERASURES_LIMIT,
+) -> ErasureListing:
+    """Erasures scheduled from the app (read only) and the erasures already run.
+
+    The completed list is paginated like :func:`list_audit`: ``cursor`` is the id of the last
+    row of the previous page.
+    """
     scheduled = list(
         session.scalars(
             select(Participant)
@@ -284,15 +294,17 @@ def list_erasures(session: Session) -> ErasureListing:
             .order_by(Participant.erasure_due_at.asc().nulls_last(), Participant.id)
         )
     )
-    completed = list(
-        session.scalars(
-            select(AuditLog)
-            .where(AuditLog.action == ERASED_ACTION)
-            .order_by(AuditLog.id.desc())
-            .limit(COMPLETED_ERASURES_LIMIT)
-        )
+    statement = select(AuditLog).where(AuditLog.action == ERASED_ACTION)
+    if cursor is not None:
+        statement = statement.where(AuditLog.id < cursor)
+    rows = list(session.scalars(statement.order_by(AuditLog.id.desc()).limit(limit + 1)))
+    has_more = len(rows) > limit
+    completed = rows[:limit]
+    return ErasureListing(
+        scheduled=scheduled,
+        completed=completed,
+        next_cursor=completed[-1].id if has_more and completed else None,
     )
-    return ErasureListing(scheduled=scheduled, completed=completed)
 
 
 def study_titles(session: Session, study_ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:

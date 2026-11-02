@@ -19,6 +19,8 @@ from app.config import settings
 UPLOAD_URL_TTL_SECONDS = 10 * 60
 DOWNLOAD_URL_TTL_SECONDS = 10 * 60
 OBJECT_KEY_PREFIX = "entries"
+# The media worker writes the JPEG preview next to the original (media_worker/storage.py).
+THUMBNAIL_SUFFIX = ".thumb.jpg"
 _NOT_FOUND_CODES = frozenset({"404", "NoSuchKey", "NotFound"})
 
 

@@ -21,6 +21,8 @@ class MediaOut(BaseModel):
     status: MediaStatus
     url: str | None = None
     url_expires_at: datetime | None = None
+    thumbnail_url: str | None = None
+    thumbnail_url_expires_at: datetime | None = None
 
 
 class EntryOut(BaseModel):
@@ -46,10 +48,16 @@ class EntryOut(BaseModel):
 class EntryListResponse(BaseModel):
     items: list[EntryOut]
     next_cursor: str | None = None
+    total: int
 
 
 class EntryTagsUpdate(BaseModel):
     tag_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class MediaRetryOut(BaseModel):
+    entry_id: uuid.UUID
+    media_ids: list[uuid.UUID]
 
 
 class EntryTagsOut(BaseModel):

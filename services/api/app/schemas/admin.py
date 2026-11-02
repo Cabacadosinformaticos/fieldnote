@@ -85,9 +85,45 @@ class CompletedErasureOut(BaseModel):
 class ErasureListOut(BaseModel):
     scheduled: list[ScheduledErasureOut]
     completed: list[CompletedErasureOut]
+    next_cursor: int | None = None
 
 
 class ErasureResultOut(BaseModel):
     participant_id: uuid.UUID
     entries_deleted: int
     files_deleted: int
+
+
+class AdminPoolConcelhoOut(BaseModel):
+    concelho: str
+    members: int
+
+
+class AdminPoolFieldsOut(BaseModel):
+    concelho: int
+    freguesia: int
+    age_band: int
+    gender: int
+    occupation: int
+    usual_transport: int
+    languages: int
+
+
+class AdminPoolInvitationResultsOut(BaseModel):
+    study_id: uuid.UUID
+    study_title: str
+    sent: int
+    accepted: int
+    declined: int
+    expired: int
+
+
+class AdminPoolOverviewOut(BaseModel):
+    members_total: int
+    members_paused: int
+    top_concelhos: int
+    invitations_sent: int
+    invitations_accepted: int
+    concelhos: list[AdminPoolConcelhoOut]
+    fields: AdminPoolFieldsOut
+    invitation_results: list[AdminPoolInvitationResultsOut]
