@@ -15,6 +15,7 @@ from backup.archive import ArchiveObject, extracted_archive, restored_objects, w
 from backup.config import Settings
 from backup.database import (
     dump_database,
+    pending_participants,
     restore_counts,
     restore_database,
     source_counts,
@@ -58,6 +59,16 @@ def run_backup(
         dump_path = directory / "database.dump"
         dump_database(settings, dump_path, counts.pending_participants)
 
+        # An erasure may have been requested while the dump was running. Re-read the pending set
+        # and, if it grew, dump again so those rows never reach the archive either. The union also
+        # keeps their objects out of the media walk, even if the erasure completed meanwhile.
+        pending = tuple(
+            sorted(set(counts.pending_participants) | set(pending_participants(settings)))
+        )
+        if set(pending) - set(counts.pending_participants):
+            counts = source_counts(settings, pending)
+            dump_database(settings, dump_path, pending)
+
         objects = (
             ArchiveObject(
                 key=item.key,
@@ -76,7 +87,7 @@ def run_backup(
                 "created_at": moment.isoformat(),
                 "entries": counts.entries,
                 "media_objects": counts.media_objects,
-                "pending_participants": len(counts.pending_participants),
+                "pending_participants": len(pending),
             },
         )
 
@@ -104,11 +115,14 @@ def restore_backup(
 
     try:
         with extracted_archive(local, key) as (contents, manifest):
-            restore_database(settings, contents / "database.dump")
+            # Objects go first: a failed upload can simply be retried, because uploading the same
+            # key again overwrites it. Restoring the database first would make the retry fail on
+            # a schema that already exists and leave media missing.
             objects = list(restored_objects(contents))
             storage.ensure_bucket(settings.s3_bucket)
             for item in objects:
                 storage.upload_restored(item.path, item.key, item.content_type)
+            restore_database(settings, contents / "database.dump")
             entries, media_objects = restore_counts(settings)
     finally:
         if temporary is not None:

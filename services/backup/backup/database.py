@@ -96,8 +96,10 @@ def pending_participants(settings: Settings) -> tuple[uuid.UUID, ...]:
     return tuple(row[0] for row in rows)
 
 
-def source_counts(settings: Settings) -> SourceCounts:
-    pending = pending_participants(settings)
+def source_counts(
+    settings: Settings, pending: tuple[uuid.UUID, ...] | None = None
+) -> SourceCounts:
+    pending = pending_participants(settings) if pending is None else pending
     with psycopg.connect(libpq_url(settings.database_url)) as connection:
         if pending:
             entries = connection.execute(

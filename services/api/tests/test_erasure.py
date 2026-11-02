@@ -4,7 +4,7 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.erasure_job import run_once
@@ -14,6 +14,7 @@ from app.models import (
     Availability,
     Consent,
     Entry,
+    ErasureFileDeletion,
     MediaObject,
     Participant,
     ParticipantAccount,
@@ -29,6 +30,7 @@ from app.models.enums import (
 )
 from app.security.audit import record
 from app.services import storage
+from app.services.erasure import erase_participant
 
 API = "/api/v1"
 ADMIN = f"{API}/admin"
@@ -280,6 +282,45 @@ def test_erasures_list_shows_scheduled_and_completed_ones(
     assert body["completed"][0]["files"] == 2
 
 
+def test_completed_erasures_are_paginated(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    bearer_headers,
+) -> None:
+    study = make_study()
+    targets = [uuid.uuid4() for _ in range(3)]
+    for target in targets:
+        record(
+            session,
+            None,
+            "participant_erased",
+            target=str(target),
+            details={"study_id": str(study.id), "entries": 0, "files": 0},
+        )
+    session.commit()
+    headers = bearer_headers(admin)
+
+    first = client.get(f"{ADMIN}/erasures", params={"limit": 2}, headers=headers)
+    assert first.status_code == 200, first.text
+    first_body = first.json()
+    assert len(first_body["completed"]) == 2
+    assert first_body["next_cursor"] is not None
+
+    second = client.get(
+        f"{ADMIN}/erasures",
+        params={"limit": 2, "cursor": first_body["next_cursor"]},
+        headers=headers,
+    )
+    assert second.status_code == 200, second.text
+    second_body = second.json()
+    assert len(second_body["completed"]) == 1
+    assert second_body["next_cursor"] is None
+    returned = {row["participant_id"] for row in first_body["completed"] + second_body["completed"]}
+    assert returned == {str(target) for target in targets}
+
+
 def test_job_erases_only_due_participants_and_runs_twice_safely(
     session: Session,
     make_study,
@@ -338,6 +379,101 @@ def test_job_does_nothing_when_no_erasure_is_due(
     assert run_once(session) == 0
     assert calls == []
     assert session.get(Participant, participant.id) is not None
+
+
+def test_erasing_a_participant_deleted_by_another_worker_is_skipped(
+    session: Session, make_study, make_participant, monkeypatch
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    calls = _delete_file_calls(monkeypatch)
+
+    # Another worker reached the row first, after this worker selected it.
+    session.execute(text("DELETE FROM participant WHERE id = :id"), {"id": str(participant.id)})
+    assert erase_participant(session, participant) is None
+    assert calls == []
+
+
+def test_erasure_removes_a_staged_upload_that_has_no_entry(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    staged = MediaObject(
+        entry_id=None,
+        object_key=f"entries/{participant.id}/staged/{uuid.uuid4()}",
+        mime_type="audio/mpeg",
+        size_bytes=12,
+        sha256="c" * 64,
+    )
+    session.add(staged)
+    session.commit()
+    staged_id = staged.id
+    _delete_file_calls(monkeypatch)
+
+    response = client.post(
+        f"{ADMIN}/participants/{participant.id}/erasure",
+        headers=bearer_headers(admin),
+    )
+
+    assert response.status_code == 200, response.text
+    session.expire_all()
+    assert session.get(MediaObject, staged_id) is None
+
+
+def test_a_storage_failure_keeps_the_database_erasure_and_the_job_retries_the_files(
+    session: Session, make_study, make_participant, monkeypatch
+) -> None:
+    study = make_study()
+    participant, entry, media, _ = _seed(session, study, make_participant)
+    participant_id = participant.id
+    entry_id, media_id = entry.id, media.id
+    calls: list[uuid.UUID] = []
+
+    def failing_delete(identifier: uuid.UUID) -> int:
+        calls.append(identifier)
+        raise RuntimeError("storage is down")
+
+    monkeypatch.setattr(storage, "delete_participant_objects", failing_delete)
+    with pytest.raises(RuntimeError):
+        erase_participant(session, participant)
+
+    assert calls == [participant_id]
+    session.expire_all()
+    assert session.get(Participant, participant_id) is None
+    assert session.get(Entry, entry_id) is None
+    assert session.get(MediaObject, media_id) is None
+    assert session.get(ErasureFileDeletion, participant_id) is not None
+    assert (
+        session.scalar(
+            select(AuditLog.id).where(
+                AuditLog.action == "participant_erased",
+                AuditLog.target == str(participant_id),
+            )
+        )
+        is None
+    )
+
+    monkeypatch.setattr(storage, "delete_participant_objects", lambda identifier: 3)
+
+    assert run_once(session) == 1
+
+    assert session.get(ErasureFileDeletion, participant_id) is None
+    assert session.get(Participant, participant_id) is None
+    audit = session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "participant_erased",
+            AuditLog.target == str(participant_id),
+        )
+    )
+    assert audit is not None
+    assert audit.details == {"study_id": str(study.id), "entries": 1, "files": 3}
 
 
 def test_job_audits_a_due_request_whose_participant_row_is_gone(

@@ -1,10 +1,14 @@
 """Run the permanent erasures that are due.
 
-Run with ``python -m app.erasure_job``. The job claims, with ``SELECT ... FOR UPDATE SKIP
-LOCKED``, the participants whose erasure was requested in the app and whose due time has passed,
-then runs the erasure of FR-44 and writes the audit row. Several replicas may run the job at the
-same time: each row is claimed by one of them, and a row that disappears before its turn is
+Run with ``python -m app.erasure_job``. The job selects the participants whose erasure was
+requested in the app and whose due time has passed, then runs the erasure of FR-44 and writes the
+audit row. Every participant is locked inside its own erasure (``SKIP LOCKED``) instead of through
+a batch lock that the per-participant commits would release. Several replicas may run the job at
+the same time: each row is processed by one of them, and a row that disappears before its turn is
 already erased.
+
+The database rows are deleted before the objects, so a storage failure is retried from the
+``erasure_file_deletion`` row left behind, not from the participant (which no longer exists).
 """
 
 import logging
@@ -16,30 +20,55 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import AuditLog, Participant
+from app.models import AuditLog, ErasureFileDeletion, Participant
 from app.models.enums import ParticipantStatus
 from app.security.audit import record
-from app.services import erasure
+from app.services import erasure, storage
 
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 100
 
 
-def _due_participants(session: Session, now: datetime, batch_size: int) -> list[Participant]:
+def _due_participants(
+    session: Session,
+    now: datetime,
+    batch_size: int,
+    attempted: set[uuid.UUID] | None = None,
+) -> list[Participant]:
+    statement = select(Participant).where(
+        Participant.status == ParticipantStatus.ERASURE_SCHEDULED,
+        Participant.erasure_due_at.is_not(None),
+        Participant.erasure_due_at <= now,
+    )
+    if attempted:
+        statement = statement.where(Participant.id.not_in(attempted))
     return list(
         session.scalars(
-            select(Participant)
-            .where(
-                Participant.status == ParticipantStatus.ERASURE_SCHEDULED,
-                Participant.erasure_due_at.is_not(None),
-                Participant.erasure_due_at <= now,
-            )
-            .order_by(Participant.erasure_due_at, Participant.id)
-            .limit(batch_size)
-            .with_for_update(skip_locked=True)
+            statement.order_by(Participant.erasure_due_at, Participant.id).limit(batch_size)
         )
     )
+
+
+def _retry_pending_files(session: Session) -> int:
+    """Finish erasures whose objects could not be deleted after the database commit."""
+    ids = list(session.scalars(select(ErasureFileDeletion.participant_id)))
+    handled = 0
+    for participant_id in ids:
+        if session.get(ErasureFileDeletion, participant_id) is None:
+            continue
+        try:
+            files = storage.delete_participant_objects(participant_id)
+        except Exception:
+            # Keep the pending row for the next run: the database rows stay deleted.
+            session.rollback()
+            logger.exception(
+                "cannot delete the files of participant %s yet; will retry", participant_id
+            )
+            continue
+        if erasure.complete_file_deletion(session, participant_id, files=files):
+            handled += 1
+    return handled
 
 
 def _audit_missing_requests(session: Session, now: datetime) -> int:
@@ -48,6 +77,8 @@ def _audit_missing_requests(session: Session, now: datetime) -> int:
     A restore from a backup made during the seven days leaves no participant row for a pending
     erasure (NFR-13), so the job has nothing to delete and only records that the erasure is done
     (UC20, 5c). The request row is locked without waiting, so two replicas never write it twice.
+    A participant whose files are still pending is skipped: its ``participant_erased`` row is
+    written when the files are actually gone.
     """
     requests = session.scalars(
         select(AuditLog)
@@ -67,6 +98,8 @@ def _audit_missing_requests(session: Session, now: datetime) -> int:
         except ValueError:
             continue
         if session.get(Participant, participant_id) is not None:
+            continue
+        if session.get(ErasureFileDeletion, participant_id) is not None:
             continue
         already = session.scalar(
             select(AuditLog.id)
@@ -98,14 +131,22 @@ def run_once(
 ) -> int:
     """Settle every erasure that is due and return how many were handled."""
     moment = now or datetime.now(UTC)
-    handled = 0
+    handled = _retry_pending_files(session)
+    attempted: set[uuid.UUID] = set()
     while True:
-        due = _due_participants(session, moment, batch_size)
+        due = _due_participants(session, moment, batch_size, attempted)
         if not due:
             break
         for participant in due:
-            erasure.erase_participant(session, participant)
-            handled += 1
+            attempted.add(participant.id)
+            try:
+                result = erasure.erase_participant(session, participant)
+            except Exception:
+                session.rollback()
+                logger.exception("cannot erase participant %s yet", participant.id)
+                continue
+            if result is not None:
+                handled += 1
     return handled + _audit_missing_requests(session, moment)
 
 
