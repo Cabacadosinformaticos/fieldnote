@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/useAuth'
 import { t } from '../i18n/studies'
-import { useActivities } from './activities'
 import { client } from './client'
 import type { components } from './schema'
 
@@ -30,7 +29,12 @@ export type UnplannedReason = components['schemas']['UnplannedReason']
 
 export type StudyStatus = 'ongoing' | 'draft' | 'finished'
 
-export type StudyMetricKind = 'participants' | 'entries' | 'activities'
+export type StudyMetricKind =
+  | 'participants'
+  | 'entries'
+  | 'adherence'
+  | 'adherenceFinal'
+  | 'adherenceDraft'
 
 export type StudyMetric = {
   kind: StudyMetricKind
@@ -327,18 +331,52 @@ export function useStudies() {
 export function useStudyCard(study: StudyListItem): StudySummary {
   const { user } = useAuth()
   const members = useStudyMembers(study.id)
-  const activities = useActivities(study.id)
   const member = members.data?.find((item) => item.user_id === user?.id)
   const role: StudyRole | null =
     user?.role === 'admin' ? 'principal_investigator' : (member?.role ?? null)
-  const activityRows = activities.data ?? []
-  const loading = activities.isLoading
+  const status = statusFromApi(study.status)
+  const studyDays =
+    study.starts_on && study.ends_on
+      ? dayDiff(study.starts_on, study.ends_on) + 1
+      : 0
+
+  let adherenceMetric: StudyMetric
+  if (status === 'draft') {
+    adherenceMetric = {
+      kind: 'adherenceDraft',
+      value: '–',
+      note: t('list.metric.adherenceNotStarted'),
+    }
+  } else if (status === 'finished') {
+    const adherence = study.adherence_study
+    adherenceMetric = {
+      kind: 'adherenceFinal',
+      value: `${adherence.percentage} %`,
+      note:
+        studyDays > 0
+          ? t('list.metric.adherenceFinalNote', { days: studyDays })
+          : t('list.metric.adherenceNote', {
+              answered: adherence.answered,
+              out: adherence.out,
+            }),
+    }
+  } else {
+    const adherence = study.adherence_today
+    adherenceMetric = {
+      kind: 'adherence',
+      value: `${adherence.percentage} %`,
+      note: t('list.metric.adherenceNote', {
+        answered: adherence.answered,
+        out: adherence.out,
+      }),
+    }
+  }
 
   return {
     id: study.id,
     title: study.title,
     description: study.description ?? t('list.noDescription'),
-    status: statusFromApi(study.status),
+    status,
     role,
     period: studyRange(study),
     schedule: t('list.schedule', {
@@ -356,15 +394,7 @@ export function useStudyCard(study: StudyListItem): StudySummary {
         value: String(study.entry_count),
         note: '',
       },
-      {
-        kind: 'activities',
-        value: loading ? '…' : String(activityRows.length),
-        note: loading
-          ? ''
-          : t('list.metric.activitiesNote', {
-              prompts: activityRows.reduce((sum, activity) => sum + activity.prompts_per_day, 0),
-            }),
-      },
+      adherenceMetric,
     ],
   }
 }

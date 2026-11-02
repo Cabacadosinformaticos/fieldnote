@@ -15,7 +15,7 @@ import {
   useStudy,
   type FilterKey,
 } from '../../api/participants'
-import { todayInTimezone } from '../../api/studies'
+import { addDays, todayInTimezone } from '../../api/studies'
 import ParticipantsTable, {
   type ParticipantRow,
 } from '../../components/participants/ParticipantsTable'
@@ -54,10 +54,32 @@ export default function ParticipantsPage() {
     })),
   })
 
+  const timeZone = studyQuery.data?.timezone ?? 'Europe/Lisbon'
+  const today = todayInTimezone(timeZone)
+
+  // The last four study days, ending today (or the study end once it has ended).
   const dayColumns = useMemo(() => {
-    const days = adherence.find((item) => item.data)?.data?.days ?? []
-    return days.slice(-4).map((day) => day.date)
-  }, [adherence])
+    const startsOn = studyQuery.data?.starts_on
+    if (!startsOn) {
+      return []
+    }
+    const endsOn = studyQuery.data?.ends_on
+    let last = today
+    if (last < startsOn) {
+      last = startsOn
+    }
+    if (endsOn && last > endsOn) {
+      last = endsOn
+    }
+    const days: string[] = []
+    for (let offset = 3; offset >= 0; offset -= 1) {
+      const date = addDays(last, -offset)
+      if (date >= startsOn && (!endsOn || date <= endsOn)) {
+        days.push(date)
+      }
+    }
+    return days
+  }, [studyQuery.data?.starts_on, studyQuery.data?.ends_on, today])
 
   const rows: ParticipantRow[] = filtered.map((participant, index) => {
     const data = adherence[index]?.data
@@ -156,7 +178,8 @@ export default function ParticipantsPage() {
               rows={rows}
               dayColumns={dayColumns}
               studyStart={studyQuery.data?.starts_on ?? null}
-              today={todayInTimezone(studyQuery.data?.timezone ?? 'Europe/Lisbon')}
+              today={today}
+              timeZone={timeZone}
               canReadIdentity={canReadIdentity}
             />
 

@@ -9,7 +9,7 @@ import {
   type ParticipantOut,
 } from '../../api/participants'
 import { t } from '../../i18n/participants'
-import { formatDate } from './format'
+import { formatDate, formatDateTime } from './format'
 import { EllipsisIcon, LockIcon, UserMinusIcon } from './icons'
 
 export interface ParticipantRow extends ParticipantOut {
@@ -39,12 +39,61 @@ function dayNumber(date: string, studyStart: string | null): number | null {
   return diff + 1
 }
 
+function dateInZone(value: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value))
+}
+
+function timeInZone(value: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('pt-PT', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(value))
+}
+
+function availabilityText(item: ParticipantOut): string {
+  const summary = item.availability_summary
+  if (!summary) {
+    return t('table.dash')
+  }
+  if (summary.any_time) {
+    return t('table.anyTime')
+  }
+  const seen = new Set<string>()
+  const ranges: string[] = []
+  for (const interval of summary.intervals) {
+    const range = `${interval.start_time.slice(0, 5)}–${interval.end_time.slice(0, 5)}`
+    if (!seen.has(range)) {
+      seen.add(range)
+      ranges.push(range)
+    }
+  }
+  return ranges.length > 0 ? ranges.join(', ') : t('table.dash')
+}
+
+function lastEntryText(value: string | null | undefined, today: string, timeZone: string): string {
+  if (!value) {
+    return t('table.dash')
+  }
+  if (dateInZone(value, timeZone) === today) {
+    return t('table.lastToday', { time: timeInZone(value, timeZone) })
+  }
+  return formatDateTime(value)
+}
+
 export default function ParticipantsTable({
   studyId,
   rows,
   dayColumns,
   studyStart,
   today,
+  timeZone,
   canReadIdentity,
 }: {
   studyId: string
@@ -52,6 +101,7 @@ export default function ParticipantsTable({
   dayColumns: string[]
   studyStart: string | null
   today: string
+  timeZone: string
   canReadIdentity: boolean
 }) {
   const [menu, setMenu] = useState<MenuState | null>(null)
@@ -91,7 +141,9 @@ export default function ParticipantsTable({
               <th scope="col">{t('table.participant')}</th>
               <th scope="col">{t('table.status')}</th>
               <th scope="col">{t('table.entry')}</th>
-              <th scope="col">{t('table.registered')}</th>
+              <th scope="col">{t('table.consent')}</th>
+              <th scope="col">{t('table.language')}</th>
+              <th scope="col">{t('table.hours')}</th>
               {columns.map((date, index) => {
                 const isToday = Boolean(date) && date === today
                 const number = dayNumber(date, studyStart)
@@ -117,6 +169,7 @@ export default function ParticipantsTable({
                   </th>
                 )
               })}
+              <th scope="col">{t('table.lastEntry')}</th>
               <th scope="col" className="pts-actions-head">
                 <span className="sr-only">{t('table.actions')}</span>
               </th>
@@ -139,7 +192,15 @@ export default function ParticipantsTable({
                     <span className={`pill ${status.pill}`}>{t(status.labelKey)}</span>
                   </td>
                   <td>{t(entryRouteKey(item.entry_route))}</td>
-                  <td className="mono pts-consent">{formatDate(item.entered_at)}</td>
+                  <td className="mono pts-consent">{formatDateTime(item.consented_at)}</td>
+                  <td>
+                    {item.locale === 'pt'
+                      ? t('table.localePt')
+                      : item.locale === 'en'
+                        ? t('table.localeEn')
+                        : t('table.dash')}
+                  </td>
+                  <td className="mono">{availabilityText(item)}</td>
                   {item.days.map((stats, index) => (
                     <td
                       key={`${item.id}-day-${index}`}
@@ -162,6 +223,7 @@ export default function ParticipantsTable({
                       )}
                     </td>
                   ))}
+                  <td className="mono">{lastEntryText(item.last_entry_at, today, timeZone)}</td>
                   <td className="pts-actions-cell">
                     <button
                       type="button"

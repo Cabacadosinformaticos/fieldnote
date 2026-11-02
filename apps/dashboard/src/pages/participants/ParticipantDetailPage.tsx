@@ -16,7 +16,7 @@ import {
 } from '../../api/participants'
 import AdherenceMatrix from '../../components/participants/AdherenceMatrix'
 import PersonalCodeModal from '../../components/participants/PersonalCodeModal'
-import { formatDate } from '../../components/participants/format'
+import { formatDate, formatDateTime } from '../../components/participants/format'
 import {
   AlertTriangleIcon,
   ArrowLeftIcon,
@@ -169,8 +169,10 @@ export default function ParticipantDetailPage() {
         </article>
         <article className="card pts-stat">
           <span>{t('detail.consent')}</span>
-          <strong className="mono">{t('table.dash')}</strong>
-          <small>{t('detail.notAvailable')}</small>
+          <strong className="mono">{formatDateTime(item.consented_at)}</strong>
+          <small>
+            {item.consented_at ? t('detail.consentAt') : t('detail.consentMissing')}
+          </small>
         </article>
         <article className="card pts-stat">
           <span>{t('detail.entries')}</span>

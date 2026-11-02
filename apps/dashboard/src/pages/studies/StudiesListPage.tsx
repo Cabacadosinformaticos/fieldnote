@@ -25,7 +25,9 @@ const filters: { id: Filter; labelKey: StudiesKey }[] = [
 const metricLabel: Record<StudyMetricKind, StudiesKey> = {
   participants: 'list.metric.participants',
   entries: 'list.metric.entries',
-  activities: 'list.metric.activities',
+  adherence: 'list.metric.adherence',
+  adherenceFinal: 'list.metric.adherenceFinal',
+  adherenceDraft: 'list.metric.adherenceDraft',
 }
 
 function StudyCard({ study }: { study: StudyListItem }) {

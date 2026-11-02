@@ -11,6 +11,7 @@ import {
 import {
   formatDate,
   studiesErrorMessage,
+  StudiesApiError,
   useCreateStudy,
   useStartStudy,
   type Study,
@@ -52,6 +53,8 @@ const calendarStyles: CalendarStyle[] = [
 ]
 
 const timezones = ['Europe/Lisbon']
+
+const collaboratorErrorCodes = ['user_not_found', 'not_a_researcher', 'already_a_member']
 
 const styleKeys: Record<
   CalendarStyleId,
@@ -324,6 +327,10 @@ export default function StudyNewPage() {
   const canStart = created !== null && created.status === 'draft'
   const saving = createStudy.isPending
   const starting = startStudy.isPending
+  const createErrorCode =
+    createStudy.error instanceof StudiesApiError ? createStudy.error.code : null
+  const collaboratorError =
+    createErrorCode !== null && collaboratorErrorCodes.includes(createErrorCode)
 
   function addCollaborator() {
     const email = collaboratorEmail.trim()
@@ -360,6 +367,8 @@ export default function StudyNewPage() {
         max_prompts_per_day: maxPerDay,
         max_prompts_per_slot: maxPerSlot,
         schedule_style: calendarStyle,
+        consent_text: consentPt.text.trim() || null,
+        collaborators,
       },
       {
         onSuccess: (study) => {
@@ -544,10 +553,6 @@ export default function StudyNewPage() {
                 onChange={setConsentEn}
               />
             </div>
-            <div className="st-note st-note-info">
-              <InfoIcon />
-              <span>{t('new.fallback.consent')}</span>
-            </div>
           </section>
 
           <section className="card st-section" aria-labelledby="new-recruitment">
@@ -665,11 +670,12 @@ export default function StudyNewPage() {
                 {t('new.team.add')}
               </button>
             </div>
+            {collaboratorError && createStudy.error ? (
+              <span className="st-field-error" role="alert">
+                {studiesErrorMessage(createStudy.error)}
+              </span>
+            ) : null}
             <span className="st-field-help">{t('new.team.note')}</span>
-            <div className="st-note st-note-info">
-              <InfoIcon />
-              <span>{t('new.fallback.team')}</span>
-            </div>
           </section>
         </div>
 
@@ -717,7 +723,7 @@ export default function StudyNewPage() {
                 {formError}
               </span>
             ) : null}
-            {createStudy.error ? (
+            {createStudy.error && !collaboratorError ? (
               <span className="st-field-error" role="alert">
                 {studiesErrorMessage(createStudy.error)}
               </span>
