@@ -12,7 +12,11 @@ const pt = {
 
   'list.title': 'Os meus estudos',
   'list.subtitle':
-    'Só aparecem os estudos de que é membro. {count} estudos: {ongoing} em curso, {draft} em rascunho e {finished} terminado.',
+    'Só aparecem os estudos de que é membro. {count} estudos: {ongoing} em curso, {draft} em rascunho e {finishedLabel}.',
+  'list.subtitleOne':
+    'Só aparece o estudo de que é membro. 1 estudo: {ongoing} em curso, {draft} em rascunho e {finishedLabel}.',
+  'list.finishedOne': '1 terminado',
+  'list.finishedMany': '{count} terminados',
   'list.newStudy': 'Novo estudo',
   'list.filter.label': 'Filtrar por estado',
   'list.filter.all': 'Todos',
@@ -91,9 +95,6 @@ const pt = {
   'new.recruitment.code.badge': 'Sempre disponível',
   'new.recruitment.code.description':
     'Cada participante recebe um código de uso único, que lê com o QR ou escreve na app. Gera os códigos em Participantes, depois de guardar o rascunho.',
-  'new.recruitment.pool.title': 'Também convidar pessoas da bolsa de voluntários',
-  'new.recruitment.pool.description':
-    'As pessoas da bolsa que cumprirem os critérios recebem um aviso na app e decidem se participam. Nunca vê os perfis, só quantas pessoas cumprem os critérios.',
   'new.recruitment.criteriaBefore': 'Os critérios (concelho, faixa etária e outros) definem-se depois de criar o estudo, em ',
   'new.recruitment.criteriaStrong': 'Participantes, Convidar da bolsa',
   'new.recruitment.criteriaAfter': '. Os convites só saem quando enviar.',
@@ -124,12 +125,6 @@ const pt = {
   'new.openCreated': 'Abrir o estudo',
   'new.error.title': 'O título é obrigatório.',
   'new.error.dates': 'As datas de início e fim têm de ser válidas e o fim não pode ser anterior ao início.',
-  'new.fallback.consent':
-    'A API ainda não guarda o texto de consentimento. O conteúdo deste ecrã não é enviado.',
-  'new.fallback.recruitment':
-    'A API ainda não guarda a opção de convite da bolsa de voluntários. A escolha fica apenas neste ecrã.',
-  'new.fallback.team':
-    'A equipa ainda não é enviada ao criar o estudo. Adicione membros depois de o estudo existir.',
   'new.saved': 'Rascunho guardado. Pode continuar a editar.',
   'new.start': 'Iniciar estudo',
   'new.startNote':
@@ -137,6 +132,7 @@ const pt = {
 
   'overview.dayOf': 'Dia {day} de {total}',
   'overview.range': '{range} · {participants}',
+  'overview.periodEnded': 'Período terminado a {date}',
   'overview.dayStripAria': '{day} dias decorridos em {total}',
   'overview.viewEntries': 'Ver registos',
   'overview.export': 'Exportar',
@@ -172,6 +168,8 @@ const pt = {
   'overview.attention.title': 'Precisa de atenção',
   'overview.attention.points': '{count} pontos',
   'overview.attention.onePoint': '1 ponto',
+  'overview.attention.more': 'Mais {count} participantes precisam de atenção.',
+  'overview.attention.moreOne': 'Mais 1 participante precisa de atenção.',
   'overview.attention.retry': 'Tentar de novo',
   'overview.attention.retrying': 'A tentar…',
   'overview.attention.review': 'Rever',
@@ -212,6 +210,7 @@ const pt = {
   'overview.adherence.todayPartial':
     'A coluna de hoje é parcial: só conta os pedidos já enviados até às {time}. Os pedidos da noite ainda não saíram.',
   'overview.adherence.viewParticipants': 'Ver os {count} participantes',
+  'overview.adherence.viewParticipantsOne': 'Ver o participante',
   'overview.feed.title': 'A chegar agora',
   'overview.feed.live': 'em direto',
   'overview.feed.recorded': 'gravado {recorded} · recebido {received}',
@@ -253,7 +252,8 @@ const pt = {
     'Estilo do estudo: {style} · máximo de {maxDay} pedidos por participante e dia · máximo de {maxSlot} por intervalo de 15 minutos',
   'plan.summary.planned': 'Pedidos planeados',
   'plan.summary.plannedOf': 'de {expected}',
-  'plan.summary.plannedNote': '{participants} participantes ativos × {maxDay} pedidos',
+  'plan.summary.plannedNote': 'Até {participants} participantes × {maxDay} pedidos',
+  'plan.summary.plannedNoteOne': 'Até 1 participante × {maxDay} pedidos',
   'plan.summary.unplanned': 'Por planear',
   'plan.summary.unplannedNote': 'Sem lugar que cumpra as regras',
   'plan.summary.participants': 'Participantes',
@@ -262,6 +262,8 @@ const pt = {
   'plan.summary.duration': 'Demorou {duration}',
   'plan.summary.maxInterval': 'Máximo num intervalo',
   'plan.summary.maxIntervalOf': 'de {limit}',
+  'plan.summary.maxIntervalOver':
+    'Acima do limite atual de {limit} por intervalo; os envios deste dia são anteriores a esta regra.',
   'plan.summary.maxIntervalNote': 'Contra {count} se todos recebessem à mesma hora',
   'plan.summary.explanationLead': 'O que quer dizer pesquisa completa:',
   'plan.summary.explanation':
@@ -382,6 +384,7 @@ const pt = {
   'overview.entryType.choice': 'Escolha',
 
   'overview.attention.approvalsTitle': '{count} entradas por aprovar',
+  'overview.attention.approvalsTitleOne': '1 entrada por aprovar',
   'overview.attention.approvalsDetail':
     'Há pessoas à espera de aprovação para entrarem no estudo.',
   'overview.attention.inactiveTitle': '{alias} sem registos recentes',

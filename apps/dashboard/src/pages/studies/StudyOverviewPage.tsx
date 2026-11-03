@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { CheckIcon, ExportIcon } from '../../components/icons'
 import EntryThumb from '../../components/studies/EntryThumb'
 import StudyStatusPill from '../../components/studies/StudyStatusPill'
+import { formatDateRange, formatDayMonthYear, formatWeekdayDayMonth } from '../../components/studies/format'
 import {
   FileTextIcon,
   StopIcon,
@@ -10,11 +11,9 @@ import {
   UsersIcon,
 } from '../../components/studies/StudyIcons'
 import {
-  shortDateLabel,
   statusFromApi,
   studiesErrorMessage,
   studyDay,
-  studyRange,
   timeLabel,
   useCloseStudy,
   useStudy,
@@ -66,7 +65,7 @@ function percentLabel(answered: number, sent: number): string {
 
 function alertTitle(alert: OverviewAlert): string {
   if (alert.kind === 'pending_approval') {
-    return t('overview.attention.approvalsTitle', { count: 1 })
+    return t('overview.attention.approvalsTitleOne')
   }
   return t('overview.attention.inactiveTitle', { alias: alert.alias ?? '–' })
 }
@@ -128,14 +127,17 @@ export default function StudyOverviewPage() {
   const status = statusFromApi(study.status)
   const canClose = access.canManage && status === 'ongoing'
   const { day, total } = studyDay(study, overview.date)
-  const dateLabel = shortDateLabel(overview.date, timezone).replace(/^\w/, (character) =>
+  const dateLabel = formatWeekdayDayMonth(overview.date, timezone).replace(/^\w/, (character) =>
     character.toUpperCase(),
   )
+  const periodEnded = study.ends_on !== null && overview.date > study.ends_on
   const today = overview.adherence_today
   const allTime = overview.adherence_study
   const pendingAlerts = overview.alerts?.filter((alert) => alert.kind === 'pending_approval') ?? []
   const staleAlerts = overview.alerts?.filter((alert) => alert.kind === 'no_entries') ?? []
   const alertCount = overview.alerts?.length ?? 0
+  const shownAlertCount = pendingAlerts.length + Math.min(staleAlerts.length, 4)
+  const remainingAlerts = Math.max(0, alertCount - shownAlertCount)
 
   const feed: FeedItem[] = (overview.last_entries ?? []).slice(0, 6).map((entry) => {
     const delayMinutes = Math.max(
@@ -192,12 +194,19 @@ export default function StudyOverviewPage() {
               </span>
             ) : null}
             <span>{t('overview.range', {
-              range: studyRange(study),
+              range: formatDateRange(study.starts_on, study.ends_on),
               participants: t('common.participantCount', {
                 count: overview.participants.total,
               }),
             })}</span>
             <span>{dateLabel}</span>
+            {periodEnded ? (
+              <span className="st-period-ended">
+                {t('overview.periodEnded', {
+                  date: formatDayMonthYear(study.ends_on),
+                })}
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -311,7 +320,9 @@ export default function StudyOverviewPage() {
               {t('overview.attention.title')}
             </h2>
             <span className="st-count-warning">
-              {t('overview.attention.points', { count: alertCount })}
+              {alertCount === 1
+                ? t('overview.attention.onePoint')
+                : t('overview.attention.points', { count: alertCount })}
             </span>
           </div>
           <div className="st-attention-list">
@@ -322,7 +333,12 @@ export default function StudyOverviewPage() {
                 </span>
                 <span className="st-attention-copy">
                   <span className="st-attention-title">
-                    {t('overview.attention.approvalsTitle', { count: pendingAlerts.length })}
+                    {t(
+                      pendingAlerts.length === 1
+                        ? 'overview.attention.approvalsTitleOne'
+                        : 'overview.attention.approvalsTitle',
+                      { count: pendingAlerts.length },
+                    )}
                   </span>
                   <span className="st-attention-detail">
                     {t('overview.attention.approvalsDetail')}
@@ -354,6 +370,17 @@ export default function StudyOverviewPage() {
                 </Link>
               </div>
             ))}
+
+            {remainingAlerts > 0 ? (
+              <p className="st-attention-more">
+                {t(
+                  remainingAlerts === 1
+                    ? 'overview.attention.moreOne'
+                    : 'overview.attention.more',
+                  { count: remainingAlerts },
+                )}
+              </p>
+            ) : null}
 
             {alertCount === 0 ? (
               <p className="st-empty">{t('overview.attention.empty')}</p>
@@ -475,9 +502,12 @@ export default function StudyOverviewPage() {
               {t('overview.activeParticipants')}
             </h2>
             <Link className="st-link st-link-sm" to={`/estudos/${study.id}/participantes`}>
-              {t('overview.adherence.viewParticipants', {
-                count: overview.participants.total,
-              })}
+              {t(
+                overview.participants.total === 1
+                  ? 'overview.adherence.viewParticipantsOne'
+                  : 'overview.adherence.viewParticipants',
+                { count: overview.participants.total },
+              )}
             </Link>
           </div>
 

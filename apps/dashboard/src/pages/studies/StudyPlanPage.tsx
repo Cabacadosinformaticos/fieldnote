@@ -1,5 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useActivities, type Activity } from '../../api/activities'
+import { formatDateRange, formatDayMonthYear } from '../../components/studies/format'
 import { ChevronRightIcon } from '../../components/icons'
 import {
   CalendarIcon,
@@ -9,8 +11,6 @@ import {
 import {
   addDays,
   clockInTimezone,
-  formatDate,
-  formatFullDate,
   nowClockInTimezone,
   studiesErrorMessage,
   styleLabel,
@@ -146,18 +146,26 @@ function binTotals(bins: IntervalBin[]): { sent: number; planned: number; peak: 
   return { sent, planned, peak }
 }
 
-function buildActivities(plan: StudyPlan): Map<string, ActivityMeta> {
+function buildActivities(plan: StudyPlan, ordered: Activity[]): Map<string, ActivityMeta> {
   const activities = new Map<string, ActivityMeta>()
-  for (const prompt of plan.prompts) {
-    if (!activities.has(prompt.activity_id)) {
-      const palette = activityPalette[activities.size % activityPalette.length]
-      activities.set(prompt.activity_id, {
-        code: `A${activities.size + 1}`,
-        name: prompt.activity_title,
-        color: palette.color,
-        soft: palette.soft,
-      })
+  function add(id: string, title: string) {
+    if (activities.has(id)) {
+      return
     }
+    const palette = activityPalette[activities.size % activityPalette.length]
+    activities.set(id, {
+      code: `A${activities.size + 1}`,
+      name: title,
+      color: palette.color,
+      soft: palette.soft,
+    })
+  }
+  // Same order and codes as /atividades: the activity list, not the plan order.
+  for (const activity of ordered) {
+    add(activity.id, activity.title)
+  }
+  for (const prompt of plan.prompts) {
+    add(prompt.activity_id, prompt.activity_title)
   }
   return activities
 }
@@ -226,10 +234,15 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
             </span>
           </span>
           <span className="st-plan-stat-note">
-            {t('plan.summary.plannedNote', {
-              participants: plan.participants.length,
-              maxDay: study.max_prompts_per_day,
-            })}
+            {t(
+              plan.participants.length === 1
+                ? 'plan.summary.plannedNoteOne'
+                : 'plan.summary.plannedNote',
+              {
+                participants: plan.participants.length,
+                maxDay: study.max_prompts_per_day,
+              },
+            )}
           </span>
         </div>
         <div className="st-plan-stat">
@@ -246,10 +259,19 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
           <span className="st-plan-stat-label">{t('plan.summary.maxInterval')}</span>
           <span className="st-plan-stat-value">
             {totals.peak}{' '}
-            <span className="st-plan-stat-sub">
-              {t('plan.summary.maxIntervalOf', { limit: study.max_prompts_per_slot })}
-            </span>
+            {totals.peak <= study.max_prompts_per_slot ? (
+              <span className="st-plan-stat-sub">
+                {t('plan.summary.maxIntervalOf', { limit: study.max_prompts_per_slot })}
+              </span>
+            ) : null}
           </span>
+          {totals.peak > study.max_prompts_per_slot ? (
+            <span className="st-plan-stat-note">
+              {t('plan.summary.maxIntervalOver', {
+                limit: study.max_prompts_per_slot,
+              })}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -294,6 +316,20 @@ function TimelineRow({
     )
     .sort((left, right) => left.minutes - right.minutes)
 
+  // Chips are wider than the space between close times: stack them in lanes.
+  const laneEnds: number[] = []
+  const placed = requests.map((request) => {
+    let lane = laneEnds.findIndex((end) => request.minutes - end >= 90)
+    if (lane === -1) {
+      lane = laneEnds.length
+      laneEnds.push(request.minutes)
+    } else {
+      laneEnds[lane] = request.minutes
+    }
+    return { ...request, lane }
+  })
+  const laneCount = Math.max(1, laneEnds.length)
+
   const windows = anyTime
     ? [{ start: AXIS_START, end: AXIS_END }]
     : availability.map((interval) => ({
@@ -321,7 +357,11 @@ function TimelineRow({
   return (
     <div className="st-plan-row">
       <span className="mono st-plan-alias">{alias}</span>
-      <div className="st-plan-track" title={windowTitle}>
+      <div
+        className="st-plan-track"
+        title={windowTitle}
+        style={laneCount > 1 ? { height: 6 + laneCount * 24 } : undefined}
+      >
         {windows.map((window, index) => (
           <span
             key={index}
@@ -342,7 +382,7 @@ function TimelineRow({
         {nowMinutes !== null ? (
           <span className="st-plan-now" style={{ left: `${percentOf(nowMinutes)}%` }} />
         ) : null}
-        {requests.map(({ prompt, minutes }) => {
+        {placed.map(({ prompt, minutes, lane }) => {
           const activity = activities.get(prompt.activity_id)
           const code = activity?.code ?? 'A?'
           return (
@@ -352,6 +392,7 @@ function TimelineRow({
               style={
                 {
                   left: `${percentOf(minutes)}%`,
+                  top: laneCount > 1 ? 3 + lane * 24 : undefined,
                   '--st-act': activity?.color,
                   '--st-act-soft': activity?.soft,
                 } as CSSProperties
@@ -382,6 +423,7 @@ function TimelineRow({
 export default function StudyPlanPage() {
   const { studyId = '' } = useParams<{ studyId: string }>()
   const studyQuery = useStudy(studyId)
+  const activityListQuery = useActivities(studyId)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const [showAll, setShowAll] = useState(false)
@@ -429,7 +471,9 @@ export default function StudyPlanPage() {
     )
   }
 
-  const activities = plan ? buildActivities(plan) : new Map<string, ActivityMeta>()
+  const activities = plan
+    ? buildActivities(plan, activityListQuery.data ?? [])
+    : new Map<string, ActivityMeta>()
   const participants = plan
     ? showAll
       ? plan.participants
@@ -493,7 +537,7 @@ export default function StudyPlanPage() {
                 onClick={() => setDayPickerOpen((open) => !open)}
               >
                 <CalendarIcon />
-                {formatFullDate(date)}
+                {formatDayMonthYear(date)}
                 <ChevronDownIcon />
               </button>
               {dayPickerOpen ? (
@@ -543,7 +587,7 @@ export default function StudyPlanPage() {
           ) : null}
           {study.starts_on && study.ends_on ? (
             <span className="st-muted-small">
-              {formatDate(study.starts_on)} – {formatFullDate(study.ends_on)}
+              {formatDateRange(study.starts_on, study.ends_on).replace(' a ', ' – ')}
             </span>
           ) : null}
         </div>

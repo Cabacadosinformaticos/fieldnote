@@ -7,17 +7,18 @@
 }
 
 .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--fn-sidebar-width);
   background: var(--fn-color-sidebar);
   color: var(--fn-color-sidebar-text);
 }
 
 .sidebar-inner {
-  position: sticky;
-  top: 0;
   display: flex;
   flex-direction: column;
   gap: var(--fn-space-20);
-  height: 100vh;
+  height: 100%;
   padding: var(--fn-space-24) var(--fn-space-16) var(--fn-space-16);
   overflow-y: auto;
 }
@@ -233,6 +234,7 @@
 .app-main {
   display: flex;
   flex-direction: column;
+  grid-column: 2;
   min-width: 0;
 }
 
@@ -308,10 +310,18 @@
     grid-template-columns: 1fr;
   }
 
-  .sidebar-inner {
+  .sidebar {
     position: static;
+    width: auto;
+  }
+
+  .sidebar-inner {
     height: auto;
     overflow-y: visible;
+  }
+
+  .app-main {
+    grid-column: auto;
   }
 
   .sidebar-footer {

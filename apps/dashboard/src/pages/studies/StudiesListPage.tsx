@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import StudyStatusPill from '../../components/studies/StudyStatusPill'
 import { PlusIcon } from '../../components/studies/StudyIcons'
+import { formatDateRange } from '../../components/studies/format'
 import {
   studiesErrorMessage,
   useStudies,
@@ -45,7 +46,11 @@ function StudyCard({ study }: { study: StudyListItem }) {
         <h2 className="st-study-title">{summary.title}</h2>
         <p className="st-study-description">{summary.description}</p>
         <div className="st-study-meta">
-          <span>{summary.period}</span>
+          <span>
+            {study.starts_on || study.ends_on
+              ? formatDateRange(study.starts_on, study.ends_on)
+              : summary.period}
+          </span>
           <span>{summary.schedule}</span>
         </div>
       </div>
@@ -122,11 +127,14 @@ export default function StudiesListPage() {
         <div className="st-header-copy">
           <h1 className="st-title">{t('list.title')}</h1>
           <p className="st-subtitle">
-            {t('list.subtitle', {
+            {t(counts.all === 1 ? 'list.subtitleOne' : 'list.subtitle', {
               count: counts.all,
               ongoing: counts.ongoing,
               draft: counts.draft,
-              finished: counts.finished,
+              finishedLabel: t(
+                counts.finished === 1 ? 'list.finishedOne' : 'list.finishedMany',
+                { count: counts.finished },
+              ),
             })}
           </p>
         </div>
