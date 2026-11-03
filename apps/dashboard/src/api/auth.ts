@@ -88,6 +88,18 @@ export async function confirmPasswordReset(
   }
 }
 
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const { error, response } = await client.POST('/auth/password/change', {
+    body: { current_password: currentPassword, new_password: newPassword },
+  })
+  if (!response.ok) {
+    throw toAuthError(error, response)
+  }
+}
+
 export async function signOut(): Promise<void> {
   try {
     await client.POST('/auth/logout')

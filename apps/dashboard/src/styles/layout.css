@@ -213,6 +213,23 @@
   color: var(--fn-color-sidebar-label);
 }
 
+.user-card-link {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border-radius: var(--fn-radius-sm);
+  color: var(--fn-color-sidebar-muted);
+}
+
+.user-card-link:hover {
+  background: var(--fn-color-sidebar);
+  color: var(--fn-color-white);
+}
+
 .app-main {
   display: flex;
   flex-direction: column;

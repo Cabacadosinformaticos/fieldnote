@@ -33,7 +33,7 @@ function forgotErrorMessage(error: unknown): string {
 export default function SignInPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { status, signIn } = useAuth()
+  const { status, user, signIn } = useAuth()
   const [mode, setMode] = useState<'signin' | 'forgot'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,9 +50,11 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      navigate('/estudos', { replace: true })
+      navigate(user?.must_change_password ? '/conta/palavra-passe' : '/estudos', {
+        replace: true,
+      })
     }
-  }, [status, navigate])
+  }, [status, user, navigate])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

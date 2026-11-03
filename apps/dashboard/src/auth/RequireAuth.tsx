@@ -21,6 +21,10 @@ export default function RequireAuth({ admin = false }: { admin?: boolean }) {
     return <Navigate to="/entrar" replace state={{ from: location.pathname }} />
   }
 
+  if (user.must_change_password && location.pathname !== '/conta/palavra-passe') {
+    return <Navigate to="/conta/palavra-passe" replace />
+  }
+
   if (admin && user.role !== 'admin') {
     return <Navigate to="/estudos" replace />
   }

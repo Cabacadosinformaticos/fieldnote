@@ -11,6 +11,7 @@ import {
   ErasureIcon,
   ExportIcon,
   FolderIcon,
+  KeyIcon,
   LogoMark,
   OverviewIcon,
   ParticipantsIcon,
@@ -75,8 +76,10 @@ export default function AppLayout() {
   }, [switcherOpen])
 
   const isAdmin = user?.role === 'admin'
-  const studiesQuery = useStudies()
-  const erasuresQuery = useErasures(isAdmin)
+  // While a temporary password is pending, every other API route answers 403; do not ask.
+  const mustChangePassword = user?.must_change_password ?? false
+  const studiesQuery = useStudies(!mustChangePassword)
+  const erasuresQuery = useErasures(isAdmin && !mustChangePassword)
   const studies = studiesQuery.data ?? []
   const currentStudy = studies.find((study) => study.id === studyId)
   const studyTitle =
@@ -100,6 +103,7 @@ export default function AppLayout() {
     (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
   )
   const isStudiesIndex = location.pathname === '/estudos'
+  const isPasswordPage = location.pathname === '/conta/palavra-passe'
 
   const userEmail = user?.email ?? ''
   const userCard = {
@@ -223,6 +227,14 @@ export default function AppLayout() {
                 <span className="user-name">{userCard.name}</span>
                 <span className="user-role">{userCard.role}</span>
               </span>
+              <Link
+                className="user-card-link"
+                to="/conta/palavra-passe"
+                title={t('nav.password')}
+                aria-label={t('nav.password')}
+              >
+                <KeyIcon width={16} height={16} />
+              </Link>
             </div>
             <nav className="sidebar-nav" aria-label={t('nav.account')}>
               <button
@@ -248,7 +260,13 @@ export default function AppLayout() {
       <div className="app-main">
         <header className="topbar">
           <nav className="breadcrumb" aria-label={t('breadcrumb.label')}>
-            {isAdmin ? (
+            {isPasswordPage ? (
+              <>
+                <span>{t('nav.account')}</span>
+                <ChevronRightIcon width={14} height={14} />
+                <span className="breadcrumb-current">{t('nav.password')}</span>
+              </>
+            ) : isAdmin ? (
               <>
                 <span>{t('nav.administration')}</span>
                 <ChevronRightIcon width={14} height={14} />

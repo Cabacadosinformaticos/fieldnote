@@ -10,6 +10,7 @@ export type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<'authenticated' | 'totp_required'>
   signInTotp: (totpCode: string) => Promise<void>
   signOut: () => Promise<void>
+  clearPasswordChange: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

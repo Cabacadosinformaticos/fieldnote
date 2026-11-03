@@ -72,9 +72,23 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const clearPasswordChange = useCallback(() => {
+    setUser((current) =>
+      current ? { ...current, must_change_password: false } : current,
+    )
+  }, [])
+
   const value = useMemo(
-    () => ({ status, user, pendingEmail: pending?.email ?? null, signIn, signInTotp, signOut }),
-    [status, user, pending, signIn, signInTotp, signOut],
+    () => ({
+      status,
+      user,
+      pendingEmail: pending?.email ?? null,
+      signIn,
+      signInTotp,
+      signOut,
+      clearPasswordChange,
+    }),
+    [status, user, pending, signIn, signInTotp, signOut, clearPasswordChange],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import RequireAuth from './auth/RequireAuth'
 import TotpPage from './auth/TotpPage'
 import AppLayout from './layout/AppLayout'
+import ChangePasswordPage from './pages/account/ChangePasswordPage'
 import ActivitiesListPage from './pages/activities/ActivitiesListPage'
 import ActivityEditPage from './pages/activities/ActivityEditPage'
 import StudySettingsPage from './pages/activities/StudySettingsPage'
@@ -37,6 +38,10 @@ export default function App() {
       <Route path="/recuperar" element={<ResetPasswordPage />} />
 
       <Route element={<RequireAuth />}>
+        <Route path="/conta" element={<AppLayout />}>
+          <Route path="palavra-passe" element={<ChangePasswordPage />} />
+        </Route>
+
         <Route path="/estudos" element={<AppLayout />}>
           <Route index element={<StudiesListPage />} />
           <Route path="novo" element={<StudyNewPage />} />

@@ -315,9 +315,10 @@ async function fetchTimeline(studyId: string, start: string, end: string): Promi
   throw toApiError(error, response)
 }
 
-export function useStudies() {
+export function useStudies(enabled = true) {
   return useQuery({
     queryKey: studyKeys.list(),
+    enabled,
     queryFn: async () => {
       const { data, error, response } = await client.GET('/studies')
       if (data) {

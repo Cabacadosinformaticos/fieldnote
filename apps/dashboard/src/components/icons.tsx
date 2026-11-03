@@ -111,6 +111,15 @@ export function SettingsIcon(props: IconProps) {
   )
 }
 
+export function KeyIcon(props: IconProps) {
+  return (
+    <svg width={20} height={20} {...stroke} {...props}>
+      <circle cx="7.5" cy="15.5" r="4.5" />
+      <path d="m10.7 12.3 8.3-8.3M16 4l3 3M14 6l3 3" />
+    </svg>
+  )
+}
+
 export function SignOutIcon(props: IconProps) {
   return (
     <svg width={20} height={20} {...stroke} {...props}>

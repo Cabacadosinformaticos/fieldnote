@@ -12,6 +12,7 @@ export const pt = {
   'nav.export': 'Exportar',
   'nav.settings': 'Definições',
   'nav.signOut': 'Sair',
+  'nav.password': 'Palavra-passe',
   'nav.admin.accounts': 'Contas',
   'nav.admin.studies': 'Estudos',
   'nav.admin.pool': 'Bolsa de voluntários',
@@ -115,4 +116,26 @@ export const pt = {
   'totp.error.locked': 'Demasiadas tentativas falhadas. Tente novamente mais tarde.',
   'totp.error.enrolment':
     'Esta conta de administrador ainda não tem um autenticador configurado.',
+
+  'password.title': 'Palavra-passe',
+  'password.subtitle': 'Escolha uma nova palavra-passe para a sua conta.',
+  'password.requiredSubtitle':
+    'Antes de continuar, tem de substituir a palavra-passe temporária.',
+  'password.requiredBody':
+    'A palavra-passe desta conta foi definida por um administrador e tem de ser alterada no primeiro acesso. Enquanto não a mudar, as restantes áreas da aplicação ficam bloqueadas.',
+  'password.current': 'Palavra-passe atual',
+  'password.new': 'Nova palavra-passe',
+  'password.repeat': 'Repetir nova palavra-passe',
+  'password.show': 'Mostrar palavras-passe',
+  'password.hint': 'Pelo menos 12 caracteres. Não pode ser igual ao email nem à atual.',
+  'password.submit': 'Guardar palavra-passe',
+  'password.submitting': 'A guardar…',
+  'password.currentWrong': 'A palavra-passe atual está errada.',
+  'password.locked': 'Demasiadas tentativas falhadas. Tente novamente mais tarde.',
+  'password.tooShort': 'A palavra-passe tem de ter pelo menos 12 caracteres.',
+  'password.tooLong': 'A palavra-passe é demasiado longa.',
+  'password.isEmail': 'A palavra-passe não pode ser igual ao seu email.',
+  'password.unchanged': 'A nova palavra-passe tem de ser diferente da atual.',
+  'password.mismatch': 'As duas palavras-passe não coincidem.',
+  'password.error': 'Não foi possível guardar a palavra-passe. Tente novamente.',
 } as const
