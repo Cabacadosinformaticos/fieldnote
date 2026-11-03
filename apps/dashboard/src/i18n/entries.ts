@@ -157,6 +157,7 @@ const pt = {
   'timeline.laneEmpty': 'sem registos',
   'timeline.now': 'Agora {time}',
   'timeline.dayRange': 'Dia {day} de {total} · {start} às {end}',
+  'timeline.periodEnded': 'Período terminado a {date}',
   'timeline.weekRange': 'Dias {from} a {to} de {total}',
   'timeline.bandOnly': 'Só {start} às {end}',
   'timeline.empty': 'Não há registos nesta janela de tempo.',
@@ -177,12 +178,8 @@ const pt = {
   'export.scope.title': 'O que exportar',
   'export.scope.aria': 'Âmbito da exportação',
   'export.scope.all': 'Todos os registos do estudo',
-  'export.scope.allMeta': '{count} registos, de {range}.',
-  'export.scope.filtered': 'Só os registos do filtro atual',
-  'export.scope.filteredMeta':
-    'Etiqueta: sombra, {count} registos. Escolha o filtro em Registos.',
-  'export.scope.filteredUnavailable':
-    'A API exporta sempre o estudo completo; o filtro dos Registos não se aplica.',
+  'export.scope.allMeta': '{count} registos, de {range}',
+  'export.scope.allMetaOne': '1 registo, de {range}',
   'export.scope.openList': 'Escolher filtros em Registos',
   'export.format.title': 'Formato e colunas',
   'export.format.csv': 'CSV',
@@ -202,15 +199,10 @@ const pt = {
   'export.preview.noFile': '(sem ficheiro)',
   'export.options.title': 'Opções',
   'export.options.sub':
-    'Estão todas desligadas. Cada uma acrescenta só o seu conteúdo e fica registada.',
+    'Todas começam desligadas. Cada uma acrescenta só o seu conteúdo e fica registada.',
   'export.option.location': 'Localização',
   'export.option.locationDesc':
-    'Acrescenta a posição dos registos que a pedem (atividade A1). Mesmo com pseudónimo, um local repetido pode revelar onde alguém mora ou trabalha.',
-  'export.option.media': 'Ficheiros de media',
-  'export.option.mediaDesc':
-    'Juntaria as fotos, os áudios e os vídeos já prontos num ficheiro compactado.',
-  'export.option.mediaUnavailable':
-    'Ainda não disponível: a API não junta ficheiros de media à exportação.',
+    'Acrescenta a posição dos registos que a pedem. Mesmo com pseudónimo, um local repetido pode revelar onde alguém mora ou trabalha.',
   'export.option.identity': 'Identidade',
   'export.option.identityPill': 'Só a proprietária',
   'export.option.identityDesc':
@@ -233,6 +225,7 @@ const pt = {
   'export.previous.local':
     'Esta lista mostra as exportações feitas nesta sessão; o histórico completo está na auditoria.',
   'export.previous.entries': '{count} registos',
+  'export.previous.entriesOne': '1 registo',
   'export.summary.title': 'Resumo',
   'export.summary.entries': 'Registos',
   'export.summary.format': 'Formato',
@@ -240,16 +233,16 @@ const pt = {
   'export.summary.columns': 'Colunas',
   'export.summary.options': 'Opções',
   'export.summary.none': 'Nenhuma',
-  'export.summary.safe': 'O ficheiro não terá identidade, localização nem ficheiros de media.',
+  'export.summary.safe': 'O ficheiro não terá identidade nem localização.',
   'export.summary.includes': 'O ficheiro inclui {options}.',
   'export.summary.identityWarning': 'Inclui identidade: trate o ficheiro como confidencial.',
   'export.button': 'Exportar {count} registos',
+  'export.buttonOne': 'Exportar 1 registo',
   'export.preparing': 'A preparar…',
   'export.auditNote':
     'Esta exportação fica registada na auditoria, com o seu nome, a hora e as opções escolhidas.',
   'export.success': 'Exportação preparada. Fica registada na auditoria.',
   'export.successFile': 'Exportação descarregada: {file}. Fica registada na auditoria.',
-  'export.filteredScope': '14 registos',
 } as const
 
 export type EntriesKey = keyof typeof pt

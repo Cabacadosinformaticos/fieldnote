@@ -207,7 +207,7 @@ export function splitDate(isoDate: string): { year: number; month: number; day: 
 
 export function formatShortDate(isoDate: string): string {
   const { month, day } = splitDate(isoDate)
-  return `${day} ${MONTHS_SHORT[month - 1]}`
+  return `${pad(day)} ${MONTHS_SHORT[month - 1]}`
 }
 
 export function formatLongDate(isoDate: string): string {
@@ -314,7 +314,7 @@ export function nowInZone(timeZone: string): string {
 export function formatStamp(isoTimestamp: string, timeZone: string): string {
   const { date, time } = zonedParts(isoTimestamp, timeZone)
   const { month, day } = splitDate(date)
-  return `${day} ${MONTHS_SHORT[month - 1]} ${time}`
+  return `${pad(day)} ${MONTHS_SHORT[month - 1]} ${time}`
 }
 
 export function formatReceived(entry: EntryOut, timeZone: string): string {

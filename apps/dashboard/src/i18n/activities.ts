@@ -204,7 +204,9 @@ const pt = {
   'settings.plan.invalidLimits': 'Os limites têm de ser números inteiros maiores do que zero.',
   'settings.section.consent': 'Texto de consentimento',
   'settings.consent.subtitle':
-    'Versão {version}, em português e inglês. Foi aceite pelos {count} participantes ativos.',
+    'Versão {version}, em português e inglês. Foi aceite por {count} participantes.',
+  'settings.consent.subtitleOne':
+    'Versão {version}, em português e inglês. Foi aceite por 1 participante.',
   'settings.consent.pill': 'Versão {version} em uso',
   'settings.consent.info':
     'Se publicar uma versão nova, ela aplica-se só aos participantes que entrarem depois. Quem já aceitou mantém a versão {version}, e o texto aceite fica guardado com a data.',

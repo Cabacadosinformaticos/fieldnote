@@ -41,6 +41,7 @@ import {
   useUpdateStudyCode,
   type StudyCodeOut,
 } from '../../api/participants'
+import { formatDayMonthYear } from '../../components/studies/format'
 import { t, type ActivitiesKey } from '../../i18n/activities'
 import '../../styles/activities.css'
 
@@ -485,7 +486,7 @@ export default function StudySettingsPage() {
                 <span className="ac-label">{t('settings.field.start')}</span>
                 <div className="ac-locked-field">
                   <LockIcon width={16} height={16} />
-                  {study.starts_on ?? '–'}
+                  {formatDayMonthYear(study.starts_on)}
                 </div>
                 <span className="ac-sub">{t('settings.field.started')}</span>
               </div>
@@ -594,10 +595,15 @@ export default function StudySettingsPage() {
                 <h2 className="h2">{t('settings.section.consent')}</h2>
                 <p className="ac-sub">
                   {consentQuery.data
-                    ? t('settings.consent.subtitle', {
-                        version: consentQuery.data.version,
-                        count: consentQuery.data.accepted,
-                      })
+                    ? t(
+                        consentQuery.data.accepted === 1
+                          ? 'settings.consent.subtitleOne'
+                          : 'settings.consent.subtitle',
+                        {
+                          version: consentQuery.data.version,
+                          count: consentQuery.data.accepted,
+                        },
+                      )
                     : t('state.loading')}
                 </p>
               </div>

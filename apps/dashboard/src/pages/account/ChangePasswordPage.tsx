@@ -84,21 +84,35 @@ export default function ChangePasswordPage() {
         </p>
       ) : null}
 
-      <form className="card" aria-label={t('password.title')} onSubmit={handleSubmit}>
+      <form
+        className="card ac-form-narrow"
+        aria-label={t('password.title')}
+        onSubmit={handleSubmit}
+      >
         <div className="ac-field">
           <label className="ac-label" htmlFor="current-password">
             {t('password.current')}
           </label>
-          <input
-            id="current-password"
-            name="current-password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="current-password"
-            className="ac-input"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-            required
-          />
+          <div className="password-wrap">
+            <input
+              id="current-password"
+              name="current-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              className="ac-input"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              aria-label={t('password.show')}
+              onClick={() => setShowPassword((current) => !current)}
+            >
+              <EyeIcon />
+            </button>
+          </div>
         </div>
 
         <div className="ac-field">
@@ -134,17 +148,27 @@ export default function ChangePasswordPage() {
           <label className="ac-label" htmlFor="repeat-password">
             {t('password.repeat')}
           </label>
-          <input
-            id="repeat-password"
-            name="repeat-password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
-            minLength={MIN_LENGTH}
-            className="ac-input"
-            value={repeat}
-            onChange={(event) => setRepeat(event.target.value)}
-            required
-          />
+          <div className="password-wrap">
+            <input
+              id="repeat-password"
+              name="repeat-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              minLength={MIN_LENGTH}
+              className="ac-input"
+              value={repeat}
+              onChange={(event) => setRepeat(event.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              aria-label={t('password.show')}
+              onClick={() => setShowPassword((current) => !current)}
+            >
+              <EyeIcon />
+            </button>
+          </div>
         </div>
 
         {error ? (

@@ -168,8 +168,17 @@
   font-size: var(--fn-text-16);
 }
 
+.ac-form-narrow {
+  width: 100%;
+  max-width: 560px;
+}
+
 .password-wrap {
   position: relative;
+}
+
+.password-wrap .ac-input {
+  padding-right: 52px;
 }
 
 .password-wrap .field-input {

@@ -2,6 +2,7 @@ import { useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { CheckIcon } from '../../components/icons'
+import { emailDisplayName, emailInitials } from '../../components/participants/format'
 import {
   InfoIcon,
   LightbulbIcon,
@@ -304,7 +305,6 @@ export default function StudyNewPage() {
   const [maxPerSlot, setMaxPerSlot] = useState(2)
   const [consentPt, setConsentPt] = useState<ConsentState>(emptyConsent)
   const [consentEn, setConsentEn] = useState<ConsentState>(emptyConsent)
-  const [poolInvite, setPoolInvite] = useState(true)
   const [collaboratorEmail, setCollaboratorEmail] = useState('')
   const [collaborators, setCollaborators] = useState<string[]>([])
   const [formError, setFormError] = useState('')
@@ -314,7 +314,8 @@ export default function StudyNewPage() {
   const startStudy = useStartStudy(created?.id ?? '')
 
   const ownerEmail = user?.email ?? ''
-  const ownerInitials = ownerEmail.split('@')[0].slice(0, 2).toUpperCase()
+  const ownerName = ownerEmail ? emailDisplayName(ownerEmail) : ''
+  const ownerInitials = ownerEmail ? emailInitials(ownerEmail) : ''
   const selectedStyle = styleKeys[calendarStyle]
   const styleName = t(selectedStyle.name)
   const titleDatesDone =
@@ -577,25 +578,6 @@ export default function StudyNewPage() {
               </span>
             </div>
 
-            <label
-              className={
-                poolInvite ? 'st-recruit-row st-recruit-row-active' : 'st-recruit-row'
-              }
-            >
-              <input
-                type="checkbox"
-                className="st-checkbox"
-                checked={poolInvite}
-                onChange={(event) => setPoolInvite(event.target.checked)}
-              />
-              <span className="st-recruit-copy">
-                <span className="st-recruit-title">{t('new.recruitment.pool.title')}</span>
-                <span className="st-recruit-description">
-                  {t('new.recruitment.pool.description')}
-                </span>
-              </span>
-            </label>
-
             <div className="st-note st-note-info">
               <InfoIcon />
               <span>
@@ -603,10 +585,6 @@ export default function StudyNewPage() {
                 <strong>{t('new.recruitment.criteriaStrong')}</strong>
                 {t('new.recruitment.criteriaAfter')}
               </span>
-            </div>
-            <div className="st-note st-note-info">
-              <InfoIcon />
-              <span>{t('new.fallback.recruitment')}</span>
             </div>
           </section>
 
@@ -621,7 +599,7 @@ export default function StudyNewPage() {
               <div className="st-team-row">
                 <span className="st-team-avatar">{ownerInitials}</span>
                 <span className="st-team-copy">
-                  <span className="st-team-name">{ownerEmail}</span>
+                  <span className="st-team-name">{ownerName}</span>
                   <span className="st-team-email">{ownerEmail}</span>
                 </span>
                 <span className="st-mini-tag">{t('new.team.owner')}</span>
@@ -629,10 +607,10 @@ export default function StudyNewPage() {
               {collaborators.map((email) => (
                 <div className="st-team-row" key={email}>
                   <span className="st-team-avatar st-team-avatar-alt">
-                    {email.slice(0, 2).toUpperCase()}
+                    {emailInitials(email)}
                   </span>
                   <span className="st-team-copy">
-                    <span className="st-team-name">{email}</span>
+                    <span className="st-team-name">{emailDisplayName(email)}</span>
                     <span className="st-team-email">{email}</span>
                   </span>
                   <span className="st-mini-tag">{t('new.team.collaborator')}</span>

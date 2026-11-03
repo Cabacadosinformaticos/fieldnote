@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   useActivities,
+  useEntries,
   useEntry,
   useParticipants,
   useStudy,
@@ -25,6 +26,7 @@ import {
   TimelineIcon,
 } from '../../components/entries/EntryIcons'
 import { ExportIcon } from '../../components/icons'
+import { formatDayMonthYear } from '../../components/studies/format'
 import {
   addDays,
   entryKindMeta,
@@ -176,6 +178,7 @@ export default function EntriesTimelinePage() {
   const timeZone = studyQuery.data?.timezone ?? 'Europe/Lisbon'
   const today = todayInZone(timeZone)
   const nowTime = nowInZone(timeZone)
+  const latestEntryQuery = useEntries(studyId, { limit: 1 })
 
   const activitiesQuery = useActivities(studyId)
   const participantsQuery = useParticipants(studyId)
@@ -191,7 +194,25 @@ export default function EntriesTimelinePage() {
   const [tagFilter, setTagFilter] = useState('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const anchor = anchorDate ?? today
+  const study = studyQuery.data
+  const latestEntry = latestEntryQuery.data?.items[0]
+  const latestEntryDate = latestEntry
+    ? zonedParts(latestEntry.recorded_at, timeZone).date
+    : null
+  const defaultAnchor = (() => {
+    if (!study?.starts_on) {
+      return today
+    }
+    const end = study.ends_on ?? study.starts_on
+    if (today > end) {
+      return latestEntryDate && latestEntryDate >= study.starts_on && latestEntryDate <= end
+        ? latestEntryDate
+        : end
+    }
+    return today < study.starts_on ? study.starts_on : today
+  })()
+  const anchor = anchorDate ?? defaultAnchor
+  const periodEnded = Boolean(study?.ends_on && today > study.ends_on)
   const weekStart = weekStartFor(anchor)
   const weekDates = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
   const hoursEnd = Math.min(hoursStart + HOURS_SPAN, 22)
@@ -309,8 +330,9 @@ export default function EntriesTimelinePage() {
   const requestLabel =
     requestCount === 1 ? t('timeline.requestLabel') : t('timeline.requestsLabel')
 
-  const totalDays = totalDaysOf(studyQuery.data)
-  const dayNumber = (date: string) => dayNumberFrom(studyQuery.data, date)
+  const totalDays = totalDaysOf(study)
+  const dayNumber = (date: string) =>
+    Math.min(Math.max(dayNumberFrom(study, date), 1), totalDays)
 
   const rangeTitle =
     zoom === 'week'
@@ -773,6 +795,13 @@ export default function EntriesTimelinePage() {
             <span className="en-range">
               <span className="en-range-title">{rangeTitle}</span>
               <span className="en-range-sub">{rangeSub}</span>
+              {periodEnded ? (
+                <span className="en-range-ended">
+                  {t('timeline.periodEnded', {
+                    date: formatDayMonthYear(study?.ends_on),
+                  })}
+                </span>
+              ) : null}
             </span>
             <button
               type="button"

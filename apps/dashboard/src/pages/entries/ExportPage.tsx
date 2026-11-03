@@ -10,7 +10,6 @@ import {
 } from '../../api/entries'
 import { useStudyOverview } from '../../api/studies'
 import {
-  LayersIcon,
   MapPinIcon,
   ShieldIcon,
   UserIcon,
@@ -33,7 +32,7 @@ import {
 import { t, type EntriesKey } from '../../i18n/entries'
 import '../../styles/entries.css'
 
-type OptionId = 'location' | 'media' | 'identity'
+type OptionId = 'location' | 'identity'
 
 type OptionDefinition = {
   id: OptionId
@@ -56,12 +55,6 @@ const optionDefinitions: OptionDefinition[] = [
     nameKey: 'export.option.location',
     descriptionKey: 'export.option.locationDesc',
     Icon: MapPinIcon,
-  },
-  {
-    id: 'media',
-    nameKey: 'export.option.media',
-    descriptionKey: 'export.option.mediaDesc',
-    Icon: LayersIcon,
   },
   {
     id: 'identity',
@@ -117,7 +110,6 @@ export default function ExportPage() {
 
   const [options, setOptions] = useState<Record<OptionId, boolean>>({
     location: false,
-    media: false,
     identity: false,
   })
   const [history, setHistory] = useState<ExportRecord[]>([])
@@ -135,7 +127,6 @@ export default function ExportPage() {
   const selectedIds: OptionId[] = optionDefinitions
     .filter((option) => options[option.id])
     .map((option) => option.id)
-    .filter((id) => id !== 'media')
     .filter((id) => id !== 'identity' || permissions.canIncludeIdentity)
   const selectedNames = optionDefinitions
     .filter((option) => selectedIds.includes(option.id))
@@ -144,9 +135,6 @@ export default function ExportPage() {
     selectedNames.length === 0 ? t('export.summary.none') : selectedNames.join(', ')
 
   function toggleOption(id: OptionId) {
-    if (id === 'media') {
-      return
-    }
     if (id === 'identity' && !permissions.canIncludeIdentity) {
       return
     }
@@ -214,27 +202,11 @@ export default function ExportPage() {
                 <span className="en-scope-copy">
                   <span className="en-scope-name">{t('export.scope.all')}</span>
                   <span className="en-scope-meta">
-                    {t('export.scope.allMeta', {
+                    {t(total === 1 ? 'export.scope.allMetaOne' : 'export.scope.allMeta', {
                       count: countLabel,
                       range,
                     })}
                   </span>
-                </span>
-              </label>
-              {/* Local fallback: the export endpoint always exports the whole study. */}
-              <label className="en-scope-card is-disabled">
-                <input
-                  className="en-visually-hidden"
-                  type="radio"
-                  name="export-scope"
-                  checked={false}
-                  disabled
-                  readOnly
-                />
-                <span className="en-radio" aria-hidden="true" />
-                <span className="en-scope-copy">
-                  <span className="en-scope-name">{t('export.scope.filtered')}</span>
-                  <span className="en-scope-meta">{t('export.scope.filteredUnavailable')}</span>
                 </span>
               </label>
             </div>
@@ -258,14 +230,14 @@ export default function ExportPage() {
             <div className="en-export-table-wrap">
               <table className="en-export-table">
                 <colgroup>
-                  <col style={{ width: '11%' }} />
-                  <col style={{ width: '17%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '7%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '8%' }} />
-                  <col style={{ width: '17%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '13%' }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -326,8 +298,7 @@ export default function ExportPage() {
             {optionDefinitions.map((option) => {
               const Icon = option.Icon
               const locked =
-                option.id === 'media' ||
-                (option.id === 'identity' && !permissions.canIncludeIdentity)
+                option.id === 'identity' && !permissions.canIncludeIdentity
               const on = options[option.id] && !locked
               const name = t(option.nameKey)
               return (
@@ -343,11 +314,6 @@ export default function ExportPage() {
                       ) : null}
                     </span>
                     <span className="en-export-option-desc">{t(option.descriptionKey)}</span>
-                    {option.id === 'media' ? (
-                      <span className="en-export-option-note">
-                        {t('export.option.mediaUnavailable')}
-                      </span>
-                    ) : null}
                     {option.id === 'identity' && locked ? (
                       <span className="en-export-option-note">
                         {t('export.option.identityLocked')}
@@ -408,7 +374,9 @@ export default function ExportPage() {
                       <td className="en-td en-history-who">{record.who}</td>
                       <td className="en-td en-history-meta">{record.when}</td>
                       <td className="en-td en-history-meta">
-                        {t('export.previous.entries', { count: record.count })}
+                        {t(record.count === '1' ? 'export.previous.entriesOne' : 'export.previous.entries', {
+                          count: record.count,
+                        })}
                       </td>
                       <td className="en-td">
                         {record.options.length === 0 ? (
@@ -489,7 +457,9 @@ export default function ExportPage() {
             onClick={() => void runExport()}
           >
             <ExportIcon width={20} height={20} />
-            {busy ? t('export.preparing') : t('export.button', { count: countLabel })}
+            {busy
+              ? t('export.preparing')
+              : t(total === 1 ? 'export.buttonOne' : 'export.button', { count: countLabel })}
           </button>
           <p className="sub en-detail-note">
             <ShieldIcon width={16} height={16} />

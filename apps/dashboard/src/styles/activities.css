@@ -269,6 +269,7 @@
 .ac-activity-details {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
+  max-width: 1080px;
   gap: var(--fn-space-20);
   margin: 0;
   padding-top: var(--fn-space-18);
@@ -1253,11 +1254,18 @@
 
 .ac-team-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  gap: var(--fn-space-12);
-  align-items: center;
+  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-areas:
+    'avatar copy'
+    '. actions';
+  gap: var(--fn-space-8) var(--fn-space-12);
+  align-items: start;
   padding: 12px 0;
   border-top: 1px solid var(--fn-color-border-soft);
+}
+
+.ac-team-row > .ac-avatar {
+  grid-area: avatar;
 }
 
 .ac-avatar {
@@ -1288,8 +1296,10 @@
 .ac-team-copy {
   display: flex;
   flex-direction: column;
+  grid-area: copy;
   gap: 2px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ac-team-name {
@@ -1304,6 +1314,8 @@
 
 .ac-team-actions {
   display: flex;
+  grid-area: actions;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--fn-space-8);
 }
