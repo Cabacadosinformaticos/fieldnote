@@ -102,19 +102,40 @@ export async function enableNotifications(): Promise<boolean> {
 
 async function openPrompt(promptId: string): Promise<void> {
   let activity = await cachedActivityForPrompt(promptId).catch(() => null);
+
   if (!activity) {
-    await refreshPromptCache().catch(() => undefined);
-    activity = await cachedActivityForPrompt(promptId).catch(() => null);
+    const refreshed = await refreshPromptCache().catch(() => null);
+    activity =
+      refreshed?.prompts.find((item) => item.promptId === promptId) ??
+      (await cachedActivityForPrompt(promptId).catch(() => null));
+
+    if (!activity) {
+      // Today is the right place only when the API answered and the prompt is gone: closed,
+      // answered or belonging to a participation that is no longer active.
+      if (refreshed?.online) {
+        showTopBanner({
+          icon: 'time-outline',
+          title: td('notification.closedTitle'),
+          body: td('notification.closedBody'),
+        });
+      } else {
+        showTopBanner({
+          icon: 'cloud-offline-outline',
+          title: td('notification.unavailableTitle'),
+          body: td('notification.unavailableBody'),
+        });
+      }
+      router.replace('/(tabs)');
+      return;
+    }
   }
 
-  if (activity) {
-    router.push({
-      pathname: '/record/[activityId]',
-      params: { activityId: activity.id },
-    });
-  } else {
-    router.replace('/(tabs)');
-  }
+  router.push({
+    pathname: '/record/[activityId]',
+    params: activity.promptId
+      ? { activityId: activity.id, promptId: activity.promptId }
+      : { activityId: activity.id },
+  });
 }
 
 function promptIdFrom(data: unknown): string | null {

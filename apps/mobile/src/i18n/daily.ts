@@ -74,6 +74,11 @@ const daily = {
   'notification.foregroundTitle': 'Novo pedido',
   'notification.foregroundBody': 'Há um novo pedido à sua espera. Toque para abrir.',
   'notification.open': 'Abrir',
+  'notification.closedTitle': 'Pedido fechado',
+  'notification.closedBody': 'Este pedido já fechou e não pode ser respondido.',
+  'notification.unavailableTitle': 'Sem ligação',
+  'notification.unavailableBody':
+    'Não foi possível abrir o pedido agora. Tente outra vez com ligação.',
 
   'warning.count': '{count} avisos sobre esta atividade',
   'warning.countOne': '1 aviso sobre esta atividade',
