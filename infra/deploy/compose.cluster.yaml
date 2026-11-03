@@ -28,6 +28,8 @@ x-api-environment: &api-environment
   FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
   FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
   FIELDNOTE_S3_REGION: garage
+  FIELDNOTE_SMTP_HOST: ${FIELDNOTE_SMTP_HOST:-mailpit-cluster}
+  FIELDNOTE_SMTP_PORT: ${FIELDNOTE_SMTP_PORT:-1025}
   # All three brokers answer to the "rabbitmq" alias, so DNS returns one record
   # per live member and the client (pika) tries them in turn. pika does not
   # parse a comma-separated multi-host URL: it would read the rest of the
@@ -399,6 +401,17 @@ services:
         # Both gateways answer to this alias, so the APIs reach object storage through
         # whichever gateway is up (Docker DNS drops a stopped container's record).
         aliases: [s3-gateway]
+
+  # Captures outgoing mail in the cluster demo, like Mailpit in the dev stack.
+  mailpit-cluster:
+    profiles: ["cluster", "node1"]
+    image: axllent/mailpit:v1.29.0
+    container_name: mailpit-cluster
+    ports:
+      - "127.0.0.1:8026:8025"
+    restart: unless-stopped
+    networks:
+      - cluster
 
   # ---------------------------------------------------------------- node 2
   etcd2:

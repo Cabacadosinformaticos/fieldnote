@@ -1,5 +1,6 @@
 """Researcher password recovery, by single-use token sent to the account email."""
 
+import logging
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -13,6 +14,8 @@ from app.models.enums import UserRole
 from app.security import passwords, tokens
 from app.security.audit import record
 from app.services import mail
+
+logger = logging.getLogger(__name__)
 
 RESET_TOKEN_LIFETIME = timedelta(hours=1)
 # At most this many recovery messages per account in the window, so the endpoint cannot flood an
@@ -65,9 +68,11 @@ def request_reset(session: Session, email: str) -> None:
     )
     try:
         mail.send_password_reset(user.email, raw)
-    except mail.MailUnavailable as exc:
+    except mail.MailUnavailable:
+        # The answer stays the same: a different one would reveal that the account exists.
+        logger.exception("could not send a password recovery message")
         session.rollback()
-        raise ApiError(503, "mail_unavailable", "The mail server is unavailable.") from exc
+        return
     session.commit()
 
 

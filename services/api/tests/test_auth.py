@@ -526,3 +526,17 @@ def test_development_gets_a_local_jwt_secret() -> None:
     development = Settings(environment="development")
 
     assert development.jwt_secret
+
+
+def test_password_reset_answers_the_same_when_mail_is_down(
+    client: TestClient, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail(to: str, token: str) -> None:
+        raise mail.MailUnavailable("down")
+
+    user = make_user()
+    monkeypatch.setattr(mail, "send_password_reset", fail)
+
+    response = client.post(PASSWORD_RESET_REQUEST, json={"email": user.email})
+
+    assert response.status_code == 202

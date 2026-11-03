@@ -16,7 +16,7 @@ BODY = "O seu código é {code}. É válido durante 10 minutos."
 PASSWORD_RESET_SUBJECT = "Recuperação de palavra-passe Fieldnote"
 # The token travels in the URL fragment so the dashboard can read it but servers never log it.
 PASSWORD_RESET_BODY = (
-    "Use este link para definir uma nova palavra-passe: {link}. "
+    "Use este link para definir uma nova palavra-passe:\n\n{link}\n\n"
     "É válido durante 1 hora e só pode ser usado uma vez."
 )
 

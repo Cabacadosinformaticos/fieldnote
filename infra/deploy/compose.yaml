@@ -224,6 +224,8 @@ services:
       FIELDNOTE_S3_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
       FIELDNOTE_S3_SECRET_KEY: ${GARAGE_SECRET_KEY}
       FIELDNOTE_S3_REGION: garage
+      FIELDNOTE_SMTP_HOST: ${FIELDNOTE_SMTP_HOST:-mailpit}
+      FIELDNOTE_SMTP_PORT: ${FIELDNOTE_SMTP_PORT:-1025}
       FIELDNOTE_RABBITMQ_URL: *rabbitmq-url
       # Origin of the gateway as the phones see it: 10.0.2.2 is the host from
       # inside the Android emulator.
