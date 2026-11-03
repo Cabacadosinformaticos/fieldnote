@@ -14,6 +14,12 @@ Then, after the seed finishes, write the prompts of the past days directly to th
 database so that the adherence charts have data (the API has no endpoint for a past prompt):
 
     SEED_DATABASE_URL=postgresql://user:password@127.0.0.1:5432/fieldnote uv run seed.py history
+
+For the day of a presentation, ``reset --yes`` deletes the studies of earlier runs, seeds the
+study, fills its past days and asks the scheduler to plan today, all in one command:
+
+    SEED_DATABASE_URL=postgresql://user:password@127.0.0.1:5432/fieldnote \\
+        uv run seed.py reset --yes --admin-email <email> --admin-password-stdin
 """
 
 from __future__ import annotations
@@ -244,8 +250,16 @@ SCALE_WEIGHTS = (2, 8, 20, 35, 35)  # value 1..5, mostly the positive end
 # availability (scheduler.md). The history step writes prompts on the same grid.
 HISTORY_SLOT_MINUTES = 15
 HISTORY_ANSWER_LOOKBACK = 2  # an answered prompt is sent at most 30 minutes before the entry
+# The API counts free entries by the server's ``received_at``, so every backfilled entry counts
+# as today's. The limit is raised while the entries are submitted and restored afterwards.
+SEED_FREE_ENTRY_LIMIT = 20
 DATABASE_URL_VARIABLE = "SEED_DATABASE_URL"
 PARTICIPANT_STATUSES = ("active", "withdrawn", "removed")  # the states the researcher views count
+
+# The demonstration is always on day 13 of 14: the study began 12 days ago and ends tomorrow.
+DEMO_DAYS_BEFORE_TODAY = 12
+DEMO_END_IN_DAYS = 1
+DEV_LOGINS_RELATIVE_PATH = Path("_private") / "entregas" / "entrega-2" / "dev-logins.md"
 
 
 class SeedError(RuntimeError):
@@ -438,7 +452,7 @@ def _compose_file() -> Path:
     return path
 
 
-def _compose_exec(python_code: str, *arguments: str) -> str:
+def _compose_exec(python_code: str, *arguments: str, service: str = "api") -> str:
     command = [
         "docker",
         "compose",
@@ -448,7 +462,7 @@ def _compose_exec(python_code: str, *arguments: str) -> str:
         "dev",
         "exec",
         "-T",
-        "api",
+        service,
         "python",
         "-c",
         python_code,
@@ -457,14 +471,14 @@ def _compose_exec(python_code: str, *arguments: str) -> str:
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=120)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise SeedError(f"Cannot run the API container to derive a TOTP code: {exc}") from exc
+        raise SeedError(f"Cannot run the {service} container: {exc}") from exc
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
-        raise SeedError(f"Cannot derive a TOTP code from the API container: {detail}")
-    code = result.stdout.strip().splitlines()[-1].strip() if result.stdout.strip() else ""
-    if not code:
-        raise SeedError("The API container did not return a TOTP code.")
-    return code
+        raise SeedError(f"The {service} container failed: {detail}")
+    output = result.stdout.strip().splitlines()[-1].strip() if result.stdout.strip() else ""
+    if not output:
+        raise SeedError(f"The {service} container did not return a result.")
+    return output
 
 
 def _totp_for_secret(secret: str) -> str:
@@ -601,6 +615,7 @@ def _create_activities(api: Api, study_id: str) -> dict[str, str]:
     ids: dict[str, str] = {}
     for activity in ACTIVITIES:
         payload = {key: value for key, value in activity.items() if key != "key"}
+        payload["max_free_entries_per_day"] = SEED_FREE_ENTRY_LIMIT
         created = api.admin(
             "POST",
             f"/studies/{study_id}/activities",
@@ -611,10 +626,18 @@ def _create_activities(api: Api, study_id: str) -> dict[str, str]:
     return ids
 
 
-def _study_dates(days: int) -> tuple[str, str]:
+def _restore_free_entry_limits(api: Api, study_id: str, activity_ids: dict[str, str]) -> None:
+    for activity in ACTIVITIES:
+        api.admin(
+            "PATCH",
+            f"/studies/{study_id}/activities/{activity_ids[activity['key']]}",
+            json={"max_free_entries_per_day": activity["max_free_entries_per_day"]},
+        )
+
+
+def _study_dates(end_in_days: int) -> tuple[date, date]:
     today = _now_lisbon().date()
-    first = today - timedelta(days=days - 1)
-    return first.isoformat(), today.isoformat()
+    return today - timedelta(days=DEMO_DAYS_BEFORE_TODAY), today + timedelta(days=end_in_days)
 
 
 @dataclass
@@ -656,7 +679,7 @@ class PlannedPrompt:
     activity: ActivityRule
     plan_date: date
     occurrence: int
-    slot: int
+    slot: int | None  # None when the study-wide slot cap left no free slot
     timezone: tzinfo
     entry_id: uuid.UUID | None
 
@@ -1062,16 +1085,17 @@ def _seed_entries(
     api: Api,
     participants: list[Participant],
     activity_ids: dict[str, str],
-    days: int,
+    first_day: date,
+    last_day: date,
     seed: int,
 ) -> None:
     now_local = _now_lisbon()
-    first = (now_local - timedelta(days=days - 1)).date()
+    days = (last_day - first_day).days + 1
     for index, participant in enumerate(participants):
         rng = random.Random(f"{seed}-{index}-entries")
         count = 0
         for offset in range(days):
-            local_date = first + timedelta(days=offset)
+            local_date = first_day + timedelta(days=offset)
             for activity in ACTIVITIES:
                 if rng.random() > participant.profile:
                     continue
@@ -1199,6 +1223,7 @@ class HistoryContext:
     study_id: uuid.UUID
     timezone_name: str
     max_prompts_per_day: int
+    max_prompts_per_slot: int
     first_day: date
     last_day: date
     participants: list[uuid.UUID]
@@ -1207,6 +1232,7 @@ class HistoryContext:
     any_time: dict[uuid.UUID, bool]
     entries: dict[tuple[uuid.UUID, date, uuid.UUID], list[EntryRow]]
     existing: set[tuple[uuid.UUID, uuid.UUID, date, int]]
+    existing_slots: list[tuple[date, int]]
 
 
 def _time_minutes(value: time) -> int:
@@ -1247,8 +1273,8 @@ def _database_label(url: str) -> str:
 
 def _load_history(connection: psycopg.Connection) -> HistoryContext:
     study = connection.execute(
-        "SELECT id, starts_on, ends_on, timezone, max_prompts_per_day FROM study "
-        "WHERE title = %s ORDER BY starts_on, id LIMIT 1",
+        "SELECT id, starts_on, ends_on, timezone, max_prompts_per_day, max_prompts_per_slot "
+        "FROM study WHERE title = %s ORDER BY starts_on, id LIMIT 1",
         (STUDY_TITLE,),
     ).fetchone()
     if study is None:
@@ -1325,19 +1351,33 @@ def _load_history(connection: psycopg.Connection) -> HistoryContext:
             EntryRow(id=row["id"], recorded_at=row["recorded_at"])
         )
 
+    prompt_rows = connection.execute(
+        "SELECT participant_id, activity_id, plan_date, occurrence, scheduled_at, status "
+        "FROM prompt WHERE participant_id = ANY(%s)",
+        (participant_ids,),
+    ).fetchall()
     existing = {
         (row["participant_id"], row["activity_id"], row["plan_date"], row["occurrence"])
-        for row in connection.execute(
-            "SELECT participant_id, activity_id, plan_date, occurrence FROM prompt "
-            "WHERE participant_id = ANY(%s)",
-            (participant_ids,),
-        )
+        for row in prompt_rows
     }
+    # Prompts of an earlier run still occupy their slots, so a second run keeps the same cap.
+    existing_slots = [
+        (
+            row["plan_date"],
+            _entry_slot(
+                row["scheduled_at"],
+                _study_timezone(timezone_name, row["plan_date"]),
+            ),
+        )
+        for row in prompt_rows
+        if row["scheduled_at"] is not None and row["status"] != "unplanned"
+    ]
 
     return HistoryContext(
         study_id=study["id"],
         timezone_name=timezone_name,
         max_prompts_per_day=study["max_prompts_per_day"],
+        max_prompts_per_slot=study["max_prompts_per_slot"],
         first_day=first_day,
         last_day=last_day,
         participants=participant_ids,
@@ -1346,6 +1386,7 @@ def _load_history(connection: psycopg.Connection) -> HistoryContext:
         any_time=any_time,
         entries=entries,
         existing=existing,
+        existing_slots=existing_slots,
     )
 
 
@@ -1389,54 +1430,111 @@ def _entry_slot(recorded_at: datetime, zone: tzinfo) -> int:
     return (local.hour * 60 + local.minute) // HISTORY_SLOT_MINUTES
 
 
-def _plan_participant_day(
-    context: HistoryContext,
-    participant_id: uuid.UUID,
+def _free_slot(
+    domain: list[int],
+    target: int,
+    activity: ActivityRule,
+    used: list[tuple[int, int]],
+    slot_usage: dict[tuple[date, int], int],
     day: date,
-    entries_by_activity: dict[uuid.UUID, EntryRow],
-    rng: random.Random,
+    max_prompts_per_slot: int,
+) -> int | None:
+    """The next slot at or after ``target`` that respects the gap and the study-wide cap."""
+    ordered = [slot for slot in domain if slot >= target] + [
+        slot for slot in domain if slot < target
+    ]
+    for slot in ordered:
+        if slot_usage.get((day, slot), 0) >= max_prompts_per_slot:
+            continue
+        if not _slot_fits(slot, activity, used):
+            continue
+        return slot
+    return None
+
+
+def _plan_day(
+    context: HistoryContext,
+    day: date,
+    entries: dict[uuid.UUID, dict[uuid.UUID, EntryRow]],
+    rngs: dict[uuid.UUID, random.Random],
+    slot_usage: dict[tuple[date, int], int],
 ) -> list[PlannedPrompt]:
     zone = _study_timezone(context.timezone_name, day)
-    domains = {
-        activity.id: _slot_domain(
-            activity,
-            context.availability.get(participant_id, []),
-            context.any_time.get(participant_id, False),
-            day.isoweekday(),
-        )
-        for activity in context.activities
-    }
+    domains: dict[uuid.UUID, dict[uuid.UUID, list[int]]] = {}
+    used: dict[uuid.UUID, list[tuple[int, int]]] = {}
+    planned: dict[uuid.UUID, int] = {}
+    # Answered prompts of the whole day are placed first, so one participant's expired prompt
+    # does not take the slot next to another participant's entry.
+    items: list[tuple[int, str, str, int, uuid.UUID, ActivityRule, EntryRow | None]] = []
+    for participant_id in context.participants:
+        participant_entries = entries.get(participant_id, {})
+        domains[participant_id] = {
+            activity.id: _slot_domain(
+                activity,
+                context.availability.get(participant_id, []),
+                context.any_time.get(participant_id, False),
+                day.isoweekday(),
+            )
+            for activity in context.activities
+        }
+        used[participant_id] = []
+        planned[participant_id] = 0
+        for activity in context.activities:
+            entry = participant_entries.get(activity.id)
+            for occurrence in range(activity.prompts_per_day):
+                answer = entry if occurrence == 0 else None
+                items.append(
+                    (
+                        0 if answer is not None else 1,
+                        str(participant_id),
+                        str(activity.id),
+                        occurrence,
+                        participant_id,
+                        activity,
+                        answer,
+                    )
+                )
+    items.sort(key=lambda item: item[:4])
 
-    # Answered prompts are placed first, so an entry always gets the slot closest to it and a
-    # missing answer can only take what is left.
-    items: list[tuple[int, str, int, ActivityRule, EntryRow | None]] = []
-    for activity in context.activities:
-        entry = entries_by_activity.get(activity.id)
-        for occurrence in range(activity.prompts_per_day):
-            answer = entry if occurrence == 0 else None
-            priority = 0 if answer is not None else 1
-            items.append((priority, str(activity.id), occurrence, activity, answer))
-    items.sort(key=lambda item: (item[0], item[1], item[2]))
-
-    used: list[tuple[int, int]] = []
     plans: list[PlannedPrompt] = []
-    for _priority, _key, occurrence, activity, entry in items:
-        if len(plans) >= context.max_prompts_per_day:
-            break
-        domain = domains[activity.id]
+    for _priority, _pid, _activity, occurrence, participant_id, activity, entry in items:
+        if planned[participant_id] >= context.max_prompts_per_day:
+            continue
+        domain = domains[participant_id][activity.id]
         if not domain:
             continue
-        pool = domain
+        slot: int | None = None
         if entry is not None:
             entry_slot = _entry_slot(entry.recorded_at, zone)
             near = [slot for slot in domain if 0 <= entry_slot - slot <= HISTORY_ANSWER_LOOKBACK]
-            pool = near or [slot for slot in domain if slot <= entry_slot]
-            if not pool:
+            if near:
+                slot = _free_slot(
+                    near,
+                    rngs[participant_id].choice(near),
+                    activity,
+                    used[participant_id],
+                    slot_usage,
+                    day,
+                    context.max_prompts_per_slot,
+                )
+            if slot is None:
+                # No free slot next to the entry: the prompt expires instead of moving so far
+                # that it would no longer be sent before the answer.
                 entry = None
-                pool = domain
-        fitting = [slot for slot in pool if _slot_fits(slot, activity, used)]
-        slot = rng.choice(fitting or pool)
-        used.append((slot, activity.min_gap_minutes))
+        if entry is None and slot is None:
+            slot = _free_slot(
+                domain,
+                rngs[participant_id].choice(domain),
+                activity,
+                used[participant_id],
+                slot_usage,
+                day,
+                context.max_prompts_per_slot,
+            )
+        planned[participant_id] += 1
+        if slot is not None:
+            used[participant_id].append((slot, activity.min_gap_minutes))
+            slot_usage[(day, slot)] = slot_usage.get((day, slot), 0) + 1
         plans.append(
             PlannedPrompt(
                 participant_id=participant_id,
@@ -1453,23 +1551,28 @@ def _plan_participant_day(
 
 def _write_history(connection: psycopg.Connection, seed: int) -> None:
     context = _load_history(connection)
+    slot_usage: dict[tuple[date, int], int] = Counter(context.existing_slots)
     plans: list[PlannedPrompt] = []
-    for participant_id in context.participants:
-        day = context.first_day
-        while day <= context.last_day:
+    day = context.first_day
+    while day <= context.last_day:
+        entries: dict[uuid.UUID, dict[uuid.UUID, EntryRow]] = {}
+        rngs: dict[uuid.UUID, random.Random] = {}
+        for participant_id in context.participants:
             entries_by_activity: dict[uuid.UUID, EntryRow] = {}
             for activity in context.activities:
                 rows = context.entries.get((participant_id, day, activity.id))
                 if rows:
                     entries_by_activity[activity.id] = rows[0]
-            rng = random.Random(f"{seed}-history-{participant_id}-{day.isoformat()}")
-            plans.extend(
-                _plan_participant_day(context, participant_id, day, entries_by_activity, rng)
+            entries[participant_id] = entries_by_activity
+            rngs[participant_id] = random.Random(
+                f"{seed}-history-{participant_id}-{day.isoformat()}"
             )
-            day += timedelta(days=1)
+        plans.extend(_plan_day(context, day, entries, rngs, slot_usage))
+        day += timedelta(days=1)
 
     inserted_answered = 0
     inserted_expired = 0
+    inserted_unplanned = 0
     already_present = 0
     linked = 0
     for plan in plans:
@@ -1477,19 +1580,21 @@ def _write_history(connection: psycopg.Connection, seed: int) -> None:
         if key in context.existing:
             already_present += 1
             continue
-        scheduled_at = datetime.combine(
-            plan.plan_date,
-            time(plan.slot * HISTORY_SLOT_MINUTES // 60, plan.slot * HISTORY_SLOT_MINUTES % 60),
-            tzinfo=plan.timezone,
-        )
+        if plan.slot is None:
+            scheduled_at = None
+        else:
+            minute = plan.slot * HISTORY_SLOT_MINUTES
+            scheduled_at = datetime.combine(
+                plan.plan_date, time(minute // 60, minute % 60), tzinfo=plan.timezone
+            )
         answered = plan.entry_id is not None
         prompt_id = uuid.uuid4()
         inserted = connection.execute(
             """
             INSERT INTO prompt
                 (id, activity_id, participant_id, plan_date, occurrence,
-                 scheduled_at, sent_at, shown_at, opened_at, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::prompt_status)
+                 scheduled_at, sent_at, shown_at, opened_at, status, unplanned_reason)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::prompt_status, %s::unplanned_reason)
             ON CONFLICT (participant_id, activity_id, plan_date, occurrence) DO NOTHING
             RETURNING id
             """,
@@ -1501,15 +1606,18 @@ def _write_history(connection: psycopg.Connection, seed: int) -> None:
                 plan.occurrence,
                 scheduled_at,
                 scheduled_at,
-                scheduled_at + timedelta(seconds=15),
+                None if scheduled_at is None else scheduled_at + timedelta(seconds=15),
                 scheduled_at + timedelta(seconds=30) if answered else None,
-                "answered" if answered else "expired",
+                "answered" if answered else ("expired" if scheduled_at else "unplanned"),
+                None if scheduled_at is not None else "slot_cap",
             ),
         ).fetchone()
         if inserted is None:
             already_present += 1
             continue
-        if answered:
+        if scheduled_at is None:
+            inserted_unplanned += 1
+        elif answered:
             inserted_answered += 1
             linked += connection.execute(
                 "UPDATE entry SET prompt_id = %s WHERE id = %s AND prompt_id IS NULL",
@@ -1538,8 +1646,9 @@ def _write_history(connection: psycopg.Connection, seed: int) -> None:
     days = (context.last_day - context.first_day).days + 1
     print(f"History step: {days} past days, {len(context.participants)} participants")
     print(
-        f"  prompts inserted: {inserted_answered + inserted_expired} "
-        f"({inserted_answered} answered, {inserted_expired} expired)"
+        f"  prompts inserted: {inserted_answered + inserted_expired + inserted_unplanned} "
+        f"({inserted_answered} answered, {inserted_expired} expired, "
+        f"{inserted_unplanned} unplanned)"
     )
     print(f"  prompts already present: {already_present}")
     print(f"  entries linked to a prompt: {linked}")
@@ -1558,55 +1667,112 @@ def _run_history(seed: int) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Fill a running Fieldnote stack with the demonstration study."
+def _dev_logins_path() -> Path:
+    if DEV_LOGINS_RELATIVE_PATH.parts[0] != "_private":
+        raise SeedError("The logins file must stay inside _private.")
+    return _repo_root() / DEV_LOGINS_RELATIVE_PATH
+
+
+def _previous_logins(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    passwords: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        parts = line.split("`")
+        if len(parts) >= 5 and parts[0].strip() == "-" and parts[2].strip() == "/":
+            passwords[parts[1]] = parts[3]
+    return passwords
+
+
+def _write_dev_logins(passwords: dict[str, str], admin_email: str) -> None:
+    """Write the logins to the untracked file, keeping the passwords of existing accounts."""
+    path = _dev_logins_path()
+    previous = _previous_logins(path)
+    lines = [
+        "# Contas de teste do ambiente de desenvolvimento (só locais, dados de demonstração)",
+        "",
+        "Geradas por tools/demo-data/seed.py a "
+        f"{_now_lisbon().date().isoformat()}. Não são contas reais.",
+        "",
+    ]
+    for email, _role in RESEARCHERS:
+        password = passwords.get(email) or previous.get(email)
+        if password:
+            lines.append(f"- `{email}` / `{password}`")
+        else:
+            lines.append(
+                f"- `{email}` / (palavra-passe desconhecida: a conta já existia "
+                "antes deste ficheiro)"
+            )
+    lines.append(f"- Admin do seed: {admin_email} (palavra-passe passada por stdin na corrida)")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Logins escritos em {path} (fora do Git)")
+
+
+def _delete_studies(confirmed: bool) -> None:
+    url = _database_url()
+    label = _database_label(url)
+    print(f"Looking for studies in the development database at {label}")
+    try:
+        with psycopg.connect(url, connect_timeout=5, row_factory=dict_row) as connection:
+            titles = [
+                row["title"]
+                for row in connection.execute("SELECT title FROM study ORDER BY title, id")
+            ]
+            if not titles:
+                print("  no studies to delete")
+                return
+            print(f"Studies to delete ({len(titles)}):")
+            for title in titles:
+                print(f"  - {title}")
+            if not confirmed:
+                raise SeedError("Refusing to delete studies: pass --yes to confirm.")
+            deleted = connection.execute("DELETE FROM study").rowcount
+            print(f"  deleted {deleted} studies")
+    except psycopg.Error as exc:
+        raise SeedError(f"Cannot delete studies at {label}: {exc}") from exc
+
+
+def _plan_today() -> None:
+    """Plan today through the scheduler's own service, in its container.
+
+    The service has no HTTP trigger, and the leader only plans on startup, at the planning
+    hour or when an availability fingerprint changes. Calling ``plan_study`` directly avoids
+    waiting for one of those moments.
+    """
+    today = _now_lisbon().date().isoformat()
+    output = _compose_exec(
+        "import sys\n"
+        "from datetime import UTC, date, datetime\n"
+        "from scheduler import db\n"
+        "from scheduler.service import SchedulerService\n"
+        "from scheduler.settings import Settings\n"
+        "service = SchedulerService(Settings())\n"
+        "with db.connect(service.settings) as connection:\n"
+        "    row = connection.execute(\n"
+        "        'SELECT id FROM study WHERE title = %s ORDER BY starts_on DESC, id LIMIT 1',\n"
+        "        (sys.argv[1],),\n"
+        "    ).fetchone()\n"
+        "    if row is None:\n"
+        "        raise SystemExit('study not found')\n"
+        "    plan = service.plan_study(\n"
+        "        connection, row[0], date.fromisoformat(sys.argv[2]), datetime.now(UTC)\n"
+        "    )\n"
+        "print('no plan' if plan is None else (\n"
+        "    f'planned={plan.planned_count} unplanned={plan.unplanned_count}'\n"
+        "))\n",
+        STUDY_TITLE,
+        today,
+        service="scheduler",
     )
-    parser.add_argument(
-        "step",
-        nargs="?",
-        choices=("seed", "history"),
-        default="seed",
-        help="seed (default) fills the stack through the API; history writes past prompts "
-        "directly to the development database",
-    )
-    parser.add_argument("--base-url", default="http://127.0.0.1:8080")
-    parser.add_argument("--admin-email")
-    parser.add_argument("--admin-password-stdin", action="store_true")
-    parser.add_argument("--days", type=int, default=14)
-    parser.add_argument("--participants", type=int, default=22)
-    parser.add_argument("--seed", type=int, default=20261006)
-    arguments = parser.parse_args(argv)
+    print(f"  scheduler: {output}")
 
-    if arguments.step == "history":
-        try:
-            return _run_history(arguments.seed)
-        except SeedError as exc:
-            print(f"ERROR: {exc}", file=sys.stderr)
-            return 1
 
-    if not arguments.admin_email:
-        parser.error("--admin-email is required for the seed step")
-    if arguments.days < 1:
-        parser.error("--days must be at least 1")
-    if arguments.participants < 4:
-        parser.error("--participants must be at least 4")
-
-    if arguments.admin_password_stdin:
-        password = sys.stdin.readline().rstrip("\r\n")
-    else:
-        password = getpass.getpass("Administrator password: ")
-    if not password:
-        print("ERROR: the administrator password is empty.", file=sys.stderr)
-        return 2
-
-    dashboard_url = _normalise_base_url(
-        os.environ.get("FIELDNOTE_DASHBOARD_URL", "http://127.0.0.1:5173")
-    )
+def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) -> int:
     api = Api(arguments.base_url)
     api.admin_email = arguments.admin_email.strip().lower()
     api.admin_password = password
-
     try:
         print(f"Signing in to {api.base_url} as {api.admin_email}")
         api.login_admin()
@@ -1614,14 +1780,15 @@ def main(argv: list[str] | None = None) -> int:
         existing = _find_study(api)
         if existing is not None:
             _print_existing(api, existing, dashboard_url)
+            _write_dev_logins({}, api.admin_email)
             return 0
 
         print("Creating the researcher accounts")
         passwords = _account_passwords(api)
 
-        starts_on, ends_on = _study_dates(arguments.days)
-        print(f"Creating the study ({starts_on} to {ends_on})")
-        study_id = _create_study(api, starts_on, ends_on, passwords)
+        starts_on, ends_on = _study_dates(arguments.end_in_days)
+        print(f"Creating the study ({starts_on.isoformat()} to {ends_on.isoformat()})")
+        study_id = _create_study(api, starts_on.isoformat(), ends_on.isoformat(), passwords)
         questions = _create_questions(api, study_id)
         activity_ids = _create_activities(api, study_id)
         api.admin("POST", f"/studies/{study_id}/start", json={})
@@ -1640,10 +1807,12 @@ def main(argv: list[str] | None = None) -> int:
             api, created[:joined_count], questions, random.Random(arguments.seed)
         )
         rng = random.Random(arguments.seed + 1)
-        _declined_participant(api, study_id, questions, rng, ends_on)
+        _declined_participant(api, study_id, questions, rng, ends_on.isoformat())
 
-        print(f"Submitting entries over the last {arguments.days} days")
-        _seed_entries(api, joined, activity_ids, arguments.days, arguments.seed)
+        last_entry_day = _now_lisbon().date()
+        print(f"Submitting entries from {starts_on.isoformat()} to {last_entry_day.isoformat()}")
+        _seed_entries(api, joined, activity_ids, starts_on, last_entry_day, arguments.seed)
+        _restore_free_entry_limits(api, study_id, activity_ids)
 
         print("Waiting for the media worker")
         entries = _wait_for_media(api, study_id)
@@ -1653,15 +1822,87 @@ def main(argv: list[str] | None = None) -> int:
 
         entries = _list_entries(api, study_id)
         _print_summary(api, study_id, entries, passwords, dashboard_url)
+        _write_dev_logins(passwords, api.admin_email)
         return 0
-    except ApiError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    except SeedError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
     finally:
         api.close()
+
+
+def _run_reset(arguments: argparse.Namespace, password: str, dashboard_url: str) -> int:
+    _delete_studies(arguments.yes)
+    status = _run_seed(arguments, password, dashboard_url)
+    if status != 0:
+        return status
+    _run_history(arguments.seed)
+    print("Asking the scheduler to plan today")
+    _plan_today()
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Fill a running Fieldnote stack with the demonstration study."
+    )
+    parser.add_argument(
+        "step",
+        nargs="?",
+        choices=("seed", "history", "reset"),
+        default="seed",
+        help="seed (default) fills the stack through the API; history writes past prompts "
+        "directly to the development database; reset deletes every study, seeds, fills the "
+        "past and plans today",
+    )
+    parser.add_argument("--base-url", default="http://127.0.0.1:8080")
+    parser.add_argument("--admin-email")
+    parser.add_argument("--admin-password-stdin", action="store_true")
+    parser.add_argument(
+        "--end-in-days",
+        type=int,
+        default=DEMO_END_IN_DAYS,
+        help="days from today to the end of the study (default: %(default)s)",
+    )
+    parser.add_argument("--participants", type=int, default=22)
+    parser.add_argument("--seed", type=int, default=20261006)
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm that reset may delete every study in the development database",
+    )
+    arguments = parser.parse_args(argv)
+
+    if arguments.step == "history":
+        try:
+            return _run_history(arguments.seed)
+        except SeedError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+
+    if not arguments.admin_email:
+        parser.error(f"--admin-email is required for the {arguments.step} step")
+    if arguments.end_in_days < 0:
+        parser.error("--end-in-days must not be negative")
+    if arguments.participants < 4:
+        parser.error("--participants must be at least 4")
+
+    if arguments.admin_password_stdin:
+        password = sys.stdin.readline().rstrip("\r\n")
+    else:
+        password = getpass.getpass("Administrator password: ")
+    if not password:
+        print("ERROR: the administrator password is empty.", file=sys.stderr)
+        return 2
+
+    dashboard_url = _normalise_base_url(
+        os.environ.get("FIELDNOTE_DASHBOARD_URL", "http://127.0.0.1:5173")
+    )
+
+    try:
+        if arguments.step == "reset":
+            return _run_reset(arguments, password, dashboard_url)
+        return _run_seed(arguments, password, dashboard_url)
+    except (ApiError, SeedError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
