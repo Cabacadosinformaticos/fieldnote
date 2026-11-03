@@ -16,6 +16,7 @@ export default function PosterPreview({
   team,
   code,
   expiresAt,
+  minutesPerDay,
 }: {
   style: PosterStyle
   content: PosterContent
@@ -25,6 +26,7 @@ export default function PosterPreview({
   team: string[]
   code: string
   expiresAt: string
+  minutesPerDay: number | null
 }) {
   const showQr = content === 'qr' || content === 'both'
   const showCode = content === 'code' || content === 'both'
@@ -59,7 +61,13 @@ export default function PosterPreview({
         <h1>{studyTitle}</h1>
         <p className="poster-tagline">{t('poster.tagline')}</p>
         <div className="poster-pills">
-          <span>{t('poster.pillMinutes')}</span>
+          {minutesPerDay !== null ? (
+            <span>
+              {minutesPerDay === 1
+                ? t('poster.pillMinutesOne')
+                : t('poster.pillMinutes', { count: minutesPerDay })}
+            </span>
+          ) : null}
           <span>{dateRange}</span>
         </div>
 

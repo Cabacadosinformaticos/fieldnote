@@ -9,6 +9,7 @@ import {
   useStudyMembers,
   type PoolCriteria,
 } from '../../api/participants'
+import { todayInTimezone } from '../../api/studies'
 import { emailDisplayName, formatDate } from '../../components/participants/format'
 import ParticipantsTabs from '../../components/participants/ParticipantsTabs'
 import {
@@ -85,7 +86,7 @@ const otherFields: { key: OtherKey; label: string; options: { value: string; lab
       { value: 'public_transport', label: 'Transporte público' },
       { value: 'car', label: 'Carro' },
       { value: 'bicycle', label: 'Bicicleta' },
-      { value: 'scooter', label: 'Tro tinete' },
+      { value: 'scooter', label: 'Trotinete' },
       { value: 'other', label: 'Outro' },
     ],
   },
@@ -159,6 +160,12 @@ export default function RecruitPage() {
   const bar = typeof count === 'number' ? Math.min(100, (count / 50) * 100) : 0
   const sendError =
     send.error instanceof ParticipantsApiError ? send.error.code : null
+  const today = todayInTimezone(study?.timezone ?? 'Europe/Lisbon')
+  const studyEnded = Boolean(study?.ends_on && today > study.ends_on)
+  const studyNotStarted = Boolean(study?.starts_on && today < study.starts_on)
+  const studyRunning = Boolean(
+    study?.starts_on && today >= study.starts_on && !studyEnded,
+  )
 
   const toggleCounty = (id: string) => {
     setCounty((current) => (current === id ? null : id))
@@ -398,7 +405,13 @@ export default function RecruitPage() {
             ) : (
               <div className={known ? 'recruit-status is-ok' : 'recruit-status is-warning'}>
                 {known ? <ShieldCheckIcon /> : <InfoIcon />}
-                <span>{known ? t('recruit.aboveMinimum') : t('recruit.belowMinimum')}</span>
+                <span>
+                  {known
+                    ? studyEnded
+                      ? t('recruit.aboveMinimumEnded')
+                      : t('recruit.aboveMinimum')
+                    : t('recruit.belowMinimum')}
+                </span>
               </div>
             )}
             <p className="pts-help">{t('recruit.belowMinimum')}</p>
@@ -416,9 +429,15 @@ export default function RecruitPage() {
               <li>
                 <CalendarIcon />
                 <span>
-                  {study?.starts_on
-                    ? t('recruit.sendBullet2', { date: formatDate(study.starts_on) })
-                    : t('recruit.sendBullet2NoDate')}
+                  {studyEnded
+                    ? t('recruit.sendBulletEnded', { date: formatDate(study?.ends_on) })
+                    : studyRunning
+                      ? study?.ends_on
+                        ? t('recruit.sendBulletRunning', { date: formatDate(study.ends_on) })
+                        : t('recruit.sendBulletRunningNoDate')
+                      : studyNotStarted
+                        ? t('recruit.sendBullet2', { date: formatDate(study?.starts_on) })
+                        : t('recruit.sendBullet2NoDate')}
                 </span>
               </li>
               <li>
@@ -426,19 +445,29 @@ export default function RecruitPage() {
                 <span>{t('recruit.sendBullet3')}</span>
               </li>
             </ul>
-            <button
-              type="button"
-              className="btn btn-p recruit-send"
-              disabled={!known || send.isPending || send.isSuccess}
-              onClick={() => send.mutate(criteria)}
-            >
-              <UserPlusIcon />
-              {known
-                ? t('action.sendInvites', { count: count ?? 0 })
-                : t('action.sendInvitesUnder')}
-            </button>
+            {studyEnded ? (
+              <p className="pts-help">{t('recruit.sendEndedBlocked')}</p>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-p recruit-send"
+                disabled={!known || send.isPending || send.isSuccess}
+                onClick={() => send.mutate(criteria)}
+              >
+                <UserPlusIcon />
+                {known
+                  ? count === 1
+                    ? t('action.sendInvitesOne')
+                    : t('action.sendInvites', { count: count ?? 0 })
+                  : t('action.sendInvitesUnder')}
+              </button>
+            )}
             {send.isSuccess ? (
-              <p className="pts-success">{t('recruit.sentCount', { count: send.data.sent })}</p>
+              <p className="pts-success">
+                {send.data.sent === 1
+                  ? t('recruit.sentOne')
+                  : t('recruit.sentCount', { count: send.data.sent })}
+              </p>
             ) : null}
             {sendError ? <p className="pts-error">{t(errorKey(sendError))}</p> : null}
             <p className="pts-help">{t('recruit.sendNote')}</p>

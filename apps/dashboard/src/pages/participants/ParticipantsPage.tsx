@@ -117,7 +117,12 @@ export default function ParticipantsPage() {
             <TicketIcon />
           </span>
           <p>
-            <strong>{t('list.waitingBanner', { count: waiting })}</strong>
+            <strong>
+              {t(
+                waiting === 1 ? 'list.waitingBanner' : 'list.waitingBannerPlural',
+                { count: waiting },
+              )}
+            </strong>
             <span>{t('list.waitingBannerNote')}</span>
           </p>
           <Link className="btn btn-sm" to={`${base}/codigos`}>
@@ -197,34 +202,6 @@ export default function ParticipantsPage() {
                 </span>
               </div>
               <p className="pts-list-summary">{t('list.footerCount', { count: list?.length ?? 0 })}</p>
-              <div className="pts-list-details">
-                <details className="pts-states">
-                  <summary>
-                    {t('list.newStates')}
-                    <span aria-hidden="true">+</span>
-                  </summary>
-                  <div>
-                    <p>
-                      <strong>{t('status.left')}</strong> {t('list.newStatesLeft')}
-                    </p>
-                    <p>
-                      <strong>{t('status.withdrawn')}</strong> {t('list.newStatesRight')}
-                    </p>
-                    <p>
-                      <strong>{t('status.deleting')}</strong> {t('list.newStateDeleting')}
-                    </p>
-                  </div>
-                </details>
-                <details className="pts-states">
-                  <summary>
-                    {t('list.entry')}
-                    <span aria-hidden="true">+</span>
-                  </summary>
-                  <div>
-                    <p>{t('list.entryNote')}</p>
-                  </div>
-                </details>
-              </div>
             </div>
           </>
         )}

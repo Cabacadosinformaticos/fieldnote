@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/useAuth'
-import type { ParticipantsKey } from '../i18n/participants'
+import { t, type ParticipantsKey } from '../i18n/participants'
 import { client } from './client'
 import type { components } from './schema'
 
@@ -492,6 +492,21 @@ export function participantFilterCount(
     : participants.filter((participant) => participant.status === key).length
 }
 
+/**
+ * A participant may exist before an alias is assigned (for example a pending entry).
+ * The raw id is an implementation detail, so the state supplies the label instead.
+ */
+export function participantLabel(
+  participant: Pick<ParticipantOut, 'alias' | 'status'>,
+): string {
+  if (participant.alias) {
+    return participant.alias
+  }
+  return participant.status === 'pending_approval'
+    ? t('label.pendingAlias')
+    : t('label.awaitingAlias')
+}
+
 export function searchParticipants(
   participants: ParticipantOut[],
   query: string,
@@ -500,10 +515,8 @@ export function searchParticipants(
   if (!term) {
     return participants
   }
-  return participants.filter(
-    (participant) =>
-      (participant.alias ?? '').toLowerCase().includes(term) ||
-      participant.id.toLowerCase().includes(term),
+  return participants.filter((participant) =>
+    participantLabel(participant).toLowerCase().includes(term),
   )
 }
 
@@ -516,14 +529,12 @@ export function entryRouteKey(route: string | null): ParticipantsKey {
 
 export type MatrixState = 'answered' | 'expired' | 'pending' | 'notSent'
 
-const matrixState: Record<
-  AdherenceCell['state'],
-  MatrixState
-> = {
+const promptState: Record<string, MatrixState> = {
   answered: 'answered',
   expired: 'expired',
-  sent_pending: 'pending',
-  not_sent: 'notSent',
+  sent: 'pending',
+  planned: 'notSent',
+  unplanned: 'notSent',
 }
 
 export interface AdherenceView {
@@ -538,11 +549,20 @@ export interface AdherenceView {
 }
 
 export function buildAdherenceView(data: AdherenceResponse): AdherenceView {
-  const slots = data.slots.length > 0 ? data.slots : [1, 2, 3, 4]
-  const matrix = slots.map((slot) =>
-    data.days.map((day) => {
-      const cell = day.cells.find((item) => item.occurrence === slot)
-      return cell ? matrixState[cell.state] : 'notSent'
+  // The API groups cells by the activity's occurrence index, so several activities that
+  // prompt once a day all share occurrence 0. Each day is really a list of requests, so
+  // rows are built from the individual prompts, ordered by their scheduled time.
+  const dayPrompts = data.days.map((day) =>
+    (day.cells ?? [])
+      .flatMap((cell) => cell.prompts ?? [])
+      .sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? '')),
+  )
+  const rowCount = Math.max(1, ...dayPrompts.map((prompts) => prompts.length))
+  const slots = Array.from({ length: rowCount }, (_, index) => index + 1)
+  const matrix = slots.map((_, row) =>
+    dayPrompts.map((prompts) => {
+      const prompt = prompts[row]
+      return prompt ? promptState[prompt.status] ?? 'notSent' : 'notSent'
     }),
   )
   const free = data.days.map((day) => (day.cells.length === 0 ? null : day.free_entries))

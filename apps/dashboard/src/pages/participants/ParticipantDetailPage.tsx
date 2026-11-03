@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import '../../styles/participants.css'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useEntries, type EntryType } from '../../api/entries'
 import {
   buildAdherenceView,
   entryRouteKey,
+  participantLabel,
   ParticipantsApiError,
   participantStatusMeta,
   useAdherence,
@@ -16,17 +18,30 @@ import {
 } from '../../api/participants'
 import AdherenceMatrix from '../../components/participants/AdherenceMatrix'
 import PersonalCodeModal from '../../components/participants/PersonalCodeModal'
-import { formatDate, formatDateTime } from '../../components/participants/format'
+import {
+  availabilityGroups,
+  formatDate,
+  formatDateTime,
+  plural,
+} from '../../components/participants/format'
 import {
   AlertTriangleIcon,
   ArrowLeftIcon,
   LockIcon,
   TicketIcon,
-  TrashIcon,
   UserMinusIcon,
 } from '../../components/participants/icons'
 import { EyeIcon } from '../../components/icons'
-import { errorKey, t } from '../../i18n/participants'
+import { errorKey, t, type ParticipantsKey } from '../../i18n/participants'
+
+const entryKindKeys: Record<EntryType, ParticipantsKey> = {
+  photo: 'entryKind.photo',
+  text: 'entryKind.text',
+  audio: 'entryKind.audio',
+  video: 'entryKind.video',
+  scale: 'entryKind.scale',
+  choice: 'entryKind.choice',
+}
 
 export default function ParticipantDetailPage() {
   const { studyId = '', participantId = '' } = useParams<{
@@ -46,6 +61,7 @@ export default function ParticipantDetailPage() {
   const identity = useParticipantIdentity(studyId, participantId, identityShown && canReadIdentity)
   const issueCode = useIssuePersonalCode(studyId)
   const removeParticipant = useRemoveParticipant(studyId)
+  const recentEntries = useEntries(studyId, { participantId, limit: 5 })
 
   const listPath = `/estudos/${studyId}/participantes`
   const back = (
@@ -83,11 +99,20 @@ export default function ParticipantDetailPage() {
   }
 
   const item = participant.data
-  const alias = item.alias ?? item.id.slice(0, 8)
+  const alias = participantLabel(item)
   const status = participantStatusMeta[item.status]
   const canWithdraw = item.status === 'active' || item.status === 'pending_approval'
   const view = adherence.data ? buildAdherenceView(adherence.data) : null
   const entriesCount = view ? view.totals.answered + view.freeCount : null
+  const entriesLabel =
+    entriesCount === null
+      ? t('table.dash')
+      : plural(entriesCount, t('detail.entryOne'), t('detail.entriesValue', { count: entriesCount }))
+  const freeLabel = view
+    ? plural(view.freeCount, t('detail.freeOne'), t('detail.freeMany', { count: view.freeCount }))
+    : ''
+  const hours = availabilityGroups(item.availability_summary)
+  const recent = recentEntries.data?.items ?? []
   const removeError =
     removeParticipant.error instanceof ParticipantsApiError ? removeParticipant.error.code : null
   const issueError =
@@ -177,14 +202,9 @@ export default function ParticipantDetailPage() {
         <article className="card pts-stat">
           <span>{t('detail.entries')}</span>
           <strong>
-            {entriesCount === null
-              ? t('table.dash')
-              : view && view.freeCount > 0
-                ? t('detail.entriesFreeValue', {
-                    count: entriesCount,
-                    free: view.freeCount,
-                  })
-                : t('detail.entriesValue', { count: entriesCount })}
+            {view && view.freeCount > 0
+              ? t('detail.entriesFreeValue', { entries: entriesLabel, free: freeLabel })
+              : entriesLabel}
           </strong>
         </article>
         <article className="card pts-stat">
@@ -197,7 +217,7 @@ export default function ParticipantDetailPage() {
                   total: view.totals.sent,
                   percent: view.totals.percent,
                 })
-              : t('detail.notAvailable')}
+              : t('detail.adherenceMissing')}
           </small>
         </article>
       </div>
@@ -214,6 +234,46 @@ export default function ParticipantDetailPage() {
             <div className="card pts-state">
               <p>{t('detail.adherenceUnavailable')}</p>
             </div>
+          )}
+
+          {recentEntries.isError ? null : (
+            <section className="card pts-recent-card" aria-labelledby="pts-recent-title">
+              <div className="pts-section-head">
+                <h2 className="h2" id="pts-recent-title">
+                  {t('detail.recentTitle')}
+                </h2>
+                <Link className="btn btn-sm" to={`/estudos/${studyId}/registos`}>
+                  {t('detail.recentAll')}
+                </Link>
+              </div>
+              {recentEntries.isLoading ? (
+                <p className="pts-help">{t('detail.recentLoading')}</p>
+              ) : recent.length === 0 ? (
+                <p className="pts-help">{t('detail.recentEmpty')}</p>
+              ) : (
+                <ul className="pts-recent-list">
+                  {recent.map((entry) => (
+                    <li key={entry.id}>
+                      <div className="pts-recent-body">
+                        <strong>{entry.activity_title ?? t('detail.recentFree')}</strong>
+                        <small>
+                          {t('detail.recentMeta', {
+                            type: t(entryKindKeys[entry.entry_type]),
+                            date: formatDateTime(entry.recorded_at),
+                          })}
+                        </small>
+                      </div>
+                      <Link
+                        className="btn btn-sm"
+                        to={`/estudos/${studyId}/registos?registo=${entry.id}`}
+                      >
+                        {t('detail.recentView')}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           )}
         </div>
 
@@ -252,44 +312,39 @@ export default function ParticipantDetailPage() {
               {t('detail.hours')}
             </h2>
             <dl className="pts-hours-list">
-              <div>
-                <dt>{t('detail.weekdays')}</dt>
-                <dd>
-                  <span>{t('table.dash')}</span>
-                </dd>
-              </div>
-              <div>
-                <dt>{t('detail.weekend')}</dt>
-                <dd>
-                  <span>{t('table.dash')}</span>
-                </dd>
-              </div>
+              {hours.anyTime ? (
+                <div>
+                  <dt>{t('detail.anyDay')}</dt>
+                  <dd>
+                    <span>{t('table.anyTime')}</span>
+                  </dd>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <dt>{t('detail.weekdays')}</dt>
+                    <dd>
+                      {hours.weekdays.length > 0 ? (
+                        hours.weekdays.map((range) => <span key={range}>{range}</span>)
+                      ) : (
+                        <span>{t('table.dash')}</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('detail.weekend')}</dt>
+                    <dd>
+                      {hours.weekend.length > 0 ? (
+                        hours.weekend.map((range) => <span key={range}>{range}</span>)
+                      ) : (
+                        <span>{t('table.dash')}</span>
+                      )}
+                    </dd>
+                  </div>
+                </>
+              )}
             </dl>
-            <p className="pts-help">{t('detail.notAvailable')}</p>
-          </section>
-
-          <section className="card pts-side-card" aria-labelledby="pts-phone-title">
-            <div className="pts-side-head">
-              <h2 className="h2" id="pts-phone-title">
-                {t('detail.phones')}
-              </h2>
-            </div>
-            <p className="pts-phone">{t('table.dash')}</p>
-            <p className="sub mono">
-              {t('detail.enteredAt', { date: formatDate(item.entered_at) })}
-            </p>
-            <p className="pts-help">{t('detail.notAvailable')}</p>
-          </section>
-
-          <section className="card pts-side-card" aria-labelledby="pts-erasure-title">
-            <h2 className="h2" id="pts-erasure-title">
-              {t('action.requestErasure')}
-            </h2>
-            <p className="pts-help">{t('detail.erasureUnavailable')}</p>
-            <button type="button" className="btn btn-sm pts-full-button" disabled>
-              <TrashIcon />
-              {t('action.requestErasure')}
-            </button>
+            <p className="pts-help">{t('detail.hoursHelp')}</p>
           </section>
         </aside>
       </div>

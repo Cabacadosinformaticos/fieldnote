@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import '../../styles/participants.css'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useActivities } from '../../api/activities'
 import { useStudy, useStudyCodes, useStudyMembers } from '../../api/participants'
 import PosterPreview, {
   type PosterContent,
@@ -47,7 +48,12 @@ export default function PosterPage() {
   const codes = useStudyCodes(studyId)
   const study = useStudy(studyId)
   const members = useStudyMembers(studyId)
+  const activities = useActivities(studyId)
   const team = (members.data ?? []).map((member) => emailDisplayName(member.email))
+  const minutesPerDay = (activities.data ?? []).reduce(
+    (total, activity) => total + activity.expected_minutes * activity.prompts_per_day,
+    0,
+  )
   const styleName = t(styles.find((item) => item.key === style)?.labelKey ?? 'poster.styleInfo')
 
   const chosenId = searchParams.get('code')
@@ -157,7 +163,6 @@ export default function PosterPage() {
                       <strong>{t(item.labelKey)}</strong>
                       <small>{t(item.subKey)}</small>
                     </span>
-                    <i aria-hidden="true" />
                   </button>
                 ))}
               </div>
@@ -181,7 +186,9 @@ export default function PosterPage() {
                 <span className="pill ne">
                   {selected.max_uses === null
                     ? t('poster.limitValueNone')
-                    : t('poster.limitValue', { count: selected.max_uses })}
+                    : selected.max_uses === 1
+                      ? t('poster.limitValueOne')
+                      : t('poster.limitValue', { count: selected.max_uses })}
                 </span>
               </div>
               <div className="poster-rule">
@@ -215,6 +222,7 @@ export default function PosterPage() {
                 team={team}
                 code={selected.code}
                 expiresAt={selected.expires_at}
+                minutesPerDay={minutesPerDay > 0 ? minutesPerDay : null}
               />
             </div>
             <p className="pts-poster-note">{t('poster.previewNote')}</p>

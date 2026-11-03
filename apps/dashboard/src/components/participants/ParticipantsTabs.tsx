@@ -28,7 +28,7 @@ export default function ParticipantsTabs({
         aria-current={onCodes ? 'page' : undefined}
       >
         {t('tabs.codes')}
-        <span className="pts-tab-badge">{waitingCount}</span>
+        {waitingCount > 0 ? <span className="pts-tab-badge">{waitingCount}</span> : null}
       </Link>
       <Link
         to={`${base}/convidar`}

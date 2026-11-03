@@ -1,6 +1,6 @@
 import type { AdherenceView } from '../../api/participants'
 import { t } from '../../i18n/participants'
-import { formatDate } from './format'
+import { formatDate, plural } from './format'
 
 const cellLabels = {
   answered: 'detail.cellAnswered',
@@ -31,9 +31,27 @@ export default function AdherenceMatrix({ view }: { view: AdherenceView }) {
       </div>
 
       <div className="pts-matrix-legend">
-        <span className="pill ok">{t('detail.answeredPill', { count: view.counts.answered })}</span>
-        <span className="pill ne">{t('detail.expiredPill', { count: view.counts.expired })}</span>
-        <span className="pill wa">{t('detail.pendingPill', { count: view.counts.pending })}</span>
+        <span className="pill ok">
+          {plural(
+            view.counts.answered,
+            t('detail.answeredPillOne'),
+            t('detail.answeredPill', { count: view.counts.answered }),
+          )}
+        </span>
+        <span className="pill ne">
+          {plural(
+            view.counts.expired,
+            t('detail.expiredPillOne'),
+            t('detail.expiredPill', { count: view.counts.expired }),
+          )}
+        </span>
+        <span className="pill wa">
+          {plural(
+            view.counts.pending,
+            t('detail.pendingPillOne'),
+            t('detail.pendingPill', { count: view.counts.pending }),
+          )}
+        </span>
       </div>
 
       <div className="pts-matrix-scroll">

@@ -4,12 +4,13 @@ import { Link } from 'react-router-dom'
 import {
   adherenceTone,
   entryRouteKey,
+  participantLabel,
   participantStatusMeta,
   type DayStat,
   type ParticipantOut,
 } from '../../api/participants'
 import { t } from '../../i18n/participants'
-import { formatDate, formatDateTime } from './format'
+import { availabilityRanges, formatDate, formatDateTime } from './format'
 import { EllipsisIcon, LockIcon, UserMinusIcon } from './icons'
 
 export interface ParticipantRow extends ParticipantOut {
@@ -65,15 +66,7 @@ function availabilityText(item: ParticipantOut): string {
   if (summary.any_time) {
     return t('table.anyTime')
   }
-  const seen = new Set<string>()
-  const ranges: string[] = []
-  for (const interval of summary.intervals) {
-    const range = `${interval.start_time.slice(0, 5)}–${interval.end_time.slice(0, 5)}`
-    if (!seen.has(range)) {
-      seen.add(range)
-      ranges.push(range)
-    }
-  }
+  const ranges = availabilityRanges(summary)
   return ranges.length > 0 ? ranges.join(', ') : t('table.dash')
 }
 
@@ -185,7 +178,7 @@ export default function ParticipantsTable({
                 <tr key={item.id}>
                   <td>
                     <Link className="pts-id-link mono" to={detailsTo}>
-                      {item.alias ?? item.id.slice(0, 8)}
+                      {participantLabel(item)}
                     </Link>
                   </td>
                   <td>
@@ -230,7 +223,7 @@ export default function ParticipantsTable({
                       className="pts-row-menu-button"
                       aria-haspopup="menu"
                       aria-expanded={menuOpen}
-                      aria-label={t('list.menuAria', { id: item.alias ?? item.id })}
+                      aria-label={t('list.menuAria', { id: participantLabel(item) })}
                       onClick={(event) => {
                         if (menuOpen) {
                           setMenu(null)

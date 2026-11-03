@@ -30,6 +30,10 @@ function usesLabel(code: StudyCodeOut): ParticipantsKey {
   return 'codes.usesCount'
 }
 
+function countPart(count: number, one: ParticipantsKey, many: ParticipantsKey): string {
+  return count === 1 ? t(one) : t(many, { count })
+}
+
 export default function StudyCodeCard({
   studyId,
   code,
@@ -99,9 +103,21 @@ export default function StudyCodeCard({
               </strong>
               <small>
                 {t('codes.usesCounts', {
-                  approved: code.approved_count,
-                  declined: code.declined_count,
-                  waiting: code.waiting_count,
+                  approved: countPart(
+                    code.approved_count,
+                    'codes.approvedOne',
+                    'codes.approvedMany',
+                  ),
+                  declined: countPart(
+                    code.declined_count,
+                    'codes.declinedOne',
+                    'codes.declinedMany',
+                  ),
+                  waiting: countPart(
+                    code.waiting_count,
+                    'codes.waitingOne',
+                    'codes.waitingMany',
+                  ),
                 })}
               </small>
             </dd>
@@ -127,7 +143,9 @@ export default function StudyCodeCard({
               <strong>
                 {code.max_uses === null
                   ? t('codes.noMaximum')
-                  : t('codes.limitCount', { count: code.max_uses })}
+                  : code.max_uses === 1
+                    ? t('codes.limitOne')
+                    : t('codes.limitCount', { count: code.max_uses })}
               </strong>
             </dd>
           </div>
