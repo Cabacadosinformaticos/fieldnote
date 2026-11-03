@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text, Uuid, func, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -18,6 +18,9 @@ class UserAccount(Base):
     failed_logins: Mapped[int] = mapped_column(Integer, server_default=text("0"), default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     totp_secret: Mapped[str | None] = mapped_column(Text)
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), default=False
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

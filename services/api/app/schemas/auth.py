@@ -30,12 +30,19 @@ class PasswordResetRequestOut(BaseModel):
     message: str
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    # The length and email rule lives in app.security.passwords so the error carries its code.
+    new_password: str
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     email: str
     role: UserRole
+    must_change_password: bool
 
 
 class TokenResponse(BaseModel):

@@ -25,6 +25,7 @@ import hashlib
 import io
 import os
 import random
+import secrets
 import subprocess
 import sys
 import time as clock
@@ -376,6 +377,24 @@ class Api:
             raise ApiError(method, path, response.status_code, response.text)
         return self._checked(method, path, response)
 
+    # Researcher ------------------------------------------------------------------------------
+
+    def login_user(self, email: str, password: str) -> str:
+        response = self._raw(
+            "POST", "/auth/login", json={"email": email, "password": password}
+        )
+        payload = self._checked("POST", "/auth/login", response)
+        return payload["access_token"]
+
+    def change_password(self, token: str, current: str, new: str) -> None:
+        response = self._raw(
+            "POST",
+            "/auth/password/change",
+            token=token,
+            json={"current_password": current, "new_password": new},
+        )
+        self._checked("POST", "/auth/password/change", response)
+
     # Participant -----------------------------------------------------------------------------
 
     def device(
@@ -520,7 +539,13 @@ def _account_passwords(api: Api) -> dict[str, str]:
             expected=(201,),
             json={"email": email, "role": "researcher"},
         )
-        passwords[email] = created["temporary_password"]
+        # The administrator password is temporary: sign in with it and replace it with the one
+        # this step prints.
+        temporary = created["temporary_password"]
+        password = secrets.token_urlsafe(12)
+        token = api.login_user(email, temporary)
+        api.change_password(token, temporary, password)
+        passwords[email] = password
         print(f"Created account: {email}")
     return passwords
 

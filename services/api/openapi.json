@@ -3417,6 +3417,26 @@
         "title": "ParticipantStatus",
         "type": "string"
       },
+      "PasswordChangeRequest": {
+        "properties": {
+          "current_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeRequest",
+        "type": "object"
+      },
       "PasswordResetConfirm": {
         "properties": {
           "new_password": {
@@ -6086,6 +6106,10 @@
             "title": "Id",
             "type": "string"
           },
+          "must_change_password": {
+            "title": "Must Change Password",
+            "type": "boolean"
+          },
           "role": {
             "$ref": "#/components/schemas/UserRole"
           }
@@ -6093,7 +6117,8 @@
         "required": [
           "id",
           "email",
-          "role"
+          "role",
+          "must_change_password"
         ],
         "title": "UserOut",
         "type": "object"
@@ -7468,6 +7493,46 @@
           }
         },
         "summary": "Request Password Reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password/change": {
+      "post": {
+        "description": "Change the signed-in account's password; a temporary password can do this too.",
+        "operationId": "change_password_api_v1_auth_password_change_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Password",
         "tags": [
           "auth"
         ]

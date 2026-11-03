@@ -7,9 +7,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, settings
-from app.models import AuditLog, PasswordResetToken, RefreshToken
+from app.models import AuditLog, PasswordResetToken, RefreshToken, UserAccount
 from app.models.enums import AuditActorType, UserRole
-from app.security import passwords, totp
+from app.security import passwords, tokens, totp
 from app.security.passwords import hash_password
 from app.security.tokens import create_access_token, decode_access_token, hash_token
 from app.services import mail
@@ -21,6 +21,8 @@ ME = "/api/v1/auth/me"
 TOTP_ENROLMENT = "/api/v1/auth/totp/enrolment"
 PASSWORD_RESET_REQUEST = "/api/v1/auth/password-reset/request"
 PASSWORD_RESET_CONFIRM = "/api/v1/auth/password-reset/confirm"
+PASSWORD_CHANGE = "/api/v1/auth/password/change"
+STUDIES = "/api/v1/studies"
 COOKIE = "fieldnote_refresh"
 INVALID_BODY = {"error": {"code": "invalid_credentials", "message": "Invalid email or password."}}
 
@@ -38,7 +40,12 @@ def test_login_returns_an_access_token_and_sets_the_refresh_cookie(
     body = response.json()
     assert body["token_type"] == "bearer"
     assert body["expires_in"] == 900
-    assert body["user"] == {"id": str(user.id), "email": user.email, "role": "researcher"}
+    assert body["user"] == {
+        "id": str(user.id),
+        "email": user.email,
+        "role": "researcher",
+        "must_change_password": False,
+    }
     assert "refresh_token" not in body
 
     cookie = client.cookies.get(COOKIE)
@@ -55,7 +62,12 @@ def test_login_returns_an_access_token_and_sets_the_refresh_cookie(
 
     me = client.get(ME, headers={"Authorization": f"Bearer {body['access_token']}"})
     assert me.status_code == 200
-    assert me.json() == {"id": str(user.id), "email": user.email, "role": "researcher"}
+    assert me.json() == {
+        "id": str(user.id),
+        "email": user.email,
+        "role": "researcher",
+        "must_change_password": False,
+    }
 
 
 def test_login_with_a_wrong_password_returns_the_generic_error(
@@ -540,3 +552,188 @@ def test_password_reset_answers_the_same_when_mail_is_down(
     response = client.post(PASSWORD_RESET_REQUEST, json={"email": user.email})
 
     assert response.status_code == 202
+
+
+def _temporary_account(client: TestClient, make_user, bearer_headers) -> dict[str, object]:
+    admin = make_user(email="admin@example.org", role=UserRole.ADMIN)
+    created = client.post(
+        "/api/v1/admin/accounts",
+        headers=bearer_headers(admin),
+        json={"email": "temporary@example.org", "role": "researcher"},
+    )
+    assert created.status_code == 201, created.text
+    return created.json()
+
+
+def test_a_temporary_password_must_be_changed_before_other_routes(
+    client: TestClient, session: Session, make_user, bearer_headers
+) -> None:
+    created = _temporary_account(client, make_user, bearer_headers)
+    temporary = str(created["temporary_password"])
+
+    login = client.post(LOGIN, json={"email": "temporary@example.org", "password": temporary})
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+    assert login.json()["user"]["must_change_password"] is True
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = client.get(ME, headers=headers)
+    assert me.status_code == 200
+    assert me.json()["must_change_password"] is True
+    blocked = client.get(STUDIES, headers=headers)
+    assert blocked.status_code == 403
+    assert blocked.json()["error"]["code"] == "password_change_required"
+
+
+def test_changing_a_temporary_password_clears_the_flag_and_the_other_sessions(
+    client: TestClient, session: Session, make_user, bearer_headers
+) -> None:
+    created = _temporary_account(client, make_user, bearer_headers)
+    temporary = str(created["temporary_password"])
+    new_password = "a different password"
+    login = client.post(LOGIN, json={"email": "temporary@example.org", "password": temporary})
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Two other signed-in sessions, both in families of their own.
+    user_id = login.json()["user"]["id"]
+    _, other_one = tokens.create_refresh_token(session, user_id)
+    _, other_two = tokens.create_refresh_token(session, user_id)
+    session.commit()
+    other_one_id, other_two_id = other_one.id, other_two.id
+    current = tokens.find_refresh_token(session, client.cookies.get(COOKIE))
+    current_id = current.id if current is not None else None
+
+    response = client.post(
+        PASSWORD_CHANGE,
+        headers=headers,
+        json={"current_password": temporary, "new_password": new_password},
+    )
+
+    assert response.status_code == 204
+    session.expire_all()
+    user = session.get(UserAccount, user_id)
+    assert user is not None
+    assert user.must_change_password is False
+    assert passwords.verify_password(user.password_hash, new_password)
+    assert not passwords.verify_password(user.password_hash, temporary)
+
+    session.expire_all()
+    assert session.get(RefreshToken, other_one_id).revoked_at is not None
+    assert session.get(RefreshToken, other_two_id).revoked_at is not None
+    if current_id is not None:
+        assert session.get(RefreshToken, current_id).revoked_at is None
+
+    allowed = client.get(STUDIES, headers=headers)
+    assert allowed.status_code == 200
+    old_login = client.post(LOGIN, json={"email": "temporary@example.org", "password": temporary})
+    assert old_login.status_code == 401
+    new_login = client.post(
+        LOGIN, json={"email": "temporary@example.org", "password": new_password}
+    )
+    assert new_login.status_code == 200
+    assert new_login.json()["user"]["must_change_password"] is False
+
+    row = session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "password_changed", AuditLog.target == str(user_id)
+        )
+    )
+    assert row is not None
+    assert row.details == {"email": "temporary@example.org"}
+
+
+def test_change_password_rejects_a_wrong_current_password_as_a_failed_sign_in(
+    client: TestClient, session: Session, make_user
+) -> None:
+    user = make_user()
+    user.must_change_password = True
+    session.commit()
+    headers = {"Authorization": f"Bearer {create_access_token(user)}"}
+
+    for _ in range(settings.login_max_failures - 1):
+        response = client.post(
+            PASSWORD_CHANGE,
+            headers=headers,
+            json={"current_password": "wrong", "new_password": "a brand new password"},
+        )
+        assert response.status_code == 401
+        assert response.json()["error"]["code"] == "invalid_credentials"
+
+    locked = client.post(
+        PASSWORD_CHANGE,
+        headers=headers,
+        json={"current_password": "wrong", "new_password": "a brand new password"},
+    )
+    assert locked.status_code == 429
+    assert locked.json()["error"]["code"] == "account_locked"
+    session.expire_all()
+    assert user.locked_until is not None
+    assert user.must_change_password is True
+    assert (
+        session.scalar(
+            select(AuditLog).where(AuditLog.action == "login_failed", AuditLog.actor_id == user.id)
+        )
+        is not None
+    )
+
+
+def test_change_password_rejects_the_rules_with_their_codes(client: TestClient, make_user) -> None:
+    user = make_user()
+    headers = {"Authorization": f"Bearer {create_access_token(user)}"}
+    current = "correct horse battery staple"
+
+    short = client.post(
+        PASSWORD_CHANGE,
+        headers=headers,
+        json={"current_password": current, "new_password": "eleven char"},
+    )
+    assert short.status_code == 422
+    assert short.json()["error"]["code"] == "password_too_short"
+
+    is_email = client.post(
+        PASSWORD_CHANGE,
+        headers=headers,
+        json={"current_password": current, "new_password": user.email.upper()},
+    )
+    assert is_email.status_code == 422
+    assert is_email.json()["error"]["code"] == "password_is_email"
+
+    unchanged = client.post(
+        PASSWORD_CHANGE,
+        headers=headers,
+        json={"current_password": current, "new_password": current},
+    )
+    assert unchanged.status_code == 422
+    assert unchanged.json()["error"]["code"] == "password_unchanged"
+
+    too_long = client.post(
+        PASSWORD_CHANGE,
+        headers=headers,
+        json={
+            "current_password": current,
+            "new_password": "a" * (passwords.MAX_PASSWORD_LENGTH + 1),
+        },
+    )
+    assert too_long.status_code == 422
+    assert too_long.json()["error"]["code"] == "password_too_long"
+
+
+def test_password_recovery_clears_the_must_change_flag(
+    client: TestClient, session: Session, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user()
+    user.must_change_password = True
+    session.commit()
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_password_reset", lambda to, token: sent.append((to, token)))
+
+    client.post(PASSWORD_RESET_REQUEST, json={"email": user.email})
+    response = client.post(
+        PASSWORD_RESET_CONFIRM,
+        json={"token": sent[-1][1], "new_password": "a brand new password"},
+    )
+
+    assert response.status_code == 204
+    session.expire_all()
+    assert user.must_change_password is False

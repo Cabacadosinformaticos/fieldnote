@@ -89,6 +89,7 @@ def create_account(
         email=normalised,
         password_hash=hash_password(temporary_password),
         role=role,
+        must_change_password=True,
     )
     session.add(user)
     session.flush()

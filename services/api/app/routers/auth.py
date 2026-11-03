@@ -7,16 +7,17 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_session
 from app.errors import ApiError, error_response
-from app.models import UserAccount
+from app.models import RefreshToken, UserAccount
 from app.models.enums import AuditActorType, UserRole
 from app.schemas.auth import (
     LoginRequest,
+    PasswordChangeRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
     PasswordResetRequestOut,
@@ -27,7 +28,7 @@ from app.schemas.auth import (
 )
 from app.security import passwords, tokens, totp
 from app.security.audit import record
-from app.security.deps import current_user
+from app.security.deps import current_user_allow_password_change
 from app.services import password_reset
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,6 +36,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 INVALID_CREDENTIALS = "Invalid email or password."
 ACCOUNT_LOCKED = "Too many failed sign-in attempts. Try again later."
 INVALID_REFRESH = "The refresh token is missing or invalid."
+PASSWORD_UNCHANGED = "The new password must be different from the current password."
 
 # Failed attempts are counted in memory per submitted email as well, so an unknown address gets
 # the same progressive delay as a real account and the response time does not reveal which it is.
@@ -149,6 +151,18 @@ def _token_response(user: UserAccount, access_token: str) -> TokenResponse:
         expires_in=settings.access_token_minutes * 60,
         user=UserOut.model_validate(user),
     )
+
+
+def _revoke_other_refresh_tokens(session: Session, user: UserAccount, request: Request) -> None:
+    """Sign out the other sessions, keeping the family that made this request signed in."""
+    statement = update(RefreshToken).where(
+        RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None)
+    )
+    raw = request.cookies.get(settings.refresh_cookie_name)
+    current = tokens.find_refresh_token(session, raw) if raw else None
+    if current is not None and current.user_id == user.id:
+        statement = statement.where(RefreshToken.family_id != current.family_id)
+    session.execute(statement.values(revoked_at=datetime.now(UTC)))
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -272,8 +286,38 @@ def confirm_password_reset(
     password_reset.confirm_reset(session, payload.token, payload.new_password)
 
 
+@router.post("/password/change", status_code=204)
+def change_password(
+    payload: PasswordChangeRequest,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[UserAccount, Depends(current_user_allow_password_change)],
+) -> None:
+    """Change the signed-in account's password; a temporary password can do this too."""
+    # A wrong current password follows the same path as a failed sign-in: counted, audited and
+    # locked after the same number of attempts.
+    _authenticate_password(session, user.email, payload.current_password)
+    passwords.validate_new_password(payload.new_password, user.email)
+    if passwords.verify_password(user.password_hash, payload.new_password):
+        raise ApiError(422, "password_unchanged", PASSWORD_UNCHANGED)
+
+    user.password_hash = passwords.hash_password(payload.new_password)
+    user.must_change_password = False
+    _revoke_other_refresh_tokens(session, user, request)
+    record(
+        session,
+        user,
+        "password_changed",
+        target=str(user.id),
+        details={"email": user.email},
+    )
+    session.commit()
+
+
 @router.get("/me", response_model=UserOut)
-def me(user: Annotated[UserAccount, Depends(current_user)]) -> UserAccount:
+def me(
+    user: Annotated[UserAccount, Depends(current_user_allow_password_change)],
+) -> UserAccount:
     return user
 
 
