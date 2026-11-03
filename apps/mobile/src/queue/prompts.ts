@@ -216,7 +216,10 @@ async function fetchForParticipation(
       activities = data.prompts.map((prompt) =>
         activityFromPrompt(prompt, participation),
       );
-      await replaceCachedPrompts(participation.studyId, activities);
+      // A failed local write must not turn a successful request into "offline".
+      await replaceCachedPrompts(participation.studyId, activities).catch(
+        () => undefined,
+      );
     }
   } catch {
     ok = false;
@@ -230,7 +233,10 @@ async function fetchForParticipation(
       freeActivities = data
         .filter((activity) => activity.allow_free_entries)
         .map((activity) => activityFromFreeEntry(activity, participation));
-      await replaceCachedFreeActivities(participation.studyId, freeActivities);
+      await replaceCachedFreeActivities(
+        participation.studyId,
+        freeActivities,
+      ).catch(() => undefined);
     }
   } catch {
     ok = false;
@@ -306,7 +312,16 @@ export async function loadTodayPrompts(): Promise<TodayPrompts> {
 
 export async function cachedActivity(
   activityId: string | undefined,
+  promptId?: string | null,
 ): Promise<PromptActivity | null> {
+  // Two open prompts can share one activity, so the prompt wins when the caller knows it.
+  if (promptId) {
+    const prompted = await getCachedActivityByPrompt(promptId);
+    if (prompted) {
+      return prompted;
+    }
+  }
+
   const free = await getCachedFreeActivity(activityId);
   if (free) {
     return promptActivityOf(free);
@@ -331,7 +346,16 @@ export async function cachedActivityForPrompt(
   return getCachedActivityByPrompt(promptId);
 }
 
-/** Used when a notification arrives before this session refreshed the prompt cache. */
-export async function refreshPromptCache(): Promise<void> {
-  await loadTodayPrompts();
+/**
+ * Used when a notification arrives before this session refreshed the prompt cache. Returns the
+ * prompts of the refresh so the caller can open one even if the local cache write failed, and
+ * tells whether every study answered, so a missing prompt is only reported as closed when the
+ * API was actually reached.
+ */
+export async function refreshPromptCache(): Promise<{
+  online: boolean;
+  prompts: PromptActivity[];
+}> {
+  const result = await loadTodayPrompts();
+  return { online: !result.offline, prompts: result.activities };
 }

@@ -22,9 +22,15 @@ type CaptureTypeTabsProps = {
   active: CaptureType;
   types: CaptureType[];
   activityId: string;
+  promptId?: string | null;
 };
 
-export function CaptureTypeTabs({ active, types, activityId }: CaptureTypeTabsProps) {
+export function CaptureTypeTabs({
+  active,
+  types,
+  activityId,
+  promptId,
+}: CaptureTypeTabsProps) {
   if (types.length < 2) {
     return null;
   }
@@ -43,7 +49,9 @@ export function CaptureTypeTabs({ active, types, activityId }: CaptureTypeTabsPr
               if (!selected) {
                 router.replace({
                   pathname: recordRoutes[type],
-                  params: { activityId },
+                  params: promptId
+                    ? { activityId, promptId }
+                    : { activityId },
                 });
               }
             }}

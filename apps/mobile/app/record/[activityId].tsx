@@ -24,8 +24,11 @@ const recordRoutes: Record<
 };
 
 export default function ActivityScreen() {
-  const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const { activity, loading } = useCachedActivity(activityId);
+  const { activityId, promptId } = useLocalSearchParams<{
+    activityId: string;
+    promptId?: string;
+  }>();
+  const { activity, loading } = useCachedActivity(activityId, promptId);
 
   if (loading) {
     return (
@@ -69,7 +72,9 @@ export default function ActivityScreen() {
   const openType = (type: CaptureType) => {
     router.push({
       pathname: recordRoutes[type],
-      params: { activityId: activity.id },
+      params: activity.promptId
+        ? { activityId: activity.id, promptId: activity.promptId }
+        : { activityId: activity.id },
     });
   };
 

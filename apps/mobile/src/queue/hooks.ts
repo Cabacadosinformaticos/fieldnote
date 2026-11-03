@@ -96,7 +96,10 @@ export function useOutboxEntry(id: string | undefined): {
   return { entry, loading };
 }
 
-export function useCachedActivity(activityId: string | undefined): {
+export function useCachedActivity(
+  activityId: string | undefined,
+  promptId?: string | null,
+): {
   activity: PromptActivity | null;
   loading: boolean;
 } {
@@ -105,7 +108,7 @@ export function useCachedActivity(activityId: string | undefined): {
 
   useEffect(() => {
     let mounted = true;
-    cachedActivity(activityId)
+    cachedActivity(activityId, promptId)
       .then((next) => {
         if (mounted) {
           setActivity(next);
@@ -122,7 +125,7 @@ export function useCachedActivity(activityId: string | undefined): {
     return () => {
       mounted = false;
     };
-  }, [activityId]);
+  }, [activityId, promptId]);
 
   return { activity, loading };
 }

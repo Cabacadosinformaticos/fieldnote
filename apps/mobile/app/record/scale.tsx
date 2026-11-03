@@ -39,8 +39,11 @@ function faceFallbacks(count: number): string[] {
 }
 
 export default function ScaleRecordScreen() {
-  const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const { activity, loading } = useCachedActivity(activityId);
+  const { activityId, promptId } = useLocalSearchParams<{
+    activityId: string;
+    promptId?: string;
+  }>();
+  const { activity, loading } = useCachedActivity(activityId, promptId);
   const [selected, setSelected] = useState<number | null>(null);
   const [sliderValue, setSliderValue] = useState(50);
   const [sliderTouched, setSliderTouched] = useState(false);

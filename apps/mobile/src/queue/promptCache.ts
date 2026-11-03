@@ -21,11 +21,11 @@ export function replaceCachedPrompts(
         }
         await db.runAsync(
           `INSERT INTO prompt_activities
-             (activity_id, prompt_id, study_id, closes_at, payload, cached_at)
+             (prompt_id, activity_id, study_id, closes_at, payload, cached_at)
            VALUES (?, ?, ?, ?, ?, ?)`,
           [
-            activity.id,
             activity.promptId,
+            activity.id,
             activity.studyId,
             activity.closesAt,
             JSON.stringify(activity),
@@ -55,7 +55,10 @@ export async function getCachedActivity(
   }
   const db = await queueDatabase();
   const row = await db.getFirstAsync<PromptRow>(
-    'SELECT payload FROM prompt_activities WHERE activity_id = ?',
+    `SELECT payload FROM prompt_activities
+       WHERE activity_id = ?
+       ORDER BY closes_at ASC
+       LIMIT 1`,
     [activityId],
   );
   return row ? (JSON.parse(row.payload) as PromptActivity) : null;

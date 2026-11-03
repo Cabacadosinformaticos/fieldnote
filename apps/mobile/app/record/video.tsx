@@ -40,8 +40,11 @@ function formatDuration(milliseconds: number): string {
 }
 
 export default function VideoRecordScreen() {
-  const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const { activity, loading } = useCachedActivity(activityId);
+  const { activityId, promptId } = useLocalSearchParams<{
+    activityId: string;
+    promptId?: string;
+  }>();
+  const { activity, loading } = useCachedActivity(activityId, promptId);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);

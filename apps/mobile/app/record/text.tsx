@@ -20,8 +20,11 @@ import { saveEntry } from '@/queue/save';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 export default function TextRecordScreen() {
-  const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const { activity, loading } = useCachedActivity(activityId);
+  const { activityId, promptId } = useLocalSearchParams<{
+    activityId: string;
+    promptId?: string;
+  }>();
+  const { activity, loading } = useCachedActivity(activityId, promptId);
   const [answer, setAnswer] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +95,7 @@ export default function TextRecordScreen() {
         <CaptureTypeTabs
           active="text"
           activityId={activity.id}
+          promptId={activity.promptId}
           types={activity.captureTypes}
         />
 

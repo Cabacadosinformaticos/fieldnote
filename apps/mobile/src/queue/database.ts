@@ -31,10 +31,12 @@ const CREATE_OUTBOX_INDEXES = `
     ON outbox (prompt_id);
 `;
 
+// A study can open more than one prompt for the same activity, so the prompt is the identity of
+// a cached row and the activity is only a lookup key.
 const CREATE_PROMPT_CACHE = `
   CREATE TABLE IF NOT EXISTS prompt_activities (
-    activity_id TEXT PRIMARY KEY NOT NULL,
-    prompt_id TEXT UNIQUE NOT NULL,
+    prompt_id TEXT PRIMARY KEY NOT NULL,
+    activity_id TEXT NOT NULL,
     study_id TEXT NOT NULL,
     closes_at TEXT NOT NULL,
     payload TEXT NOT NULL,
@@ -42,10 +44,52 @@ const CREATE_PROMPT_CACHE = `
   );
 `;
 
-const CREATE_PROMPT_CACHE_INDEX = `
+const CREATE_PROMPT_CACHE_INDEXES = `
   CREATE INDEX IF NOT EXISTS prompt_activities_study
     ON prompt_activities (study_id);
+  CREATE INDEX IF NOT EXISTS prompt_activities_activity
+    ON prompt_activities (activity_id);
 `;
+
+// Old installs keyed the cache by activity, which drops the second prompt of the same activity.
+const MIGRATED_PROMPT_CACHE = `
+  CREATE TABLE prompt_activities_migrated (
+    prompt_id TEXT PRIMARY KEY NOT NULL,
+    activity_id TEXT NOT NULL,
+    study_id TEXT NOT NULL,
+    closes_at TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    cached_at TEXT NOT NULL
+  );
+`;
+
+async function migratePromptCache(db: SQLite.SQLiteDatabase): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string; pk: number }>(
+    'PRAGMA table_info(prompt_activities)',
+  );
+  if (columns.length === 0) {
+    return;
+  }
+
+  const promptColumn = columns.find((column) => column.name === 'prompt_id');
+  if (promptColumn?.pk === 1) {
+    return;
+  }
+
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(MIGRATED_PROMPT_CACHE);
+    await db.execAsync(`
+      INSERT OR REPLACE INTO prompt_activities_migrated
+        (prompt_id, activity_id, study_id, closes_at, payload, cached_at)
+      SELECT prompt_id, activity_id, study_id, closes_at, payload, cached_at
+        FROM prompt_activities
+    `);
+    await db.execAsync('DROP TABLE prompt_activities');
+    await db.execAsync(
+      'ALTER TABLE prompt_activities_migrated RENAME TO prompt_activities',
+    );
+  });
+}
 
 // Free-entry activities have no prompt, so they cannot share the prompt cache, whose prompt_id
 // is unique and mandatory.
@@ -72,7 +116,8 @@ export function queueDatabase(): Promise<SQLite.SQLiteDatabase> {
       await db.execAsync(CREATE_OUTBOX);
       await db.execAsync(CREATE_OUTBOX_INDEXES);
       await db.execAsync(CREATE_PROMPT_CACHE);
-      await db.execAsync(CREATE_PROMPT_CACHE_INDEX);
+      await migratePromptCache(db);
+      await db.execAsync(CREATE_PROMPT_CACHE_INDEXES);
       await db.execAsync(CREATE_FREE_CACHE);
       await db.execAsync(CREATE_FREE_CACHE_INDEX);
       return db;

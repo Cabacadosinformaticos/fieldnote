@@ -35,8 +35,11 @@ type Captured = {
 };
 
 export default function PhotoRecordScreen() {
-  const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const { activity, loading } = useCachedActivity(activityId);
+  const { activityId, promptId } = useLocalSearchParams<{
+    activityId: string;
+    promptId?: string;
+  }>();
+  const { activity, loading } = useCachedActivity(activityId, promptId);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [photo, setPhoto] = useState<Captured | null>(null);
@@ -145,6 +148,7 @@ export default function PhotoRecordScreen() {
         <CaptureTypeTabs
           active="photo"
           activityId={activity.id}
+          promptId={activity.promptId}
           types={activity.captureTypes}
         />
 
