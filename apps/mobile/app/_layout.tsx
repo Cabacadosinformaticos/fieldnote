@@ -15,6 +15,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { TopBannerProvider } from '@/components/TopBanner';
 import { JoinProvider } from '@/state/join';
+import { StudyFocusProvider } from '@/state/studyFocus';
 import { colors } from '@/theme';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -42,14 +43,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <JoinProvider>
-        <TopBannerProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-            }}
-          />
-        </TopBannerProvider>
+        <StudyFocusProvider>
+          <TopBannerProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            />
+          </TopBannerProvider>
+        </StudyFocusProvider>
       </JoinProvider>
     </GestureHandlerRootView>
   );

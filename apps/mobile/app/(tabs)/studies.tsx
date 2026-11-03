@@ -20,6 +20,7 @@ import {
   saveParticipation,
   type Participation,
 } from '@/state/participations';
+import { useStudyFocus } from '@/state/studyFocus';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 type StudyRow = StudyCardModel & {
@@ -30,7 +31,13 @@ function stateOf(
   participation: Participation,
   studyStatus: string | undefined,
   now: Date,
+  erasureDueAt: string | null = null,
 ): StudyCardState {
+  // A pending erasure outranks the study ending: the card must offer the date and the cancel.
+  if (erasureDueAt || participation.status === 'erasure_scheduled') {
+    return 'erasing';
+  }
+
   switch (participation.status) {
     case 'pending_approval':
       return 'pending';
@@ -40,8 +47,6 @@ function stateOf(
       return 'removed';
     case 'declined':
       return 'declined';
-    case 'erasure_scheduled':
-      return 'erasing';
     default:
       break;
   }
@@ -68,15 +73,19 @@ function rowFromParticipation(
   return {
     id: participation.studyId,
     title: participation.title,
-    state: stateOf(participation, undefined, now),
+    state: stateOf(participation, undefined, now, erasureDueAt),
     erasureDueAt,
     endsOn: participation.endsOn,
   };
 }
 
-function openStudy(row: StudyRow) {
+function openStudy(
+  row: StudyRow,
+  focusStudy: (studyId: string) => void,
+) {
   switch (row.state) {
     case 'active':
+      focusStudy(row.id);
       router.push('/(tabs)');
       return;
     case 'pending':
@@ -103,6 +112,7 @@ function openStudy(row: StudyRow) {
 }
 
 export default function StudiesScreen() {
+  const { focusStudy } = useStudyFocus();
   const [rows, setRows] = useState<StudyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
@@ -176,7 +186,12 @@ export default function StudiesScreen() {
           return {
             id: data.study.id,
             title: data.study.title,
-            state: stateOf(updated, data.study.status, now),
+            state: stateOf(
+              updated,
+              data.study.status,
+              now,
+              data.erasure_due_at,
+            ),
             erasureDueAt: data.erasure_due_at,
             requestedAt: data.erasure_requested_at,
             endsOn: data.study.ends_on,
@@ -226,7 +241,7 @@ export default function StudiesScreen() {
           onDetails={() =>
             router.push({ pathname: '/study/[id]', params: { id: study.id } })
           }
-          onOpen={() => openStudy(study)}
+          onOpen={() => openStudy(study, focusStudy)}
           study={study}
         />
       ))}

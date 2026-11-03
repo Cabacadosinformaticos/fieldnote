@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { tm } from '@/i18n/tm';
 import { td } from '@/i18n/td';
 import { loadTodayPrompts } from '@/queue/prompts';
+import { useStudyFocus } from '@/state/studyFocus';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
@@ -25,6 +26,7 @@ const tabPresentation: Record<
 };
 
 export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps) {
+  const { focusedStudyId } = useStudyFocus();
   const [otherPrompts, setOtherPrompts] = useState(0);
 
   useEffect(() => {
@@ -38,8 +40,12 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
 
         const primaryStudyId =
           result.participations.find(
+            (participation) => participation.studyId === focusedStudyId,
+          )?.studyId ??
+          result.participations.find(
             (participation) => participation.status === 'active',
-          )?.studyId ?? result.participations[0]?.studyId;
+          )?.studyId ??
+          result.participations[0]?.studyId;
 
         setOtherPrompts(
           result.activities.filter(
@@ -52,7 +58,7 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
     return () => {
       active = false;
     };
-  }, [state.index]);
+  }, [focusedStudyId, state.index]);
 
   return (
     <View

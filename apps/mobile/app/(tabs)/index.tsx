@@ -25,6 +25,7 @@ import { startQueue } from '@/queue';
 import { cacheFreeEntry, forgetFreeEntry, loadTodayPrompts } from '@/queue/prompts';
 import type { FreeEntryActivity, PromptActivity } from '@/queue/types';
 import type { Participation } from '@/state/participations';
+import { useStudyFocus } from '@/state/studyFocus';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 function utcDate(iso: string | null): number | null {
@@ -91,6 +92,7 @@ function typeLabels(activity: PromptActivity): string {
 }
 
 export default function TodayScreen() {
+  const { focusedStudyId } = useStudyFocus();
   const [activities, setActivities] = useState<PromptActivity[]>([]);
   const [freeActivities, setFreeActivities] = useState<FreeEntryActivity[]>([]);
   const [participations, setParticipations] = useState<Participation[]>([]);
@@ -125,9 +127,24 @@ export default function TodayScreen() {
   const active = participations.filter(
     (participation) => participation.status === 'active',
   );
-  const primaryParticipation = active[0] ?? participations[0];
-  const primary = activities[0];
-  const others = activities.slice(1);
+  // The studies tab chooses which study Today shows; without a choice, the first active one.
+  const primaryParticipation =
+    participations.find(
+      (participation) => participation.studyId === focusedStudyId,
+    ) ??
+    active[0] ??
+    participations[0];
+  const focusedActive = primaryParticipation?.status === 'active';
+  const primary =
+    activities.find(
+      (activity) => activity.studyId === primaryParticipation?.studyId,
+    ) ?? (focusedStudyId ? undefined : activities[0]);
+  const others = activities.filter((activity) => activity !== primary);
+  const visibleFreeActivities = primaryParticipation
+    ? freeActivities.filter(
+        (activity) => activity.studyId === primaryParticipation.studyId,
+      )
+    : freeActivities;
 
   const openActivity = (activity: PromptActivity) => {
     if (activity.captureTypes.length === 0) {
@@ -137,7 +154,9 @@ export default function TodayScreen() {
     void forgetFreeEntry(activity.id).catch(() => undefined);
     router.push({
       pathname: '/record/[activityId]',
-      params: { activityId: activity.id },
+      params: activity.promptId
+        ? { activityId: activity.id, promptId: activity.promptId }
+        : { activityId: activity.id },
     });
   };
 
@@ -162,7 +181,7 @@ export default function TodayScreen() {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text numberOfLines={1} style={styles.studyLine}>
-            {studyLine(primaryParticipation, active.length > 0)}
+            {studyLine(primaryParticipation, focusedActive)}
           </Text>
           <Text style={styles.title}>{td('today.title')}</Text>
           <Text style={styles.date}>{longDateToday()}</Text>
@@ -191,9 +210,12 @@ export default function TodayScreen() {
         </View>
       ) : null}
 
-      {!loading && participations.length > 0 && !primary && freeActivities.length > 0 ? (
+      {!loading &&
+      participations.length > 0 &&
+      !primary &&
+      visibleFreeActivities.length > 0 ? (
         <FreeEntrySection
-          activities={freeActivities}
+          activities={visibleFreeActivities}
           main
           onOpen={openFreeEntry}
         />
@@ -204,7 +226,7 @@ export default function TodayScreen() {
           <View style={styles.noRequestIcon}>
             <Ionicons
               name={
-                active.length > 0
+                focusedActive
                   ? 'notifications-outline'
                   : 'hourglass-outline'
               }
@@ -214,12 +236,12 @@ export default function TodayScreen() {
           </View>
           <View style={styles.noRequestText}>
             <Text style={styles.noRequestTitle}>
-              {active.length > 0
+              {focusedActive
                 ? td('today.noRequestTitle')
                 : td('today.pendingTitle')}
             </Text>
             <Text style={styles.noRequestBody}>
-              {active.length > 0
+              {focusedActive
                 ? td('today.noRequestBody')
                 : td('today.pendingBody')}
             </Text>
@@ -333,9 +355,9 @@ export default function TodayScreen() {
         </>
       ) : null}
 
-      {!loading && primary && freeActivities.length > 0 ? (
+      {!loading && primary && visibleFreeActivities.length > 0 ? (
         <FreeEntrySection
-          activities={freeActivities}
+          activities={visibleFreeActivities}
           main={false}
           onOpen={openFreeEntry}
         />
