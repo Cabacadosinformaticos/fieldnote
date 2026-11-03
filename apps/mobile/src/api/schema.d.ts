@@ -305,6 +305,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/pool/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pool Overview
+         * @description Aggregates for the administrator pool screen; never a member profile.
+         */
+        get: operations["pool_overview_api_v1_admin_pool_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/studies": {
         parameters: {
             query?: never;
@@ -370,6 +390,63 @@ export interface paths {
         get: operations["me_api_v1_auth_me_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Password Reset */
+        post: operations["confirm_password_reset_api_v1_auth_password_reset_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-reset/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Password Reset
+         * @description Start the recovery flow. The answer never says whether the email has an account.
+         */
+        post: operations["request_password_reset_api_v1_auth_password_reset_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Change the signed-in account's password; a temporary password can do this too.
+         */
+        post: operations["change_password_api_v1_auth_password_change_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -649,6 +726,23 @@ export interface paths {
         get: operations["list_open_prompts_api_v1_participation_me_prompts_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/participation/me/prompts/{prompt_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report Prompt Events */
+        post: operations["report_prompt_events_api_v1_participation_me_prompts__prompt_id__events_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -979,6 +1073,23 @@ export interface paths {
         get: operations["entry_detail_api_v1_studies__study_id__entries__entry_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/studies/{study_id}/entries/{entry_id}/media/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Entry Media */
+        post: operations["retry_entry_media_api_v1_studies__study_id__entries__entry_id__media_retry_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1708,6 +1819,66 @@ export interface components {
             /** Sent Pending */
             sent_pending: number;
         };
+        /** AdminPoolConcelhoOut */
+        AdminPoolConcelhoOut: {
+            /** Concelho */
+            concelho: string;
+            /** Members */
+            members: number;
+        };
+        /** AdminPoolFieldsOut */
+        AdminPoolFieldsOut: {
+            /** Age Band */
+            age_band: number;
+            /** Concelho */
+            concelho: number;
+            /** Freguesia */
+            freguesia: number;
+            /** Gender */
+            gender: number;
+            /** Languages */
+            languages: number;
+            /** Occupation */
+            occupation: number;
+            /** Usual Transport */
+            usual_transport: number;
+        };
+        /** AdminPoolInvitationResultsOut */
+        AdminPoolInvitationResultsOut: {
+            /** Accepted */
+            accepted: number;
+            /** Declined */
+            declined: number;
+            /** Expired */
+            expired: number;
+            /** Sent */
+            sent: number;
+            /**
+             * Study Id
+             * Format: uuid
+             */
+            study_id: string;
+            /** Study Title */
+            study_title: string;
+        };
+        /** AdminPoolOverviewOut */
+        AdminPoolOverviewOut: {
+            /** Concelhos */
+            concelhos: components["schemas"]["AdminPoolConcelhoOut"][];
+            fields: components["schemas"]["AdminPoolFieldsOut"];
+            /** Invitation Results */
+            invitation_results: components["schemas"]["AdminPoolInvitationResultsOut"][];
+            /** Invitations Accepted */
+            invitations_accepted: number;
+            /** Invitations Sent */
+            invitations_sent: number;
+            /** Members Paused */
+            members_paused: number;
+            /** Members Total */
+            members_total: number;
+            /** Top Concelhos */
+            top_concelhos: number;
+        };
         /** AdminStudyOut */
         AdminStudyOut: {
             /** Ends On */
@@ -1833,6 +2004,13 @@ export interface components {
             /** Intervals */
             intervals: components["schemas"]["AvailabilityIntervalOut"][];
         };
+        /** AvailabilitySummaryOut */
+        AvailabilitySummaryOut: {
+            /** Any Time */
+            any_time: boolean;
+            /** Intervals */
+            intervals: components["schemas"]["AvailabilityIntervalOut"][];
+        };
         /** AvailabilityUpdate */
         AvailabilityUpdate: {
             /**
@@ -1894,6 +2072,8 @@ export interface components {
             items: components["schemas"]["EntryOut"][];
             /** Next Cursor */
             next_cursor?: string | null;
+            /** Total */
+            total: number;
         };
         /** EntryOut */
         EntryOut: {
@@ -2023,6 +2203,8 @@ export interface components {
         ErasureListOut: {
             /** Completed */
             completed: components["schemas"]["CompletedErasureOut"][];
+            /** Next Cursor */
+            next_cursor?: number | null;
             /** Scheduled */
             scheduled: components["schemas"]["ScheduledErasureOut"][];
         };
@@ -2179,10 +2361,24 @@ export interface components {
             /** Size Bytes */
             size_bytes: number;
             status: components["schemas"]["MediaStatus"];
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /** Thumbnail Url Expires At */
+            thumbnail_url_expires_at?: string | null;
             /** Url */
             url?: string | null;
             /** Url Expires At */
             url_expires_at?: string | null;
+        };
+        /** MediaRetryOut */
+        MediaRetryOut: {
+            /**
+             * Entry Id
+             * Format: uuid
+             */
+            entry_id: string;
+            /** Media Ids */
+            media_ids: string[];
         };
         /**
          * MediaStatus
@@ -2418,6 +2614,9 @@ export interface components {
         ParticipantAddedOut: {
             /** Alias */
             alias: string | null;
+            availability_summary?: components["schemas"]["AvailabilitySummaryOut"] | null;
+            /** Consented At */
+            consented_at?: string | null;
             /** Entered At */
             entered_at: string | null;
             /** Entry Route */
@@ -2430,6 +2629,9 @@ export interface components {
              */
             id: string;
             invite_code: components["schemas"]["PersonalInviteCodeOut"];
+            /** Last Entry At */
+            last_entry_at?: string | null;
+            locale?: components["schemas"]["Locale"] | null;
             status: components["schemas"]["ParticipantStatus"];
         };
         /** ParticipantCreate */
@@ -2478,6 +2680,9 @@ export interface components {
         ParticipantOut: {
             /** Alias */
             alias: string | null;
+            availability_summary?: components["schemas"]["AvailabilitySummaryOut"] | null;
+            /** Consented At */
+            consented_at?: string | null;
             /** Entered At */
             entered_at: string | null;
             /** Entry Route */
@@ -2489,6 +2694,9 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Last Entry At */
+            last_entry_at?: string | null;
+            locale?: components["schemas"]["Locale"] | null;
             status: components["schemas"]["ParticipantStatus"];
         };
         /**
@@ -2496,6 +2704,30 @@ export interface components {
          * @enum {string}
          */
         ParticipantStatus: "active" | "pending_approval" | "declined" | "withdrawn" | "removed" | "erasure_scheduled";
+        /** PasswordChangeRequest */
+        PasswordChangeRequest: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordResetConfirm */
+        PasswordResetConfirm: {
+            /** New Password */
+            new_password: string;
+            /** Token */
+            token: string;
+        };
+        /** PasswordResetRequest */
+        PasswordResetRequest: {
+            /** Email */
+            email: string;
+        };
+        /** PasswordResetRequestOut */
+        PasswordResetRequestOut: {
+            /** Message */
+            message: string;
+        };
         /** PersonalInviteCodeOut */
         PersonalInviteCodeOut: {
             /** Code */
@@ -2766,6 +2998,19 @@ export interface components {
             sent: number;
         };
         /**
+         * PromptEventIn
+         * @description When the phone showed and opened a prompt.
+         *
+         *     The values come from the phone clock because a report can arrive late, so each one is
+         *     optional and only the first report of a field is kept.
+         */
+        PromptEventIn: {
+            /** Opened At */
+            opened_at?: string | null;
+            /** Shown At */
+            shown_at?: string | null;
+        };
+        /**
          * PromptStatus
          * @enum {string}
          */
@@ -2849,6 +3094,24 @@ export interface components {
              * @default Account
              */
             token_type: string;
+        };
+        /** StudyAdherenceOut */
+        StudyAdherenceOut: {
+            /**
+             * Answered
+             * @default 0
+             */
+            answered: number;
+            /**
+             * Out
+             * @default 0
+             */
+            out: number;
+            /**
+             * Percentage
+             * @default 0
+             */
+            percentage: number;
         };
         /** StudyAnswerIn */
         StudyAnswerIn: {
@@ -2989,6 +3252,10 @@ export interface components {
         };
         /** StudyCreate */
         StudyCreate: {
+            /** Collaborators */
+            collaborators?: string[];
+            /** Consent Text */
+            consent_text?: string | null;
             /** Description */
             description?: string | null;
             /** Ends On */
@@ -3010,6 +3277,10 @@ export interface components {
          * @description A study on the dashboard list, with the counts the cards show.
          */
         StudyListItemOut: {
+            adherence_study: components["schemas"]["StudyAdherenceOut"];
+            adherence_today: components["schemas"]["StudyAdherenceOut"];
+            /** Consent Text */
+            consent_text?: string | null;
             /** Description */
             description: string | null;
             /** Ends On */
@@ -3059,6 +3330,8 @@ export interface components {
         };
         /** StudyOut */
         StudyOut: {
+            /** Consent Text */
+            consent_text?: string | null;
             /** Description */
             description: string | null;
             /** Ends On */
@@ -3194,6 +3467,8 @@ export interface components {
         };
         /** StudyUpdate */
         StudyUpdate: {
+            /** Consent Text */
+            consent_text?: string | null;
             /** Description */
             description?: string | null;
             /** Ends On */
@@ -3358,6 +3633,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Must Change Password */
+            must_change_password: boolean;
             role: components["schemas"]["UserRole"];
         };
         /**
@@ -3930,7 +4207,10 @@ export interface operations {
     };
     list_erasures_api_v1_admin_erasures_get: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: number | null;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3944,6 +4224,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErasureListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3975,6 +4264,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pool_overview_api_v1_admin_pool_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPoolOverviewOut"];
                 };
             };
         };
@@ -4066,6 +4375,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserOut"];
+                };
+            };
+        };
+    };
+    confirm_password_reset_api_v1_auth_password_reset_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_password_reset_api_v1_auth_password_reset_request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordResetRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_api_v1_auth_password_change_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4576,6 +4980,41 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OpenPromptsOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_prompt_events_api_v1_participation_me_prompts__prompt_id__events_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                prompt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptEventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -5363,6 +5802,9 @@ export interface operations {
                 tag_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
+                q?: string | null;
+                free_only?: boolean;
+                late_only?: boolean;
                 cursor?: string | null;
                 limit?: number;
             };
@@ -5413,6 +5855,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_entry_media_api_v1_studies__study_id__entries__entry_id__media_retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaRetryOut"];
                 };
             };
             /** @description Validation Error */

@@ -12,6 +12,7 @@ import {
   resetInterruptedEntries,
   updateEntryMedia,
 } from './outbox';
+import { sendPendingPromptEvents } from './promptEvents';
 import { backoffMs } from './stable';
 import type { MediaAttachment, OutboxEntry } from './types';
 
@@ -224,6 +225,10 @@ async function runFlush(includeBackoff: boolean): Promise<FlushReport> {
       }
     }
   }
+
+  // Prompt reports share the flush triggers of the outbox but never delay its entries: a
+  // failure here is simply retried on the next flush.
+  await sendPendingPromptEvents().catch(() => undefined);
 
   return { sent, failed, offline: false };
 }

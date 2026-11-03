@@ -5,6 +5,7 @@ import { accountClient, api, poolClient, type components } from '@/api/client';
 import { queueDatabase } from '@/queue/database';
 import { deleteStudyMedia, notifyOutbox } from '@/queue/outbox';
 import { clearCachedStudy } from '@/queue/promptCache';
+import { clearStudyPromptEvents } from '@/queue/promptEvents';
 import {
   deviceTokenKey,
   getDeviceToken,
@@ -235,6 +236,7 @@ export async function clearStudyQueue(studyId: string): Promise<void> {
       const db = await queueDatabase();
       await db.runAsync('DELETE FROM outbox WHERE study_id = ?', [studyId]);
       await clearCachedStudy(studyId);
+      await clearStudyPromptEvents(studyId);
       notifyOutbox();
       return;
     } catch (error) {

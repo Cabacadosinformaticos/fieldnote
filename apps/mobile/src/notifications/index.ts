@@ -6,6 +6,7 @@ import { Linking } from 'react-native';
 import { deviceClientForStudy } from '@/api/client';
 import { showTopBanner } from '@/components/TopBanner';
 import { td } from '@/i18n/td';
+import { recordPromptShown } from '@/queue/promptEvents';
 import {
   cachedActivityForPrompt,
   refreshPromptCache,
@@ -166,6 +167,26 @@ async function openPrompt(promptId: string): Promise<void> {
   });
 }
 
+/**
+ * A notification shown in the foreground makes the prompt visible, so its first appearance is
+ * reported even if Today has not refreshed yet. A missing prompt or study only skips the report.
+ */
+async function reportForegroundShown(promptId: string): Promise<void> {
+  try {
+    let activity = await cachedActivityForPrompt(promptId);
+    if (!activity) {
+      const refreshed = await refreshPromptCache();
+      activity =
+        refreshed.prompts.find((item) => item.promptId === promptId) ?? null;
+    }
+    if (activity) {
+      await recordPromptShown(activity.studyId, promptId);
+    }
+  } catch {
+    // Reporting is best effort and must never disturb the banner.
+  }
+}
+
 function promptIdFrom(data: unknown): string | null {
   if (!data || typeof data !== 'object') {
     return null;
@@ -216,6 +237,9 @@ export function startNotifications(): void {
   Notifications.addNotificationReceivedListener((notification) => {
     // Only the prompt id is trusted; the banner text is always generic.
     const promptId = promptIdFrom(notification.request.content.data);
+    if (promptId) {
+      void reportForegroundShown(promptId);
+    }
     showTopBanner({
       icon: 'notifications-outline',
       title: td('notification.foregroundTitle'),

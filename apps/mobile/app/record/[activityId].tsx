@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
@@ -9,6 +10,7 @@ import { RecordHeader } from '@/components/daily/RecordHeader';
 import { captureTypeIcons, captureTypeLabelKeys } from '@/components/daily/captureType';
 import { td } from '@/i18n/td';
 import { useCachedActivity } from '@/queue/hooks';
+import { recordPromptOpened } from '@/queue/promptEvents';
 import type { CaptureType } from '@/queue/types';
 import { colors, fonts, radii, spacing } from '@/theme';
 
@@ -29,6 +31,15 @@ export default function ActivityScreen() {
     promptId?: string;
   }>();
   const { activity, loading } = useCachedActivity(activityId, promptId);
+
+  // Opening the record screen of a prompt is its first open, wherever it was opened from.
+  useEffect(() => {
+    if (activity?.promptId) {
+      void recordPromptOpened(activity.studyId, activity.promptId).catch(
+        () => undefined,
+      );
+    }
+  }, [activity?.promptId, activity?.studyId]);
 
   if (loading) {
     return (

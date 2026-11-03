@@ -107,6 +107,23 @@ const CREATE_FREE_CACHE_INDEX = `
     ON free_entry_activities (study_id);
 `;
 
+// The shown and opened times of a prompt wait here when the API cannot be reached (FR-19).
+// One row per prompt: the first value of each field wins, like on the server.
+const CREATE_PROMPT_EVENTS = `
+  CREATE TABLE IF NOT EXISTS prompt_events (
+    prompt_id TEXT PRIMARY KEY NOT NULL,
+    study_id TEXT NOT NULL,
+    shown_at TEXT,
+    opened_at TEXT,
+    created_at TEXT NOT NULL
+  );
+`;
+
+const CREATE_PROMPT_EVENTS_INDEX = `
+  CREATE INDEX IF NOT EXISTS prompt_events_study
+    ON prompt_events (study_id);
+`;
+
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export function queueDatabase(): Promise<SQLite.SQLiteDatabase> {
@@ -120,6 +137,8 @@ export function queueDatabase(): Promise<SQLite.SQLiteDatabase> {
       await db.execAsync(CREATE_PROMPT_CACHE_INDEXES);
       await db.execAsync(CREATE_FREE_CACHE);
       await db.execAsync(CREATE_FREE_CACHE_INDEX);
+      await db.execAsync(CREATE_PROMPT_EVENTS);
+      await db.execAsync(CREATE_PROMPT_EVENTS_INDEX);
       return db;
     })();
   }

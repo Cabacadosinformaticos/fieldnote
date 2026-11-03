@@ -25,6 +25,7 @@ import {
   startNotifications,
 } from '@/notifications';
 import { startQueue } from '@/queue';
+import { recordPromptShown } from '@/queue/promptEvents';
 import { cacheFreeEntry, forgetFreeEntry, loadTodayPrompts } from '@/queue/prompts';
 import type { FreeEntryActivity, PromptActivity } from '@/queue/types';
 import type { Participation } from '@/state/participations';
@@ -105,6 +106,15 @@ export default function TodayScreen() {
   const load = useCallback(async () => {
     try {
       const result = await loadTodayPrompts();
+      // The prompt is on Today now, so its first appearance is reported (FR-19). The write is
+      // queued on the phone and never blocks or fails the screen.
+      for (const activity of result.activities) {
+        if (activity.promptId) {
+          void recordPromptShown(activity.studyId, activity.promptId).catch(
+            () => undefined,
+          );
+        }
+      }
       setActivities(result.activities);
       setFreeActivities(result.freeActivities);
       setParticipations(result.participations);
