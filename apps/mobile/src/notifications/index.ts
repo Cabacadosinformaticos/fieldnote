@@ -19,6 +19,11 @@ type EasExtra = {
 };
 
 let started = false;
+// Opening a prompt from a notification before the first screen has settled lets the redirect
+// from the root route replace the record screen with Today. The navigation waits for the Today
+// screen to mount, which only happens after that redirect.
+let navigationReady = false;
+let pendingPromptId: string | null = null;
 const handledNotifications = new Set<string>();
 
 function projectId(): string | null {
@@ -100,7 +105,30 @@ export async function enableNotifications(): Promise<boolean> {
   return false;
 }
 
+/**
+ * Called when the first screen with the tabs has mounted. Only then can a prompt pushed by a
+ * notification keep the record screen on top instead of being replaced by the Today redirect.
+ */
+export function notificationNavigationReady(): void {
+  navigationReady = true;
+  const promptId = pendingPromptId;
+  pendingPromptId = null;
+  if (promptId) {
+    void openPrompt(promptId);
+  }
+  // A response that launched the app is not readable this early at the root layout; it only
+  // becomes available once the first screen is mounted. Ask again here, where it is.
+  void Notifications.getLastNotificationResponseAsync()
+    .then((response) => (response ? handleResponse(response) : undefined))
+    .catch(() => undefined);
+}
+
 async function openPrompt(promptId: string): Promise<void> {
+  if (!navigationReady) {
+    pendingPromptId = promptId;
+    return;
+  }
+
   let activity = await cachedActivityForPrompt(promptId).catch(() => null);
 
   if (!activity) {
@@ -207,8 +235,5 @@ export function startNotifications(): void {
     void handleResponse(response);
   });
 
-  void Notifications.getLastNotificationResponseAsync()
-    .then((response) => (response ? handleResponse(response) : undefined))
-    .catch(() => undefined);
   void registerPushTokens().catch(() => undefined);
 }

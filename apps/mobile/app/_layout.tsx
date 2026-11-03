@@ -14,6 +14,7 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { TopBannerProvider } from '@/components/TopBanner';
+import { startNotifications } from '@/notifications';
 import { JoinProvider } from '@/state/join';
 import { StudyFocusProvider } from '@/state/studyFocus';
 import { colors } from '@/theme';
@@ -35,6 +36,12 @@ export default function RootLayout() {
       void SplashScreen.hideAsync().catch(() => undefined);
     }
   }, [fontsLoaded, fontError]);
+
+  // Registered here, not in Today, so a response that launches the app is caught even while the
+  // first route is still deciding where to go.
+  useEffect(() => {
+    startNotifications();
+  }, []);
 
   if (!fontsLoaded && !fontError) {
     return null;

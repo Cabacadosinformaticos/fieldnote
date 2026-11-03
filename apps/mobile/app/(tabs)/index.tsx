@@ -20,7 +20,10 @@ import {
   longDateToday,
 } from '@/components/daily/entryFormat';
 import { td } from '@/i18n/td';
-import { startNotifications } from '@/notifications';
+import {
+  notificationNavigationReady,
+  startNotifications,
+} from '@/notifications';
 import { startQueue } from '@/queue';
 import { cacheFreeEntry, forgetFreeEntry, loadTodayPrompts } from '@/queue/prompts';
 import type { FreeEntryActivity, PromptActivity } from '@/queue/types';
@@ -116,6 +119,9 @@ export default function TodayScreen() {
   useEffect(() => {
     startQueue();
     startNotifications();
+    // The Today tab is mounted only after the root redirect has run, so a notification can now
+    // push its record screen without being replaced.
+    notificationNavigationReady();
   }, []);
 
   useFocusEffect(
