@@ -1,6 +1,7 @@
 """Joining with a code and the participant side of a participation."""
 
 import json
+import uuid
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -46,6 +47,7 @@ APPROVAL = "/api/v1/participation/me/approval"
 AVAILABILITY = "/api/v1/participation/me/availability"
 PUSH_TOKEN = "/api/v1/participation/me/push-token"
 PROMPTS = "/api/v1/participation/me/prompts"
+PROMPT_EVENTS = "/api/v1/participation/me/prompts/{prompt_id}/events"
 ACTIVITIES = "/api/v1/participation/me/activities"
 ACCOUNT_RECOVERY = "/api/v1/account/recovery"
 ACCOUNT_CONFIRM = "/api/v1/account/confirm"
@@ -1101,6 +1103,98 @@ def test_open_prompts_lists_only_todays_sent_prompts_of_this_participant(
     participant.status = ParticipantStatus.WITHDRAWN
     session.commit()
     assert client.get(PROMPTS, headers=_device("prompt-token")).json()["prompts"] == []
+
+
+def test_prompt_events_store_the_first_shown_and_opened_times(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    participant = _participant_with_token(session, make_participant, study, "event-token")
+    activity = _add_activity(session, study)
+    prompt = _add_prompt(session, participant, activity, status=PromptStatus.SENT)
+    url = PROMPT_EVENTS.format(prompt_id=prompt.id)
+
+    shown = datetime.now(UTC) - timedelta(minutes=2)
+    opened = datetime.now(UTC) - timedelta(minutes=1)
+    response = client.post(
+        url,
+        headers=_device("event-token"),
+        json={"shown_at": shown.isoformat(), "opened_at": opened.isoformat()},
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+    session.refresh(prompt)
+    assert prompt.shown_at == shown
+    assert prompt.opened_at == opened
+
+    # A resend, or a second appearance, never overwrites the first value.
+    later = datetime.now(UTC) + timedelta(minutes=3)
+    resent = client.post(
+        url,
+        headers=_device("event-token"),
+        json={"shown_at": later.isoformat(), "opened_at": later.isoformat()},
+    )
+    assert resent.status_code == 204
+    session.refresh(prompt)
+    assert prompt.shown_at == shown
+    assert prompt.opened_at == opened
+
+
+def test_prompt_events_only_accept_a_prompt_of_this_participant(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    _participant_with_token(session, make_participant, study, "event-token")
+    other = make_participant(study, alias="P-02")
+    activity = _add_activity(session, study)
+    other_prompt = _add_prompt(session, other, activity, status=PromptStatus.SENT)
+
+    foreign = client.post(
+        PROMPT_EVENTS.format(prompt_id=other_prompt.id),
+        headers=_device("event-token"),
+        json={"shown_at": datetime.now(UTC).isoformat()},
+    )
+    assert foreign.status_code == 404
+    assert foreign.json()["error"]["code"] == "prompt_not_found"
+
+    unknown = client.post(
+        PROMPT_EVENTS.format(prompt_id=uuid.uuid4()),
+        headers=_device("event-token"),
+        json={"shown_at": datetime.now(UTC).isoformat()},
+    )
+    assert unknown.status_code == 404
+    session.refresh(other_prompt)
+    assert other_prompt.shown_at is None
+
+
+def test_prompt_events_clamp_times_outside_the_believable_band(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    participant = _participant_with_token(session, make_participant, study, "event-token")
+    activity = _add_activity(session, study)
+    prompt = _add_prompt(session, participant, activity, status=PromptStatus.SENT)
+    sent_at = datetime.now(UTC) - timedelta(hours=1)
+    prompt.sent_at = sent_at
+    session.commit()
+    url = PROMPT_EVENTS.format(prompt_id=prompt.id)
+
+    before = datetime.now(UTC)
+    future = before + timedelta(hours=1)
+    past = sent_at - timedelta(hours=1)
+    response = client.post(
+        url,
+        headers=_device("event-token"),
+        json={"shown_at": future.isoformat(), "opened_at": past.isoformat()},
+    )
+
+    assert response.status_code == 204
+    session.refresh(prompt)
+    # A future value is clamped to the server clock.
+    assert before <= prompt.shown_at <= datetime.now(UTC)
+    # A value from before the prompt was sent is clamped to sent_at.
+    assert prompt.opened_at == sent_at
 
 
 def test_leave_deletes_planned_prompts_and_return_reactivates(

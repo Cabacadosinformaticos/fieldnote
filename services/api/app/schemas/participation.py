@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from app.models.enums import (
     InviteCodeKind,
@@ -187,6 +187,17 @@ class OpenPromptOut(BaseModel):
 class OpenPromptsOut(BaseModel):
     date: date
     prompts: list[OpenPromptOut]
+
+
+class PromptEventIn(BaseModel):
+    """When the phone showed and opened a prompt.
+
+    The values come from the phone clock because a report can arrive late, so each one is
+    optional and only the first report of a field is kept.
+    """
+
+    shown_at: AwareDatetime | None = None
+    opened_at: AwareDatetime | None = None
 
 
 class FreeEntryActivityOut(BaseModel):

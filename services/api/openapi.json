@@ -4371,6 +4371,37 @@
         "title": "PoolSendOut",
         "type": "object"
       },
+      "PromptEventIn": {
+        "description": "When the phone showed and opened a prompt.\n\nThe values come from the phone clock because a report can arrive late, so each one is\noptional and only the first report of a field is kept.",
+        "properties": {
+          "opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "shown_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shown At"
+          }
+        },
+        "title": "PromptEventIn",
+        "type": "object"
+      },
       "PromptStatus": {
         "enum": [
           "planned",
@@ -8297,6 +8328,68 @@
           }
         },
         "summary": "List Open Prompts",
+        "tags": [
+          "participation"
+        ]
+      }
+    },
+    "/api/v1/participation/me/prompts/{prompt_id}/events": {
+      "post": {
+        "operationId": "report_prompt_events_api_v1_participation_me_prompts__prompt_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Prompt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptEventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report Prompt Events",
         "tags": [
           "participation"
         ]

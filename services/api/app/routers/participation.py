@@ -4,6 +4,7 @@ A code is checked without being consumed; the device token is issued only on acc
 returned once. Every route after that uses ``Authorization: Device <token>``.
 """
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -28,6 +29,7 @@ from app.schemas.participation import (
     OpenPromptOut,
     OpenPromptsOut,
     ParticipantMeOut,
+    PromptEventIn,
     PushTokenUpdate,
     StudyCardOut,
     StudyQuestionOut,
@@ -249,6 +251,22 @@ def list_open_prompts(
             )
             for item in prompts
         ],
+    )
+
+
+@router.post("/me/prompts/{prompt_id}/events", status_code=204)
+def report_prompt_events(
+    prompt_id: uuid.UUID,
+    payload: PromptEventIn,
+    participant: ParticipantDep,
+    session: SessionDep,
+) -> None:
+    service.report_prompt_events(
+        session,
+        participant,
+        prompt_id,
+        shown_at=payload.shown_at,
+        opened_at=payload.opened_at,
     )
 
 

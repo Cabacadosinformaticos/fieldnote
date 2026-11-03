@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
@@ -46,6 +46,8 @@ from app.services.entries_upload import free_entries_used_today
 
 CONSENT_VERSION = "1.0"
 ERASURE_DELAY = timedelta(days=7)
+# A phone clock can be off; a report outside this band is not believable and is clamped.
+PROMPT_EVENT_TOLERANCE = timedelta(minutes=5)
 MAX_ANSWER_LENGTH = 300
 CONFIRMATION_WORDS = frozenset({"APAGAR", "ERASE"})
 
@@ -687,6 +689,54 @@ def cancel_erasure(session: Session, participant: Participant) -> Participant:
     record(session, participant, "erasure_cancelled", target=str(participant.id))
     session.commit()
     return participant
+
+
+def _plausible_event_time(value: datetime, sent_at: datetime | None, now: datetime) -> datetime:
+    """Keep a phone timestamp inside the window where it can be believed.
+
+    Clamping beats refusing: a clock a few minutes off must not lose the whole report, and the
+    app only sends the first value of each field, so a refused report could never be resent
+    with a better time. A future value is clamped to the server clock and a value from well
+    before the prompt was sent is clamped to ``sent_at``.
+    """
+    if value > now + PROMPT_EVENT_TOLERANCE:
+        value = now
+    if sent_at is not None and value < sent_at - PROMPT_EVENT_TOLERANCE:
+        value = sent_at
+    return value
+
+
+def report_prompt_events(
+    session: Session,
+    participant: Participant,
+    prompt_id: uuid.UUID,
+    *,
+    shown_at: datetime | None,
+    opened_at: datetime | None,
+) -> None:
+    """Store the first shown and opened times of a prompt of this participant (FR-19)."""
+    prompt = session.scalar(
+        select(Prompt).where(
+            Prompt.id == prompt_id,
+            Prompt.participant_id == participant.id,
+        )
+    )
+    if prompt is None:
+        # Same answer as a prompt of another study: the device learns nothing about it.
+        raise ApiError(404, "prompt_not_found", "The prompt does not exist.")
+
+    now = datetime.now(UTC)
+    events = {"shown_at": shown_at, "opened_at": opened_at}
+    for column, value in events.items():
+        if value is None:
+            continue
+        # The condition makes the first report win even when two resends race.
+        session.execute(
+            update(Prompt)
+            .where(Prompt.id == prompt.id, getattr(Prompt, column).is_(None))
+            .values({column: _plausible_event_time(value, prompt.sent_at, now)})
+        )
+    session.commit()
 
 
 def open_prompts(session: Session, participant: Participant) -> tuple[date, list[OpenPrompt]]:
