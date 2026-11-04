@@ -70,10 +70,6 @@ const pt = {
   'activity.free': 'Registo livre',
   'activity.unknown': 'Atividade removida',
   'dates.all': 'Todas as datas',
-  'dates.today': '9 out.',
-  'dates.day6': '6 out.',
-  'dates.day7': '7 out.',
-  'dates.day8': '8 out.',
 
   'detail.selected': 'Registo selecionado',
   'detail.recorded': 'Gravado',

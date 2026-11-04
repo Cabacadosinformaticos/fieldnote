@@ -89,9 +89,6 @@ export const pt = {
   'list.loading': 'A carregar participantes…',
   'list.error': 'Não foi possível carregar os participantes.',
   'list.retry': 'Tentar de novo',
-  'list.footerA': '24 de 24 participantes. P-07 e P-19 não têm registos há 2 dias.',
-  'list.footerB':
-    'P-14 mudou de telemóvel a 8 out.: o acesso do telemóvel antigo foi revogado e o histórico mantém-se.',
   'list.menuAria': 'Ações de {id}',
   'list.menuRemoveHint':
     'Deixa de receber pedidos. Os registos ficam com o pseudónimo e a pessoa ainda pode apagar os dados na app.',
@@ -155,7 +152,9 @@ export const pt = {
   'detail.adherenceLabel': '{answered} de {total} pedidos ({percent} %)',
   'detail.adherenceTitle': 'Adesão por dia',
   'detail.adherenceSub':
-    'Cada coluna é um dia do estudo (dia 1 a 14, de 6 a 19 out.) e cada linha é um pedido do dia. Os pedidos sem resposta passam a expirados.',
+    'Cada coluna é um dia do estudo (de {start} a {end}) e cada linha é um pedido do dia. Os pedidos sem resposta passam a expirados.',
+  'detail.adherenceSubPlain':
+    'Cada coluna é um dia do estudo e cada linha é um pedido do dia. Os pedidos sem resposta passam a expirados.',
   'detail.adherenceValue': 'Adesão {percent} %',
   'detail.adherenceOf': '({answered} de {total} pedidos)',
   'detail.answeredPill': '{count} respondidos',
@@ -259,9 +258,7 @@ export const pt = {
   'codes.waitingPrivacy':
     'Não vê nomes nem contactos: só a hora de entrada. Se recusar, a pessoa é avisada com clareza e nada fica registado sobre ela. Cada decisão fica na auditoria.',
   'codes.waitingDeadlineTitle':
-    'As entradas por decidir são recusadas automaticamente quando o código terminar (12 out.).',
-  'codes.waitingDeadlineBody':
-    'A equipa recebe um lembrete 24 h antes, a 11 out., se ainda houver entradas à espera. As recusadas não contam para o limite de entradas.',
+    'As entradas por decidir são recusadas automaticamente quando o código terminar.',
   'codes.waitingPerson': 'Pessoa {order}',
   'codes.waitingEmpty': 'Nenhuma entrada à espera de aprovação.',
   'codes.waitingSubCount':
@@ -411,7 +408,6 @@ export const pt = {
   'poster.taglineShort': 'Pedidos curtos no seu dia a dia.',
   'poster.pillMinutes': 'Cerca de {count} minutos por dia',
   'poster.pillMinutesOne': 'Cerca de 1 minuto por dia',
-  'poster.pillDates': 'De 6 a 19 de outubro',
   'poster.howTitle': 'Instale a app Fieldnote e leia o código',
   'poster.step1': 'Instale a app no seu telemóvel Android.',
   'poster.step2': 'Toque em «Ler código QR» e aponte para o quadrado ao lado.',
@@ -424,7 +420,6 @@ export const pt = {
   'poster.team': 'Equipa',
   'poster.teamEmpty': '–',
   'poster.signups': 'Inscrições',
-  'poster.signupsValue': 'Até 12 de outubro',
   'poster.dates': 'Datas',
   'poster.privacy': 'Privacidade',
   'poster.privacyValue': 'Participa com um pseudónimo. A equipa confirma cada entrada.',

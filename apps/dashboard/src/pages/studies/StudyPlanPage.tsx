@@ -203,6 +203,10 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
     )
   }
   const highestPerParticipant = Math.max(0, ...perParticipant.values())
+  const withHours = plan.participants.filter(
+    (participant) =>
+      participant.availability_any_time || participant.availability.length > 0,
+  ).length
 
   return (
     <section
@@ -253,7 +257,9 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
         <div className="st-plan-stat">
           <span className="st-plan-stat-label">{t('plan.summary.participants')}</span>
           <span className="st-plan-stat-value">{plan.participants.length}</span>
-          <span className="st-plan-stat-note">{t('plan.summary.participantsNote')}</span>
+          <span className="st-plan-stat-note">
+            {t('plan.summary.participantsNote', { count: withHours })}
+          </span>
         </div>
         <div className="st-plan-stat">
           <span className="st-plan-stat-label">{t('plan.summary.maxInterval')}</span>

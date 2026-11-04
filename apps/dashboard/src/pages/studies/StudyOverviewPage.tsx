@@ -3,7 +3,12 @@ import { Link, useParams } from 'react-router-dom'
 import { CheckIcon, ExportIcon } from '../../components/icons'
 import EntryThumb from '../../components/studies/EntryThumb'
 import StudyStatusPill from '../../components/studies/StudyStatusPill'
-import { formatDateRange, formatDayMonthYear, formatWeekdayDayMonth } from '../../components/studies/format'
+import {
+  formatDateRange,
+  formatDayMonth,
+  formatDayMonthYear,
+  formatWeekdayDayMonth,
+} from '../../components/studies/format'
 import {
   FileTextIcon,
   StopIcon,
@@ -11,6 +16,7 @@ import {
   UsersIcon,
 } from '../../components/studies/StudyIcons'
 import {
+  dateInTimezone,
   statusFromApi,
   studiesErrorMessage,
   studyDay,
@@ -23,6 +29,7 @@ import {
   type FeedItem,
   type OverviewAlert,
 } from '../../api/studies'
+import { useParticipants } from '../../api/participants'
 import { t, type StudiesKey } from '../../i18n/studies'
 import '../../styles/studies.css'
 
@@ -70,15 +77,22 @@ function alertTitle(alert: OverviewAlert): string {
   return t('overview.attention.inactiveTitle', { alias: alert.alias ?? '–' })
 }
 
-function alertDetail(alert: OverviewAlert, timezone: string): string {
+function alertDetail(
+  alert: OverviewAlert,
+  lastEntryAt: string | null | undefined,
+  timezone: string,
+): string {
   if (alert.kind === 'pending_approval') {
     return t('overview.attention.approvalsDetail')
   }
-  if (!alert.last_entry_at) {
+  if (!lastEntryAt) {
     return t('overview.attention.inactiveNoEntries')
   }
   return t('overview.attention.inactiveDetail', {
-    last: timeLabel(alert.last_entry_at, timezone),
+    last: `${formatDayMonth(dateInTimezone(lastEntryAt, timezone))} ${timeLabel(
+      lastEntryAt,
+      timezone,
+    )}`,
   })
 }
 
@@ -86,6 +100,7 @@ export default function StudyOverviewPage() {
   const { studyId = '' } = useParams<{ studyId: string }>()
   const studyQuery = useStudy(studyId)
   const overviewQuery = useStudyOverview(studyId)
+  const participantsQuery = useParticipants(studyId)
   const access = useStudyRole(studyId)
   const closeStudy = useCloseStudy(studyId)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -135,6 +150,14 @@ export default function StudyOverviewPage() {
   const allTime = overview.adherence_study
   const pendingAlerts = overview.alerts?.filter((alert) => alert.kind === 'pending_approval') ?? []
   const staleAlerts = overview.alerts?.filter((alert) => alert.kind === 'no_entries') ?? []
+  // The overview reports recorded_at; the participants list reports the arrival
+  // (received_at). Prefer the latter so both pages show the same last record.
+  const lastEntryById = new Map(
+    (participantsQuery.data ?? []).map((participant) => [
+      participant.id,
+      participant.last_entry_at,
+    ]),
+  )
   const alertCount = overview.alerts?.length ?? 0
   const shownAlertCount = pendingAlerts.length + Math.min(staleAlerts.length, 4)
   const remainingAlerts = Math.max(0, alertCount - shownAlertCount)
@@ -195,8 +218,8 @@ export default function StudyOverviewPage() {
             ) : null}
             <span>{t('overview.range', {
               range: formatDateRange(study.starts_on, study.ends_on),
-              participants: t('common.participantCount', {
-                count: overview.participants.total,
+              participants: t('common.activeParticipantCount', {
+                count: overview.participants.active,
               }),
             })}</span>
             <span>{dateLabel}</span>
@@ -360,7 +383,13 @@ export default function StudyOverviewPage() {
                 </span>
                 <span className="st-attention-copy">
                   <span className="st-attention-title">{alertTitle(alert)}</span>
-                  <span className="st-attention-detail">{alertDetail(alert, timezone)}</span>
+                  <span className="st-attention-detail">
+                    {alertDetail(
+                      alert,
+                      lastEntryById.get(alert.participant_id) ?? alert.last_entry_at,
+                      timezone,
+                    )}
+                  </span>
                 </span>
                 <Link
                   className="st-btn st-btn-ghost st-btn-xs"

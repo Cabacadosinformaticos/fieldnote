@@ -10,6 +10,9 @@ const cellLabels = {
 } as const
 
 export default function AdherenceMatrix({ view }: { view: AdherenceView }) {
+  const firstDay = view.days[0]
+  const lastDay = view.days[view.days.length - 1]
+
   return (
     <section className="card pts-matrix-card" aria-labelledby="pts-matrix-title">
       <div className="pts-section-head">
@@ -17,7 +20,14 @@ export default function AdherenceMatrix({ view }: { view: AdherenceView }) {
           <h2 className="h2" id="pts-matrix-title">
             {t('detail.adherenceTitle')}
           </h2>
-          <p className="sub">{t('detail.adherenceSub')}</p>
+          <p className="sub">
+            {firstDay && lastDay
+              ? t('detail.adherenceSub', {
+                  start: formatDate(firstDay),
+                  end: formatDate(lastDay),
+                })
+              : t('detail.adherenceSubPlain')}
+          </p>
         </div>
         <div className="pts-matrix-score">
           <strong>{t('detail.adherenceValue', { percent: view.totals.percent })}</strong>

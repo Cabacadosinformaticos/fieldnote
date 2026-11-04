@@ -230,6 +230,7 @@
 /* Table */
 
 .pts-table-card {
+  position: relative;
   display: block;
   gap: 0;
   width: 100%;
@@ -242,12 +243,12 @@
 
 .pts-table {
   width: 100%;
-  min-width: 1120px;
+  min-width: 1040px;
   border-collapse: collapse;
 }
 
 .pts-table th {
-  padding: var(--fn-space-12) var(--fn-space-10);
+  padding: var(--fn-space-12) var(--fn-space-8);
   border-bottom: 1px solid var(--fn-color-border);
   background: #fbfcfe;
   color: var(--fn-color-text-muted);
@@ -260,7 +261,7 @@
 }
 
 .pts-table td {
-  padding: var(--fn-space-10) var(--fn-space-10);
+  padding: var(--fn-space-10) var(--fn-space-8);
   border-bottom: 1px solid var(--fn-color-border-soft);
   color: var(--fn-color-text-soft);
   font-size: var(--fn-text-12);

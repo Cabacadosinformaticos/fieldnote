@@ -2010,7 +2010,7 @@
 
 .en-export-table {
   width: 100%;
-  min-width: 800px;
+  min-width: 600px;
   border-collapse: collapse;
   table-layout: fixed;
 }

@@ -36,8 +36,8 @@ import {
   dayStartIso,
   entryKindMeta,
   formatShortDate,
-  shortId,
 } from '../../components/entries/entryMeta'
+import { participantLabel } from '../../api/participants'
 import { t, type EntriesKey } from '../../i18n/entries'
 import '../../styles/entries.css'
 
@@ -208,7 +208,7 @@ export default function EntriesPage() {
     { value: 'all', label: t('list.allParticipants') },
     ...(participantsQuery.data ?? []).map((participant) => ({
       value: participant.id,
-      label: participant.alias ?? shortId(participant.id),
+      label: participantLabel(participant),
     })),
   ]
 
