@@ -101,6 +101,11 @@ export default function StudyRemovedScreen() {
           title={tm('removed.eraseTitle')}
           tone="danger"
         />
+        <InfoRow
+          body={tm('removed.contactBody')}
+          icon="mail-outline"
+          title={tm('removed.contact')}
+        />
       </View>
 
       <View style={styles.spacer} />

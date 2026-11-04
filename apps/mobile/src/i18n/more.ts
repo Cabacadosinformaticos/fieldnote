@@ -14,6 +14,7 @@ const more = {
   'studies.declined': 'Não aprovado',
   'studies.openRequest': '1 pedido em aberto',
   'studies.openRequestUntil': '1 pedido em aberto até às {time}',
+  'studies.openRequests': '{count} pedidos em aberto',
   'studies.otherOpenRequestOne': '1 pedido em aberto noutro estudo',
   'studies.otherOpenRequests': '{count} pedidos em aberto noutro estudo',
   'studies.erasingNote': 'Os dados deste estudo vão ser apagados',
@@ -183,7 +184,7 @@ const more = {
   'ended.waitingBody':
     'Se ainda tiver registos guardados no telemóvel, serão enviados quando houver rede. Não desinstale a app até lá. Os seus registos continuam guardados com o pseudónimo para a investigação; pode apagá-los em Estudos, Detalhes, quando quiser.',
   'ended.contact': 'Dúvidas ou pedido de apagamento',
-  'ended.contactBody': 'Contacte a equipa do estudo: {name}, {email}.',
+  'ended.contactBody': 'Contacte a equipa do estudo.',
   'ended.entries': 'Ver os meus registos',
 
   'removed.title': 'A equipa retirou-o deste estudo.',
@@ -197,7 +198,7 @@ const more = {
     'Pode pedir o apagamento definitivo dos dados deste estudo.',
   'removed.erase': 'Apagar os meus dados',
   'removed.contact': 'Dúvidas',
-  'removed.contactBody': 'Contacte a equipa do estudo: {name}, {email}.',
+  'removed.contactBody': 'Contacte a equipa do estudo.',
 
   'notifications.step': 'Passo 4 de 4 · Avisos',
   'notifications.title': 'Quer receber avisos de novas atividades?',

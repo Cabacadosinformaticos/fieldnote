@@ -97,6 +97,11 @@ export default function StudyEndedScreen() {
           icon="cloud-upload-outline"
           title={tm('ended.waiting')}
         />
+        <InfoRow
+          body={tm('ended.contactBody')}
+          icon="mail-outline"
+          title={tm('ended.contact')}
+        />
       </View>
 
       <View style={styles.spacer} />
@@ -105,13 +110,6 @@ export default function StudyEndedScreen() {
         label={tm('ended.entries')}
         onPress={() => router.replace('/(tabs)/entries')}
       />
-      {id ? (
-        <Button
-          label={tm('studies.details')}
-          onPress={() => router.replace({ pathname: '/study/[id]', params: { id } })}
-          variant="secondary"
-        />
-      ) : null}
     </Screen>
   );
 }
