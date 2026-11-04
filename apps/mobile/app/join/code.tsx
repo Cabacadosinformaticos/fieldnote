@@ -1,18 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { readInviteCode } from '@/components/join/savedInvitation';
 import { Screen } from '@/components/Screen';
 import { t } from '@/i18n/pt';
 import { useJoinSession } from '@/state/join';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
 const CODE_LENGTH = 12;
+const STUDY_CODE_LENGTH = 8;
 const MAX_INPUT_LENGTH = 14;
 
 function formatCode(value: string): string {
@@ -27,7 +29,22 @@ function formatCode(value: string): string {
 export default function CodeScreen() {
   const [code, setCode] = useState('');
   const { startJoin } = useJoinSession();
-  const isComplete = code.replace(/-/g, '').length === CODE_LENGTH;
+  const length = code.replace(/-/g, '').length;
+  const isComplete = length === CODE_LENGTH || length === STUDY_CODE_LENGTH;
+
+  useEffect(() => {
+    let active = true;
+
+    void readInviteCode().then((saved) => {
+      if (active && saved) {
+        setCode(formatCode(saved));
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <Screen contentStyle={styles.content}>

@@ -122,7 +122,7 @@ export function formatPeriod(
   });
 }
 
-export function formatEntryTypes(types: string[]): string {
+export function formatEntryTypes(types: string[], capitalize = true): string {
   if (types.length === 0) {
     return tj('entryType.empty');
   }
@@ -137,7 +137,15 @@ export function formatEntryTypes(types: string[]): string {
       ? labels[0]
       : `${labels.slice(0, -1).join(', ')} e ${labels[labels.length - 1]}`;
 
-  return list.charAt(0).toUpperCase() + list.slice(1);
+  return capitalize ? list.charAt(0).toUpperCase() + list.slice(1) : list;
+}
+
+/** `Até 4 pedidos por dia, cerca de 8 min por dia`, with the singular form when needed. */
+export function formatRequestsPerDay(count: number, minutes: number): string {
+  return tj(count === 1 ? 'invitation.requestsValueOne' : 'invitation.requestsValue', {
+    count,
+    minutes,
+  });
 }
 
 export function formatTeam(team: string[]): string {

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { api } from '@/api/client';
 import { getAndroidId } from '@/api/device';
@@ -11,12 +11,18 @@ import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ConfirmSheet } from '@/components/account/ConfirmSheet';
 import { accountHref } from '@/components/account/navigation';
 import {
   formatEntryTypes,
   formatPeriod,
+  formatRequestsPerDay,
   formatTeam,
 } from '@/components/join/format';
+import {
+  clearInviteCode,
+  saveInviteCode,
+} from '@/components/join/savedInvitation';
 import { Screen } from '@/components/Screen';
 import { t } from '@/i18n/pt';
 import { tj } from '@/i18n/tj';
@@ -33,6 +39,8 @@ export default function InvitationScreen() {
   const [status, setStatus] = useState<Status>(lookup ? 'ready' : 'loading');
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [showDecline, setShowDecline] = useState(false);
+  const [showLater, setShowLater] = useState(false);
 
   useEffect(() => {
     if (lookup) {
@@ -142,10 +150,10 @@ export default function InvitationScreen() {
           {
             icon: 'notifications-outline',
             label: t('invitation.requestsLabel'),
-            value: tj('invitation.requestsValue', {
-              count: study.requests_per_day,
-              minutes: study.expected_minutes_per_day,
-            }),
+            value: formatRequestsPerDay(
+              study.requests_per_day,
+              study.expected_minutes_per_day,
+            ),
           },
           {
             icon: 'camera-outline',
@@ -161,6 +169,20 @@ export default function InvitationScreen() {
           },
         ]
       : [];
+
+  const leave = () => {
+    setShowDecline(false);
+    void clearInviteCode();
+    reset();
+    router.replace('/');
+  };
+
+  const decideLater = () => {
+    if (code) {
+      void saveInviteCode(code);
+    }
+    setShowLater(false);
+  };
 
   return (
     <Screen contentStyle={styles.content}>
@@ -212,11 +234,15 @@ export default function InvitationScreen() {
             <Button
               label={t('invitation.decline')}
               variant="secondary"
-              onPress={() => {
-                reset();
-                router.replace('/');
-              }}
+              onPress={() => setShowDecline(true)}
             />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setShowLater(true)}
+              style={({ pressed }) => [styles.later, pressed && styles.pressed]}
+            >
+              <Text style={styles.laterLabel}>{tj('invitation.later')}</Text>
+            </Pressable>
           </View>
         </>
       ) : (
@@ -258,6 +284,30 @@ export default function InvitationScreen() {
           </View>
         </>
       )}
+
+      <ConfirmSheet
+        body={tj(
+          lookup?.code_kind === 'study'
+            ? 'invitation.declineBodyPoster'
+            : 'invitation.declineBodyPersonal',
+        )}
+        cancelLabel={tj('invitation.declineBack')}
+        confirmLabel={tj('invitation.declineConfirm')}
+        onCancel={() => setShowDecline(false)}
+        onConfirm={leave}
+        title={tj('invitation.declineTitle')}
+        tone="dark"
+        visible={showDecline}
+      />
+
+      <ConfirmSheet
+        body={tj('invitation.laterBody')}
+        confirmLabel={tj('invitation.laterOk')}
+        onCancel={() => setShowLater(false)}
+        onConfirm={decideLater}
+        title={tj('invitation.laterTitle')}
+        visible={showLater}
+      />
     </Screen>
   );
 }
@@ -355,5 +405,20 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 10,
+  },
+  later: {
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  laterLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    lineHeight: 24,
+    textDecorationLine: 'underline',
+    color: colors.primaryDark,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });
