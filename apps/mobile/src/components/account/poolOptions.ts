@@ -6,17 +6,9 @@ import type {
   TransportMode,
 } from '@/state/actions';
 
-export type PoolOption = { label: string; value: string | null };
+export { poolConcelhos } from '@/components/account/poolOptionsConcelhos';
 
-export const poolConcelhos = [
-  'Amadora',
-  'Cascais',
-  'Lisboa',
-  'Loures',
-  'Odivelas',
-  'Oeiras',
-  'Sintra',
-] as const;
+export type PoolOption = { label: string; value: string | null };
 
 export const poolFreguesias: Record<string, string[]> = {
   Amadora: [
@@ -110,7 +102,6 @@ export const poolTransportOptions: readonly PoolOption[] = [
   { label: 'Transportes públicos', value: 'public_transport' },
   { label: 'Carro', value: 'car' },
   { label: 'Bicicleta ou trotinete', value: 'bicycle' },
-  { label: 'Trotinete', value: 'scooter' },
   { label: 'Outro', value: 'other' },
   { label: 'Prefiro não dizer', value: null },
 ];

@@ -286,7 +286,6 @@ export default function PoolProfileScreen() {
       </View>
 
       <SelectSheet
-        hint={ta('poolProfile.concelhoSheetHint')}
         onClose={() => setSheet(null)}
         onSelect={(option) => {
           setConcelho(option);
@@ -294,6 +293,7 @@ export default function PoolProfileScreen() {
           setSheet(null);
         }}
         options={poolConcelhos}
+        searchable
         selected={concelho}
         title={ta('poolProfile.concelho')}
         visible={sheet === 'concelho'}

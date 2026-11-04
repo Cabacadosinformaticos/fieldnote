@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import {
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -15,24 +17,55 @@ type SelectSheetProps = {
   onClose: () => void;
   onSelect: (option: string) => void;
   options: readonly string[];
+  searchable?: boolean;
   selected?: string;
   title: string;
   visible: boolean;
 };
+
+function searchKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[áàâãä]/g, 'a')
+    .replace(/[éèêë]/g, 'e')
+    .replace(/[íìîï]/g, 'i')
+    .replace(/[óòôõö]/g, 'o')
+    .replace(/[úùûü]/g, 'u')
+    .replace(/ç/g, 'c')
+    .replace(/[^a-z0-9 ]/g, '');
+}
 
 export function SelectSheet({
   hint,
   onClose,
   onSelect,
   options,
+  searchable = false,
   selected,
   title,
   visible,
 }: SelectSheetProps) {
+  const [query, setQuery] = useState('');
+
+  const close = () => {
+    setQuery('');
+    onClose();
+  };
+
+  const select = (option: string) => {
+    setQuery('');
+    onSelect(option);
+  };
+
+  const needle = searchKey(query.trim());
+  const shownOptions = needle
+    ? options.filter((option) => searchKey(option).includes(needle))
+    : options;
+
   return (
     <Modal
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={close}
       statusBarTranslucent
       transparent
       visible={visible}
@@ -41,17 +74,31 @@ export function SelectSheet({
         <Pressable
           accessibilityLabel={ta('common.cancel')}
           accessibilityRole="button"
-          onPress={onClose}
+          onPress={close}
           style={StyleSheet.absoluteFill}
         />
         <View accessibilityViewIsModal style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+          {searchable ? (
+            <View style={styles.searchRow}>
+              <TextInput
+                accessibilityLabel={ta('common.search')}
+                autoCorrect={false}
+                onChangeText={setQuery}
+                placeholder={ta('common.search')}
+                placeholderTextColor={colors.textMuted}
+                style={styles.searchInput}
+                value={query}
+              />
+            </View>
+          ) : null}
           <ScrollView
             contentContainerStyle={styles.options}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {options.map((option) => {
+            {shownOptions.map((option) => {
               const active = option === selected;
 
               return (
@@ -60,7 +107,7 @@ export function SelectSheet({
                   accessibilityLabel={option}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: active }}
-                  onPress={() => onSelect(option)}
+                  onPress={() => select(option)}
                   style={({ pressed }) => [
                     styles.option,
                     active && styles.optionActive,
@@ -82,7 +129,7 @@ export function SelectSheet({
           <View style={styles.footer}>
             <Pressable
               accessibilityRole="button"
-              onPress={onClose}
+              onPress={close}
               style={({ pressed }) => [
                 styles.cancel,
                 pressed && styles.pressed,
@@ -133,6 +180,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: colors.textMuted,
+  },
+  searchRow: {
+    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.xs,
+  },
+  searchInput: {
+    height: 44,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: colors.surface,
   },
   options: {
     paddingTop: spacing.sm,
