@@ -1,18 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
-import { InstructionCard } from '@/components/daily/InstructionCard';
 import { RecordHeader } from '@/components/daily/RecordHeader';
-import { captureTypeIcons, captureTypeLabelKeys } from '@/components/daily/captureType';
 import { td } from '@/i18n/td';
 import { useCachedActivity } from '@/queue/hooks';
 import { recordPromptOpened } from '@/queue/promptEvents';
 import type { CaptureType } from '@/queue/types';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { colors, fonts, spacing } from '@/theme';
 
 const recordRoutes: Record<
   CaptureType,
@@ -25,6 +22,8 @@ const recordRoutes: Record<
   scale: '/record/scale',
 };
 
+// No screen of its own: an activity opens directly on its first capture type, with the instruction
+// and warnings on top and tabs for the other types.
 export default function ActivityScreen() {
   const { activityId, promptId } = useLocalSearchParams<{
     activityId: string;
@@ -65,7 +64,8 @@ export default function ActivityScreen() {
     );
   }
 
-  if (activity.captureTypes.length === 0) {
+  const firstType = activity.captureTypes[0];
+  if (!firstType) {
     return (
       <Screen contentStyle={styles.content} edges={['top']}>
         <StatusBar style="dark" />
@@ -80,51 +80,15 @@ export default function ActivityScreen() {
     );
   }
 
-  const openType = (type: CaptureType) => {
-    router.push({
-      pathname: recordRoutes[type],
-      params: activity.promptId
-        ? { activityId: activity.id, promptId: activity.promptId }
-        : { activityId: activity.id },
-    });
-  };
-
   return (
-    <Screen contentStyle={styles.content} edges={['top']}>
-      <StatusBar style="dark" />
-
-      <RecordHeader eyebrow={activity.studyTitle} title={activity.title} />
-
-      <View style={styles.body}>
-        <InstructionCard
-          instruction={activity.instructions || td('record.noInstructions')}
-          warnings={activity.warnings}
-        />
-
-        <Text style={styles.choose}>{td('record.chooseType')}</Text>
-
-        <View style={styles.options}>
-          {activity.captureTypes.map((type) => (
-            <Pressable
-              accessibilityRole="button"
-              key={type}
-              onPress={() => openType(type)}
-              style={({ pressed }) => [styles.option, pressed && styles.pressed]}
-            >
-              <View style={styles.optionIcon}>
-                <Ionicons
-                  name={captureTypeIcons[type]}
-                  size={20}
-                  color={colors.primaryDark}
-                />
-              </View>
-              <Text style={styles.optionLabel}>{td(captureTypeLabelKeys[type])}</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-            </Pressable>
-          ))}
-        </View>
-      </View>
-    </Screen>
+    <Redirect
+      href={{
+        pathname: recordRoutes[firstType],
+        params: activity.promptId
+          ? { activityId: activity.id, promptId: activity.promptId }
+          : { activityId: activity.id },
+      }}
+    />
   );
 }
 
@@ -147,44 +111,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: colors.textBody,
-  },
-  choose: {
-    fontFamily: fonts.extrabold,
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.text,
-  },
-  options: {
-    gap: spacing.sm,
-  },
-  option: {
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
-  },
-  optionIcon: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.md,
-    backgroundColor: colors.primarySoft,
-  },
-  optionLabel: {
-    flex: 1,
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    lineHeight: 22,
-    color: colors.text,
-  },
-  pressed: {
-    opacity: 0.75,
   },
 });
