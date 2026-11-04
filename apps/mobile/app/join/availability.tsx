@@ -14,6 +14,7 @@ import {
   AvailabilitySheet,
   type AvailabilityDraft,
 } from '@/components/join/AvailabilitySheet';
+import { clearInviteCode } from '@/components/join/savedInvitation';
 import { StepProgress } from '@/components/join/StepProgress';
 import { formatTime } from '@/components/join/TimeWheel';
 import { WeekdayChips } from '@/components/join/WeekdayChips';
@@ -102,6 +103,7 @@ function slotToTime(index: number): string {
 
 export default function AvailabilityScreen() {
   const { answers, code, lookup } = useJoinSession();
+  const requestsPerDay = lookup?.study.requests_per_day ?? null;
   const [anyTime, setAnyTime] = useState(false);
   const [intervals, setIntervals] = useState<Interval[]>([
     { id: 1, from: 18, to: 22, days: [...WEEKDAY_DAYS] },
@@ -277,6 +279,7 @@ export default function AvailabilityScreen() {
       await SecureStore.deleteItemAsync(pendingJoinKey(studyId)).catch(
         () => undefined,
       );
+      await clearInviteCode();
 
       // Unmount the join stack before leaving, so its screens stop reacting to
       // the session while we navigate to the study.
@@ -409,7 +412,16 @@ export default function AvailabilityScreen() {
 
       <View style={styles.noteRow}>
         <Ionicons name="time-outline" size={20} color={colors.primaryDark} />
-        <Text style={styles.noteText}>{tj('availability.dailyNote')}</Text>
+        <Text style={styles.noteText}>
+          {requestsPerDay === null
+            ? tj('availability.dailyNoteUnknown')
+            : tj(
+                requestsPerDay === 1
+                  ? 'availability.dailyNoteOne'
+                  : 'availability.dailyNote',
+                { count: requestsPerDay },
+              )}
+        </Text>
       </View>
 
       <Text style={styles.caption}>{tj('availability.caption')}</Text>

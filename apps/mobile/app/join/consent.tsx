@@ -5,10 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
-import { ConsentCheckbox } from '@/components/join/ConsentCheckbox';
 import { ConsentDeclineDialog } from '@/components/join/ConsentDeclineDialog';
 import { ConsentText } from '@/components/join/ConsentText';
-import { LanguageToggle } from '@/components/join/LanguageToggle';
 import { StepProgress } from '@/components/join/StepProgress';
 import { Screen } from '@/components/Screen';
 import { tj } from '@/i18n/tj';
@@ -16,7 +14,6 @@ import { useJoinSession } from '@/state/join';
 import { colors, fonts, radii, spacing, typography } from '@/theme';
 
 export default function ConsentScreen() {
-  const [accepted, setAccepted] = useState(false);
   const [declineVisible, setDeclineVisible] = useState(false);
   const { lookup } = useJoinSession();
 
@@ -32,7 +29,6 @@ export default function ConsentScreen() {
       <View style={styles.main}>
         <View style={styles.header}>
           <BackButton onPress={() => router.back()} />
-          <LanguageToggle />
         </View>
 
         <StepProgress filled={2} label={tj('consent.step')} />
@@ -62,20 +58,14 @@ export default function ConsentScreen() {
             contentContainerStyle={styles.cardContent}
             showsVerticalScrollIndicator
           >
-            <ConsentText />
+            <ConsentText study={lookup?.study} />
           </ScrollView>
         </View>
       </View>
 
       <View style={styles.footer}>
-        <ConsentCheckbox
-          checked={accepted}
-          label={tj('consent.checkbox')}
-          onToggle={() => setAccepted((value) => !value)}
-        />
         <Text style={styles.footerNote}>{tj('consent.footerNote')}</Text>
         <Button
-          disabled={!accepted}
           label={tj('consent.accept')}
           onPress={() => router.push('/join/questions')}
         />

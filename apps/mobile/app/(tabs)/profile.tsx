@@ -461,7 +461,7 @@ export default function HoursScreen() {
 
       <View style={styles.noteRow}>
         <Ionicons name="time-outline" size={20} color={colors.primaryDark} />
-        <Text style={styles.noteText}>{tj('availability.dailyNote')}</Text>
+        <Text style={styles.noteText}>{tj('availability.dailyNoteUnknown')}</Text>
       </View>
 
       {error ? (
