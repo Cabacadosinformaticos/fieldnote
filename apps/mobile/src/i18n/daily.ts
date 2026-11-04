@@ -31,8 +31,6 @@ const daily = {
   'today.answerNow': 'Responder agora',
   'today.unsupportedAnswer': 'Tipo de resposta não suportado',
   'today.unsupportedTypes': 'tipo não suportado',
-  'today.otherPrompts': 'Outros pedidos ({count})',
-  'today.fromStudy': '{study} · {types}',
   'today.noRequestTitle': 'Não há pedidos em aberto',
   'today.noRequestBody':
     'Quando a equipa do estudo enviar um novo pedido, ele aparece aqui.',

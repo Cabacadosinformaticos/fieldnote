@@ -151,11 +151,10 @@ export default function TodayScreen() {
     active[0] ??
     participations[0];
   const focusedActive = primaryParticipation?.status === 'active';
-  const primary =
-    activities.find(
-      (activity) => activity.studyId === primaryParticipation?.studyId,
-    ) ?? (focusedStudyId ? undefined : activities[0]);
-  const others = activities.filter((activity) => activity !== primary);
+  // Today shows one study and one request; the Studies tab counts the requests of other studies.
+  const primary = activities.find(
+    (activity) => activity.studyId === primaryParticipation?.studyId,
+  );
   const visibleFreeActivities = primaryParticipation
     ? freeActivities.filter(
         (activity) => activity.studyId === primaryParticipation.studyId,
@@ -266,109 +265,62 @@ export default function TodayScreen() {
       ) : null}
 
       {primary ? (
-        <>
-          <View style={styles.requestCard}>
-            <Text style={styles.asked}>{requestedAt(primary)}</Text>
-            <Text style={styles.requestTitle}>{primary.title}</Text>
-            <Text style={styles.requestBody}>
-              {primary.instructions || td('record.noInstructions')}
-            </Text>
+        <View style={styles.requestCard}>
+          <Text style={styles.asked}>{requestedAt(primary)}</Text>
+          <Text style={styles.requestTitle}>{primary.title}</Text>
+          <Text style={styles.requestBody}>
+            {primary.instructions || td('record.noInstructions')}
+          </Text>
 
-            <View style={styles.spacer} />
+          <View style={styles.spacer} />
 
-            <View style={styles.meta}>
-              <View style={styles.metaRow}>
-                <Ionicons
-                  name={
-                    primary.captureTypes[0]
-                      ? captureTypeIcons[primary.captureTypes[0]]
-                      : 'help-circle-outline'
-                  }
-                  size={20}
-                  color={colors.white}
-                />
-                <Text style={styles.metaText}>
-                  {td('today.requestMeta', {
-                    types: typeLabels(primary),
-                    minutes: primary.expectedMinutes,
-                  })}
-                </Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Ionicons name="time-outline" size={20} color={colors.white} />
-                <Text style={[styles.metaText, styles.metaTextStrong]}>
-                  {td('today.closesAt', { time: clockOf(primary.closesAt) })}
-                </Text>
-              </View>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{
-                disabled: primary.captureTypes.length === 0,
-              }}
-              disabled={primary.captureTypes.length === 0}
-              onPress={() => openActivity(primary)}
-              style={({ pressed }) => [
-                styles.answerButton,
-                primary.captureTypes.length === 0 && styles.answerDisabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.answerLabel}>
-                {primary.captureTypes.length === 0
-                  ? td('today.unsupportedAnswer')
-                  : td('today.answerNow')}
+          <View style={styles.meta}>
+            <View style={styles.metaRow}>
+              <Ionicons
+                name={
+                  primary.captureTypes[0]
+                    ? captureTypeIcons[primary.captureTypes[0]]
+                    : 'help-circle-outline'
+                }
+                size={20}
+                color={colors.white}
+              />
+              <Text style={styles.metaText}>
+                {td('today.requestMeta', {
+                  types: typeLabels(primary),
+                  minutes: primary.expectedMinutes,
+                })}
               </Text>
-              <Ionicons name="arrow-forward" size={22} color={colors.text} />
-            </Pressable>
+            </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="time-outline" size={20} color={colors.white} />
+              <Text style={[styles.metaText, styles.metaTextStrong]}>
+                {td('today.closesAt', { time: clockOf(primary.closesAt) })}
+              </Text>
+            </View>
           </View>
 
-          {others.length > 0 ? (
-            <View style={styles.otherCard}>
-              <Text style={styles.otherTitle}>
-                {td('today.otherPrompts', { count: others.length })}
-              </Text>
-              {others.map((activity) => {
-                // Same rule as the main card: a prompt with no capture type the app can record
-                // cannot be opened, so its row is disabled and says why in its own subtitle.
-                const unavailable = activity.captureTypes.length === 0;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: unavailable }}
-                    disabled={unavailable}
-                    key={activity.promptId ?? activity.id}
-                    onPress={() => openActivity(activity)}
-                    style={({ pressed }) => [
-                      styles.otherRow,
-                      unavailable && styles.otherRowDisabled,
-                      pressed && !unavailable && styles.pressed,
-                    ]}
-                  >
-                    <View style={styles.otherText}>
-                      <Text numberOfLines={1} style={styles.otherName}>
-                        {activity.title}
-                      </Text>
-                      <Text numberOfLines={1} style={styles.otherStudy}>
-                        {td('today.fromStudy', {
-                          study: activity.studyTitle,
-                          types: typeLabels(activity),
-                        })}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={unavailable ? 'ban-outline' : 'chevron-forward'}
-                      size={20}
-                      color={unavailable ? colors.disabledText : colors.textMuted}
-                    />
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-        </>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: primary.captureTypes.length === 0,
+            }}
+            disabled={primary.captureTypes.length === 0}
+            onPress={() => openActivity(primary)}
+            style={({ pressed }) => [
+              styles.answerButton,
+              primary.captureTypes.length === 0 && styles.answerDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.answerLabel}>
+              {primary.captureTypes.length === 0
+                ? td('today.unsupportedAnswer')
+                : td('today.answerNow')}
+            </Text>
+            <Ionicons name="arrow-forward" size={22} color={colors.text} />
+          </Pressable>
+        </View>
       ) : null}
 
       {!loading && primary && visibleFreeActivities.length > 0 ? (
@@ -522,53 +474,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 26,
     color: colors.text,
-  },
-  otherCard: {
-    overflow: 'hidden',
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
-  },
-  otherTitle: {
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-    fontFamily: fonts.extrabold,
-    fontSize: 16,
-    lineHeight: 22,
-    color: colors.text,
-  },
-  otherRow: {
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  otherText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  otherName: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    lineHeight: 21,
-    color: colors.text,
-  },
-  otherStudy: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textMuted,
-  },
-  otherRowDisabled: {
-    opacity: 0.55,
   },
   noRequestCard: {
     flexDirection: 'row',
