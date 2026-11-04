@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import { File, Paths } from 'expo-file-system';
 import { router } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { apiErrorMessage } from '@/api/errors';
 import { BackButton } from '@/components/BackButton';
@@ -24,21 +27,49 @@ const tips = ['accountCode.tip1', 'accountCode.tip2', 'accountCode.tip3'] as con
 
 export default function RecoveryCodeScreen() {
   const [saved, setSaved] = useState(false);
-  const [shared, setShared] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const code = getPendingRecoveryCode();
 
-  const share = async () => {
+  const copy = async () => {
     if (!code) {
       return;
     }
 
     try {
-      await Share.share({ message: code });
-      setShared(true);
+      await Clipboard.setStringAsync(code);
+      setCopied(true);
     } catch {
-      // Closing the share sheet is not an error.
+      setError(ta('account.error'));
+    }
+  };
+
+  const saveAsFile = async () => {
+    if (!code) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const file = new File(Paths.cache, 'fieldnote-codigo-recuperacao.txt');
+      await file.write(`${ta('accountCode.label')}: ${code}\n`);
+
+      if (!(await Sharing.isAvailableAsync())) {
+        setError(ta('account.error'));
+        return;
+      }
+
+      await Sharing.shareAsync(file.uri, {
+        dialogTitle: ta('accountCode.save'),
+        mimeType: 'text/plain',
+      });
+    } catch {
+      setError(ta('account.error'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -105,24 +136,47 @@ export default function RecoveryCodeScreen() {
             {code}
           </Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            void share();
-          }}
-          style={({ pressed }) => [
-            styles.codeButton,
-            styles.saveButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons
-            name={shared ? 'checkmark' : 'share-outline'}
-            size={20}
-            color={colors.text}
-          />
-          <Text style={styles.codeButtonLabel}>{ta('accountCode.share')}</Text>
-        </Pressable>
+        <View style={styles.codeActions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void copy();
+            }}
+            style={({ pressed }) => [
+              styles.codeButton,
+              styles.copyButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name={copied ? 'checkmark' : 'copy-outline'}
+              size={20}
+              color={colors.text}
+            />
+            <Text style={styles.codeButtonLabel}>
+              {copied ? ta('accountCode.copied') : ta('accountCode.copy')}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={saving}
+            onPress={() => {
+              void saveAsFile();
+            }}
+            style={({ pressed }) => [
+              styles.codeButton,
+              styles.saveButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name={saving ? 'hourglass-outline' : 'download-outline'}
+              size={20}
+              color={colors.text}
+            />
+            <Text style={styles.codeButtonLabel}>{ta('accountCode.save')}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <Note
@@ -227,6 +281,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.96,
     color: '#131A2A',
   },
+  codeActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   codeButton: {
     height: 48,
     flexDirection: 'row',
@@ -238,7 +296,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     backgroundColor: colors.surface,
   },
+  copyButton: {
+    flexShrink: 0,
+    paddingHorizontal: spacing.lg,
+  },
   saveButton: {
+    minWidth: 0,
+    flexGrow: 1,
+    flexShrink: 1,
     paddingHorizontal: spacing.md,
   },
   codeButtonLabel: {

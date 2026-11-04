@@ -5,6 +5,7 @@ const account = {
   'common.optional': '(opcional)',
   'common.required': '(obrigatório)',
   'common.retry': 'Tentar',
+  'common.search': 'Pesquisar',
 
   'account.title': 'Conta (opcional)',
   'account.body':
@@ -66,7 +67,6 @@ const account = {
 
   'accountCode.missing':
     'O código já não está disponível. Crie a conta outra vez.',
-  'accountCode.share': 'Partilhar',
   'accountCode.confirmError':
     'Não foi possível confirmar a conta. Tente outra vez.',
   'accountCode.confirming': 'A confirmar…',
@@ -175,8 +175,6 @@ const account = {
   'poolProfile.languages': 'Línguas em que pode participar',
   'poolProfile.languagesHint': 'Pode escolher mais do que uma.',
   'poolProfile.save': 'Guardar e entrar na bolsa',
-  'poolProfile.concelhoSheetHint':
-    'Mostramos 7 de 308. Deslize para ver os outros.',
   'poolProfile.freguesiaSheetHint': 'Freguesias do concelho de {concelho}.',
 
   'poolSettings.title': 'Bolsa de voluntários',
