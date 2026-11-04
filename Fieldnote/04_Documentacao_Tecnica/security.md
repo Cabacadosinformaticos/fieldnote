@@ -124,6 +124,12 @@ or Google). Researcher and administrator passwords are stored as Argon2id hashes
 and memory-hungry, which makes GPU attacks expensive. The design uses at least the OWASP minimum: 19 MiB of memory, 2 iterations and
 parallelism 1.
 
+A new password has at least 12 characters and cannot be the account email. A researcher who forgot
+the password asks for a recovery link by email: a single-use random token, stored as a hash, valid
+for 1 hour, at most 3 per account per hour, carried in the URL fragment so it stays out of server
+logs. The answer is the same whether or not the email has an account. Using it revokes every signed-in
+session and does not change the TOTP enrolment. Administrators do not use this flow.
+
 A login returns a short-lived access token valid for 15 minutes and a refresh token. The refresh token
 changes on every use and is stored as a hash in the database (`refresh_token`). Because it lives in
 the database, any API replica can revoke it, which a self-contained JWT does not allow. The access
