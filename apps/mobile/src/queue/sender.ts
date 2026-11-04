@@ -139,6 +139,8 @@ async function sendEntry(
         content_sha256: entry.contentSha256,
         entry_type: entry.payload.entryType,
         id: entry.id,
+        latitude: entry.payload.latitude ?? null,
+        longitude: entry.payload.longitude ?? null,
         media_object_ids: media
           .map((item) => item.mediaObjectId)
           .filter((id): id is string => Boolean(id)),

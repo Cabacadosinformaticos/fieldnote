@@ -37,6 +37,8 @@ export function contentDocument(payload: EntryPayload, mediaSha256: string[]): J
     body: payload.body,
     choice: payload.choice,
     entry_type: payload.entryType,
+    latitude: payload.latitude ?? null,
+    longitude: payload.longitude ?? null,
     media_sha256: [...mediaSha256].sort(),
     prompt_id: payload.promptId,
     recorded_at: payload.recordedAt,

@@ -117,6 +117,17 @@ export default function EntryDetailScreen() {
     { label: td('entry.received'), value: received },
   ];
 
+  const { latitude, longitude } = entry.payload;
+  if (typeof latitude === 'number' && typeof longitude === 'number') {
+    rows.push({
+      label: td('entry.location'),
+      value: td('entry.locationCoords', {
+        lat: latitude.toFixed(4),
+        lon: longitude.toFixed(4),
+      }),
+    });
+  }
+
   const scaleMax = scaleMaximum(entry.payload.scaleShown);
   const body = entry.payload.body;
   const isMedia =

@@ -60,6 +60,8 @@ export type EntryPayload = {
   value: number | null;
   scaleShown: ScaleShown | null;
   choice: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type MediaAttachment = {

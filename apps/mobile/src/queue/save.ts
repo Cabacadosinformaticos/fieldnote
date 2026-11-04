@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
+import * as Location from 'expo-location';
 
 import { insertOutboxEntry } from './outbox';
 import { flushOutbox } from './sender';
@@ -13,6 +14,65 @@ import type {
 } from './types';
 
 const MEDIA_DIRECTORY = 'fieldnote-entries';
+const LOCATION_TIMEOUT_MS = 10_000;
+
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+/**
+ * A fix that never arrives must not hold the entry: the participant saves without location
+ * instead, as the activity allows. The permission is asked here, when the entry is saved, which
+ * is the moment the warning describes.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
+async function captureLocation(activity: PromptActivity): Promise<Coordinates | null> {
+  if (!activity.captureLocation) {
+    return null;
+  }
+
+  try {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) {
+      return null;
+    }
+
+    const current = await withTimeout(
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      LOCATION_TIMEOUT_MS,
+    );
+    const position =
+      current ??
+      (await withTimeout(Location.getLastKnownPositionAsync(), LOCATION_TIMEOUT_MS));
+    if (!position) {
+      return null;
+    }
+
+    const { latitude, longitude } = position.coords;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return null;
+    }
+    return { latitude, longitude };
+  } catch {
+    return null;
+  }
+}
 
 export type MediaSource = {
   uri: string;
@@ -193,6 +253,7 @@ export async function saveEntry(input: SaveEntryInput): Promise<string> {
 
   const id = Crypto.randomUUID();
   const recordedAt = new Date().toISOString();
+  const location = await captureLocation(activity);
   const media =
     sources.length > 0 ? await prepareAllMedia(id, sources) : [];
 
@@ -206,6 +267,8 @@ export async function saveEntry(input: SaveEntryInput): Promise<string> {
       value: type === 'scale' ? (input.value ?? null) : null,
       scaleShown: type === 'scale' ? (input.scaleShown ?? null) : null,
       choice: null,
+      latitude: location?.latitude ?? null,
+      longitude: location?.longitude ?? null,
     };
     const contentSha256 = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
