@@ -305,6 +305,8 @@ def test_a_member_sees_the_invitation_and_accepts_it_as_a_new_participant(
     client: TestClient, session: Session, make_study, make_user, bearer_headers
 ) -> None:
     study = make_study(title="Diário de Lisboa")
+    study.consent_text = "Texto de consentimento do Diário de Lisboa."
+    session.commit()
     researcher = _add_researcher(session, study, make_user)
     members = [_add_member(session, concelho="Lisboa") for _ in range(5)]
     member, credential = members[0]
@@ -322,6 +324,7 @@ def test_a_member_sees_the_invitation_and_accepts_it_as_a_new_participant(
     assert invitation["reason"] == "pool_member"
     assert invitation["concelho"] == "Lisboa"
     assert invitation["study"]["title"] == "Diário de Lisboa"
+    assert invitation["study"]["consent_text"] == "Texto de consentimento do Diário de Lisboa."
     assert "participant_id" not in invitation
     invitation_id = invitation["id"]
 

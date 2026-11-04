@@ -38,6 +38,7 @@ class StudyCardOut(BaseModel):
     id: uuid.UUID
     title: str
     description: str | None
+    consent_text: str | None
     status: StudyStatus
     starts_on: date | None
     ends_on: date | None

@@ -3127,6 +3127,8 @@ export interface components {
         StudyCardOut: {
             /** Captures Location */
             captures_location: boolean;
+            /** Consent Text */
+            consent_text: string | null;
             /** Description */
             description: string | null;
             /** Ends On */

@@ -732,6 +732,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/participation/me/prompts/{prompt_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report Prompt Events */
+        post: operations["report_prompt_events_api_v1_participation_me_prompts__prompt_id__events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/participation/me/push-token": {
         parameters: {
             query?: never;
@@ -2981,6 +2998,19 @@ export interface components {
             sent: number;
         };
         /**
+         * PromptEventIn
+         * @description When the phone showed and opened a prompt.
+         *
+         *     The values come from the phone clock because a report can arrive late, so each one is
+         *     optional and only the first report of a field is kept.
+         */
+        PromptEventIn: {
+            /** Opened At */
+            opened_at?: string | null;
+            /** Shown At */
+            shown_at?: string | null;
+        };
+        /**
          * PromptStatus
          * @enum {string}
          */
@@ -3097,6 +3127,8 @@ export interface components {
         StudyCardOut: {
             /** Captures Location */
             captures_location: boolean;
+            /** Consent Text */
+            consent_text: string | null;
             /** Description */
             description: string | null;
             /** Ends On */
@@ -4950,6 +4982,41 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OpenPromptsOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_prompt_events_api_v1_participation_me_prompts__prompt_id__events_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                prompt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptEventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

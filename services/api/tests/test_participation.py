@@ -261,6 +261,8 @@ def test_lookup_personal_code_returns_the_card_without_using_the_code(
     client: TestClient, session: Session, make_study, make_participant, make_user
 ) -> None:
     study = make_study(title="Daily life")
+    study.consent_text = "Texto de consentimento deste estudo."
+    session.commit()
     participant = make_participant(study)
     activity = _add_activity(session, study)
     question = _add_question(session, study, text="Which mood?", options=["Calm", "Tired"])
@@ -277,6 +279,7 @@ def test_lookup_personal_code_returns_the_card_without_using_the_code(
     assert body["existing_participation"] is None
     assert body["consent_version"]
     assert body["study"]["title"] == "Daily life"
+    assert body["study"]["consent_text"] == "Texto de consentimento deste estudo."
     assert body["study"]["team"] == [team_email]
     assert body["study"]["requests_per_day"] == activity.prompts_per_day
     assert body["study"]["expected_minutes_per_day"] == (
@@ -298,6 +301,21 @@ def test_lookup_personal_code_returns_the_card_without_using_the_code(
     assert code.used_at is None
     assert code.uses == 0
     assert participant.device_hash is None
+
+
+def test_lookup_returns_no_consent_text_when_the_study_has_none(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    raw, code = _personal_code(session, participant)
+
+    response = client.post(LOOKUP, json={"code": raw})
+
+    assert response.status_code == 200
+    assert response.json()["study"]["consent_text"] is None
+    session.refresh(code)
+    assert code.used_at is None and code.uses == 0
 
 
 def test_lookup_rejects_used_expired_and_unavailable_codes(
