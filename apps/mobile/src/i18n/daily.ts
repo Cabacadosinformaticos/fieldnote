@@ -21,7 +21,9 @@ const daily = {
   'today.loading': 'A carregar os pedidos…',
   'today.syncSent': 'Estado do envio: tudo enviado',
   'today.syncWaiting': 'Estado do envio: {count} registos à espera',
+  'today.syncWaitingOne': 'Estado do envio: 1 registo à espera',
   'today.syncFailed': 'Estado do envio: {count} registos com problema',
+  'today.syncFailedOne': 'Estado do envio: 1 registo com problema',
   'today.syncOpenHint': 'Abrir estado do envio',
   'today.requestAsked': 'Pedido às {time}',
   'today.requestScheduled': 'Pedido previsto para as {time}',
@@ -41,7 +43,6 @@ const daily = {
   'today.noStudyBody':
     'Introduza o código do convite que recebeu para começar a responder aos pedidos.',
   'today.enterStudy': 'Entrar num estudo',
-  'today.offline': 'Sem ligação. Está a ver os últimos pedidos guardados.',
   'today.retry': 'Tentar',
   'today.freeTitle': 'Registo livre',
   'today.freeBody':
@@ -58,6 +59,8 @@ const daily = {
   'sync.waitingTitle': 'À espera de envio',
   'sync.waitingBody':
     '{count} registos guardados neste telemóvel. São enviados quando houver ligação.',
+  'sync.waitingBodyOne':
+    '1 registo guardado neste telemóvel. É enviado quando houver ligação.',
   'sync.waitingNote': 'Não desinstale a app até lá.',
   'sync.failedTitle': 'Registos com problema',
   'sync.failedBody':
@@ -132,7 +135,7 @@ const daily = {
   'record.text.toAudio': 'Gravar áudio em vez disso',
 
   'record.video.recording': 'A gravar',
-  'record.video.limit': 'O vídeo pára sozinho ao fim de 1 minuto.',
+  'record.video.limit': 'O vídeo pára sozinho aos 2 minutos.',
   'record.video.stop': 'Parar a gravação',
   'record.video.stopSave': 'Parar e guardar',
   'record.video.discard': 'Descartar gravação',
@@ -171,6 +174,7 @@ const daily = {
   'saved.title': 'Guardado no telemóvel',
   'saved.body': 'Será enviado quando houver rede.',
   'saved.waiting': '{count} registos à espera de rede',
+  'saved.waitingOne': '1 registo à espera de rede',
   'saved.warning':
     'Enquanto não forem enviados, só existem neste telemóvel. Não desinstale a app até serem enviados.',
   'saved.note':
@@ -186,7 +190,9 @@ const daily = {
 
   'entries.title': 'Os meus registos',
   'entries.subtitle': '{count} registos · só de leitura',
+  'entries.subtitleOne': '1 registo · só de leitura',
   'entries.waitingTitle': '{count} registos à espera de rede',
+  'entries.waitingTitleOne': '1 registo à espera de rede',
   'entries.waitingBody':
     'Estão só neste telemóvel. Não desinstale a app até serem enviados.',
   'entries.group.attention': 'Precisa de atenção',
@@ -210,6 +216,8 @@ const daily = {
   'entry.activity': 'Atividade',
   'entry.recorded': 'Gravado',
   'entry.received': 'Recebido',
+  'entry.location': 'Local',
+  'entry.locationCoords': 'Latitude {lat}, longitude {lon}',
   'entry.notReceived': 'Ainda não recebido',
   'entry.receivedToday': 'hoje, às {time}',
   'entry.receivedOn': '{date}, às {time}',

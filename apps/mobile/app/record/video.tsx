@@ -25,7 +25,7 @@ import { useCachedActivity } from '@/queue/hooks';
 import { mimeTypeForUri, saveEntry } from '@/queue/save';
 import { colors, fonts, radii, spacing } from '@/theme';
 
-const LIMIT_MS = 60_000;
+const LIMIT_MS = 120_000;
 
 type Phase = 'idle' | 'recording' | 'recorded';
 
@@ -147,7 +147,7 @@ export default function VideoRecordScreen() {
     setPhase('recording');
 
     try {
-      const result = await cameraRef.current.recordAsync({ maxDuration: 60 });
+      const result = await cameraRef.current.recordAsync({ maxDuration: 120 });
       if (!result?.uri) {
         throw new Error('video_missing');
       }
@@ -289,7 +289,7 @@ export default function VideoRecordScreen() {
                 </View>
                 <View style={styles.timerChip}>
                   <Text style={styles.timer}>
-                    {formatDuration(elapsed)} / 1:00
+                    {formatDuration(elapsed)} / 2:00
                   </Text>
                 </View>
               </>
@@ -320,7 +320,7 @@ export default function VideoRecordScreen() {
               accessibilityRole="progressbar"
               accessibilityValue={{
                 min: 0,
-                max: 60_000,
+                max: 120_000,
                 now: elapsed,
               }}
               style={styles.progressTrack}

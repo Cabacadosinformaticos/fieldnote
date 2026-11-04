@@ -19,6 +19,7 @@ import {
   clockOf,
   longDateToday,
 } from '@/components/daily/entryFormat';
+import { studyLineOf } from '@/components/daily/studyLine';
 import { td } from '@/i18n/td';
 import {
   notificationNavigationReady,
@@ -31,48 +32,6 @@ import type { FreeEntryActivity, PromptActivity } from '@/queue/types';
 import type { Participation } from '@/state/participations';
 import { useStudyFocus } from '@/state/studyFocus';
 import { colors, fonts, radii, spacing } from '@/theme';
-
-function utcDate(iso: string | null): number | null {
-  if (!iso) {
-    return null;
-  }
-  const [year, month, day] = iso.split('-').map(Number);
-  if (!year || !month || !day) {
-    return null;
-  }
-  return Date.UTC(year, month - 1, day);
-}
-
-function todayUtc(): number {
-  const now = new Date();
-  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function studyLine(participation: Participation | undefined, active: boolean): string {
-  if (!participation) {
-    return td('today.studyLine', { study: '' });
-  }
-  if (!active) {
-    return td('today.studyPending', { study: participation.title });
-  }
-
-  const start = utcDate(participation.startsOn);
-  const end = utcDate(participation.endsOn);
-  if (start === null || end === null || end < start) {
-    return td('today.studyLine', { study: participation.title });
-  }
-
-  const total = Math.round((end - start) / 86_400_000) + 1;
-  const day = Math.min(
-    Math.max(Math.floor((todayUtc() - start) / 86_400_000) + 1, 1),
-    total,
-  );
-  return td('today.studyDay', {
-    study: participation.title,
-    day,
-    total,
-  });
-}
 
 function requestedAt(activity: PromptActivity): string {
   if (activity.sentAt) {
@@ -100,7 +59,6 @@ export default function TodayScreen() {
   const [activities, setActivities] = useState<PromptActivity[]>([]);
   const [freeActivities, setFreeActivities] = useState<FreeEntryActivity[]>([]);
   const [participations, setParticipations] = useState<Participation[]>([]);
-  const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -118,9 +76,8 @@ export default function TodayScreen() {
       setActivities(result.activities);
       setFreeActivities(result.freeActivities);
       setParticipations(result.participations);
-      setOffline(result.offline);
     } catch {
-      setOffline(true);
+      // The cached request stays on screen; the sync indicator reports the connection.
     } finally {
       setLoading(false);
     }
@@ -196,7 +153,7 @@ export default function TodayScreen() {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text numberOfLines={1} style={styles.studyLine}>
-            {studyLine(primaryParticipation, focusedActive)}
+            {studyLineOf(primaryParticipation, focusedActive)}
           </Text>
           <Text style={styles.title}>{td('today.title')}</Text>
           <Text style={styles.date}>{longDateToday()}</Text>
@@ -329,20 +286,6 @@ export default function TodayScreen() {
           main={false}
           onOpen={openFreeEntry}
         />
-      ) : null}
-
-      {offline ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            void load();
-          }}
-          style={({ pressed }) => [styles.offlineCard, pressed && styles.pressed]}
-        >
-          <Ionicons name="cloud-offline-outline" size={20} color={colors.textBody} />
-          <Text style={styles.offlineText}>{td('today.offline')}</Text>
-          <Text style={styles.offlineRetry}>{td('today.retry')}</Text>
-        </Pressable>
       ) : null}
     </Screen>
   );
@@ -536,30 +479,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: colors.textBody,
-  },
-  offlineCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
-  },
-  offlineText: {
-    flex: 1,
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 19,
-    color: colors.textBody,
-  },
-  offlineRetry: {
-    fontFamily: fonts.extrabold,
-    fontSize: 14,
-    lineHeight: 19,
-    color: colors.primaryDark,
   },
   pressed: {
     opacity: 0.82,

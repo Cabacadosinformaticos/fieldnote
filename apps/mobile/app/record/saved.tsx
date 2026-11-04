@@ -118,21 +118,7 @@ export default function SavedScreen() {
                   : td('saved.body')}
             </Text>
 
-            {failed ? (
-              <View style={styles.failedCard}>
-                <Ionicons name="warning-outline" size={22} color="#9B1C1C" />
-                <Text style={styles.failedText}>{td('saved.failedBody')}</Text>
-              </View>
-            ) : sent ? (
-              <View style={styles.sentCard}>
-                <Ionicons
-                  name="cloud-done-outline"
-                  size={22}
-                  color={colors.successText}
-                />
-                <Text style={styles.sentText}>{td('saved.sentBody')}</Text>
-              </View>
-            ) : (
+            {failed || sent ? null : (
               <View style={styles.statusCard}>
                 <View style={styles.statusHeader}>
                   <View style={styles.statusIcon}>
@@ -146,7 +132,9 @@ export default function SavedScreen() {
                     </View>
                   </View>
                   <Text style={styles.statusTitle}>
-                    {td('saved.waiting', { count: summary.waiting })}
+                    {summary.waiting === 1
+                      ? td('saved.waitingOne')
+                      : td('saved.waiting', { count: summary.waiting })}
                   </Text>
                 </View>
 
@@ -287,42 +275,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     color: colors.textMuted,
-  },
-  failedCard: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: '#EDB4B4',
-    backgroundColor: '#FDECEC',
-  },
-  failedText: {
-    flex: 1,
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#7A1A1A',
-  },
-  sentCard: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.successBackground,
-    backgroundColor: colors.successBackground,
-  },
-  sentText: {
-    flex: 1,
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.successText,
   },
   spacer: {
     flexGrow: 1,

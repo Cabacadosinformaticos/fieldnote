@@ -1,13 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { EntryRow } from '@/components/daily/EntryRow';
 import { groupIdOf, groupLabelOf } from '@/components/daily/entryFormat';
+import { studyLineOf } from '@/components/daily/studyLine';
 import { td } from '@/i18n/td';
 import { useOutboxEntries } from '@/queue/hooks';
 import { summaryOf, type OutboxEntry } from '@/queue/types';
+import {
+  listParticipations,
+  type Participation,
+} from '@/state/participations';
+import { useStudyFocus } from '@/state/studyFocus';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const waitingColors = {
@@ -39,19 +47,49 @@ function dateGroups(entries: OutboxEntry[]): { id: string; label: string; entrie
 }
 
 export default function EntriesScreen() {
+  const { focusedStudyId } = useStudyFocus();
   const { entries, loading } = useOutboxEntries();
+  const [participations, setParticipations] = useState<Participation[]>([]);
   const summary = summaryOf(entries);
   const failed = entries.filter((entry) => entry.state === 'failed');
   const groups = dateGroups(entries);
+
+  useFocusEffect(
+    useCallback(() => {
+      void listParticipations()
+        .then(setParticipations)
+        .catch(() => setParticipations([]));
+    }, []),
+  );
+
+  const active = participations.filter(
+    (participation) => participation.status === 'active',
+  );
+  const currentParticipation =
+    participations.find(
+      (participation) => participation.studyId === focusedStudyId,
+    ) ??
+    active[0] ??
+    participations[0];
 
   return (
     <Screen contentStyle={styles.content} edges={['top']}>
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        {currentParticipation ? (
+          <Text numberOfLines={1} style={styles.studyLine}>
+            {studyLineOf(
+              currentParticipation,
+              currentParticipation.status === 'active',
+            )}
+          </Text>
+        ) : null}
         <Text style={styles.title}>{td('entries.title')}</Text>
         <Text style={styles.subtitle}>
-          {td('entries.subtitle', { count: entries.length })}
+          {entries.length === 1
+            ? td('entries.subtitleOne')
+            : td('entries.subtitle', { count: entries.length })}
         </Text>
       </View>
 
@@ -60,7 +98,9 @@ export default function EntriesScreen() {
           <Ionicons name="cloud-upload-outline" size={20} color={waitingColors.text} />
           <View style={styles.waitingText}>
             <Text style={styles.waitingTitle}>
-              {td('entries.waitingTitle', { count: summary.waiting })}
+              {summary.waiting === 1
+                ? td('entries.waitingTitleOne')
+                : td('entries.waitingTitle', { count: summary.waiting })}
             </Text>
             <Text style={styles.waitingBody}>{td('entries.waitingBody')}</Text>
           </View>
@@ -116,6 +156,12 @@ const styles = StyleSheet.create({
   header: {
     gap: 2,
     paddingBottom: spacing.sm,
+  },
+  studyLine: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
   },
   title: {
     fontFamily: fonts.extrabold,

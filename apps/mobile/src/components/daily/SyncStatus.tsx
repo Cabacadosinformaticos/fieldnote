@@ -61,7 +61,9 @@ export function SyncStatus() {
     const body = attention
       ? td('sync.failedBody', { failed, waiting })
       : waiting > 0
-        ? td('sync.waitingBody', { count: waiting })
+        ? waiting === 1
+          ? td('sync.waitingBodyOne')
+          : td('sync.waitingBody', { count: waiting })
         : td('sync.sentBody');
     const note = attention
       ? td('sync.failedNote')
@@ -94,9 +96,13 @@ export function SyncStatus() {
       accessibilityHint={td('today.syncOpenHint')}
       accessibilityLabel={
         attention
-          ? td('today.syncFailed', { count: failed })
+          ? failed === 1
+            ? td('today.syncFailedOne')
+            : td('today.syncFailed', { count: failed })
           : waiting > 0
-            ? td('today.syncWaiting', { count: waiting })
+            ? waiting === 1
+              ? td('today.syncWaitingOne')
+              : td('today.syncWaiting', { count: waiting })
             : td('today.syncSent')
       }
       accessibilityRole="button"
