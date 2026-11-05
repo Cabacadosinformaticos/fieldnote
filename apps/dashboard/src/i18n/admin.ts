@@ -360,7 +360,7 @@ const pt = {
   'totp.heroBullet1': 'Defina atividades e as horas dos pedidos',
   'totp.heroBullet2': 'Veja fotos, textos, áudios e vídeos à medida que chegam',
   'totp.heroBullet3': 'Organize com etiquetas e exporte os dados',
-  'totp.footer': 'Projeto académico, IADE, 2026-27 · Todos os dados mostrados são de demonstração',
+  'totp.footer': 'Projeto académico, IADE, 2026-27',
 } as const
 
 export type AdminKey = keyof typeof pt

@@ -58,7 +58,7 @@ export const pt = {
   'signIn.heroBullet1': 'Defina atividades e as horas dos pedidos',
   'signIn.heroBullet2': 'Veja fotos, textos, áudios e vídeos à medida que chegam',
   'signIn.heroBullet3': 'Organize com etiquetas e exporte os dados',
-  'signIn.footer': 'Projeto académico, IADE, 2026-27 · Todos os dados mostrados são de demonstração',
+  'signIn.footer': 'Projeto académico, IADE, 2026-27',
   'signIn.title': 'Entrar',
   'signIn.subtitle': 'Área das equipas de investigação.',
   'signIn.email': 'Email',

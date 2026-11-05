@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  CopyIcon,
   GripIcon,
   InfoIcon,
   LockIcon,
@@ -12,7 +11,6 @@ import {
   XIcon,
 } from '../../components/activities/ActivityIcons'
 import Modal from '../../components/activities/Modal'
-import Toggle from '../../components/activities/Toggle'
 import { useActivities } from '../../api/activities'
 import {
   statusFromApi,
@@ -36,11 +34,6 @@ import {
   type StudyQuestion,
   type StudyRole,
 } from '../../api/studies'
-import {
-  useStudyCodes,
-  useUpdateStudyCode,
-  type StudyCodeOut,
-} from '../../api/participants'
 import { formatDayMonthYear } from '../../components/studies/format'
 import { t, type ActivitiesKey } from '../../i18n/activities'
 import '../../styles/activities.css'
@@ -73,13 +66,6 @@ const roleLabels: Record<StudyRole, ActivitiesKey> = {
   principal_investigator: 'settings.team.principal',
   co_investigator: 'settings.team.coInvestigator',
   member: 'settings.team.member',
-}
-
-const codeStateLabels: Record<string, ActivitiesKey> = {
-  active: 'settings.codes.state.active',
-  off: 'settings.codes.state.off',
-  ended: 'settings.codes.state.ended',
-  limit_reached: 'settings.codes.state.limit_reached',
 }
 
 const avatarTones = ['teal', 'amber', 'violet', 'blue']
@@ -135,7 +121,6 @@ export default function StudySettingsPage() {
   const membersQuery = useStudyMembers(studyId)
   const questionsQuery = useStudyQuestions(studyId)
   const consentQuery = useStudyConsent(studyId)
-  const codesQuery = useStudyCodes(studyId)
 
   const updateStudy = useUpdateStudy(studyId)
   const createQuestion = useCreateQuestion(studyId)
@@ -145,13 +130,11 @@ export default function StudySettingsPage() {
   const addMember = useAddStudyMember(studyId)
   const changeRole = useChangeStudyMemberRole(studyId)
   const removeMember = useRemoveStudyMember(studyId)
-  const updateCode = useUpdateStudyCode(studyId)
   const closeStudy = useCloseStudy(studyId)
 
   const study = studyQuery.data
   const questions = questionsQuery.data ?? []
   const members = membersQuery.data ?? []
-  const codes = codesQuery.data ?? []
   const status = study ? statusFromApi(study.status) : 'draft'
   const closed = status === 'finished'
   const canManage = access.canManage && !closed
@@ -168,7 +151,6 @@ export default function StudySettingsPage() {
   const [dragId, setDragId] = useState<string | null>(null)
   const [endOpen, setEndOpen] = useState(false)
   const [endText, setEndText] = useState('')
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   useEffect(() => {
     if (!study) {
@@ -329,22 +311,6 @@ export default function StudySettingsPage() {
     ids.splice(to, 0, moved)
     reorderQuestions.mutate(ids)
     setDragId(null)
-  }
-
-  async function copyCode(code: StudyCodeOut) {
-    try {
-      await navigator.clipboard.writeText(code.code)
-      setCopiedCode(code.id)
-    } catch {
-      setCopiedCode(null)
-    }
-  }
-
-  function toggleCode(code: StudyCodeOut, values: Parameters<typeof updateCode.mutate>[0]['payload']) {
-    if (!canManage) {
-      return
-    }
-    updateCode.mutate({ codeId: code.id, payload: values })
   }
 
   function confirmTerminate() {
@@ -903,74 +869,6 @@ export default function StudySettingsPage() {
                 <span className="ac-sub">{t('settings.team.hint')}</span>
               </div>
             ) : null}
-          </section>
-
-          <section className="card ac-section" aria-label={t('settings.section.codes')}>
-            <div className="ac-section-heading">
-              <h2 className="h2">{t('settings.section.codes')}</h2>
-              <p className="ac-sub">{t('settings.codes.subtitle')}</p>
-            </div>
-
-            {codesQuery.isLoading ? (
-              <p className="ac-sub">{t('state.loading')}</p>
-            ) : codes.length === 0 ? (
-              <p className="ac-sub">{t('settings.codes.empty')}</p>
-            ) : (
-              codes.map((code) => (
-                <div className="ac-code-block" key={code.id}>
-                  <div className="ac-code-row">
-                    <span className="ac-code-value mono">{code.code}</span>
-                    <button type="button" className="btn btn-sm" onClick={() => void copyCode(code)}>
-                      <CopyIcon width={16} height={16} />
-                      {copiedCode === code.id ? t('settings.codes.copied') : t('settings.codes.copy')}
-                    </button>
-                  </div>
-                  <div className="ac-code-meta">
-                    <span>{code.name}</span>
-                    <span className={`pill ${code.state === 'active' ? 'ok' : 'ne'}`}>
-                      {codeStateLabels[code.state] ? t(codeStateLabels[code.state]) : code.state}
-                    </span>
-                  </div>
-                  <div className="ac-switch-list">
-                    <div className="ac-switch-item">
-                      <Toggle
-                        checked={code.active}
-                        disabled={!canManage || updateCode.isPending}
-                        onChange={(checked) => toggleCode(code, { active: checked })}
-                        label={t('settings.codes.active')}
-                      />
-                      <span>{t('settings.codes.active')}</span>
-                    </div>
-                    <div className="ac-switch-item">
-                      <Toggle
-                        checked={code.requires_approval}
-                        disabled={!canManage || updateCode.isPending}
-                        onChange={(checked) => toggleCode(code, { requires_approval: checked })}
-                        label={t('settings.codes.approval')}
-                      />
-                      <span>{t('settings.codes.approval')}</span>
-                    </div>
-                    <div className="ac-switch-item">
-                      <Toggle
-                        checked={code.requires_account}
-                        disabled={!canManage || updateCode.isPending}
-                        onChange={(checked) => toggleCode(code, { requires_account: checked })}
-                        label={t('settings.codes.account')}
-                      />
-                      <span>{t('settings.codes.account')}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-
-            {updateCode.error ? (
-              <p className="ac-field-error" role="alert">
-                {t('error.generic')}
-              </p>
-            ) : null}
-
-            <p className="ac-sub">{t('settings.codes.hint')}</p>
           </section>
 
           <section className="card ac-danger-card" aria-label={t('settings.section.end')}>
