@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import '../../styles/participants.css'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useEntries, type EntryType } from '../../api/entries'
+import { useEntries, useStudyLiveRefresh, type EntryType } from '../../api/entries'
 import {
   buildAdherenceView,
   entryRouteKey,
   participantLabel,
   ParticipantsApiError,
+  participantsKeys,
   participantStatusMeta,
   useAdherence,
   useCanReadIdentity,
@@ -62,6 +63,7 @@ export default function ParticipantDetailPage() {
   const issueCode = useIssuePersonalCode(studyId)
   const removeParticipant = useRemoveParticipant(studyId)
   const recentEntries = useEntries(studyId, { participantId, limit: 5 })
+  useStudyLiveRefresh(studyId, [participantsKeys.root])
 
   const listPath = `/estudos/${studyId}/participantes`
   const back = (
@@ -151,10 +153,20 @@ export default function ParticipantDetailPage() {
             </button>
           ) : null}
           {canWithdraw ? (
-            <button type="button" className="btn btn-d" onClick={() => setConfirming(true)}>
-              <UserMinusIcon />
-              {t('action.withdraw')}
-            </button>
+            <div className="pts-withdraw-block">
+              <button
+                type="button"
+                className="btn btn-d"
+                aria-describedby="pts-withdraw-help"
+                onClick={() => setConfirming(true)}
+              >
+                <UserMinusIcon />
+                {t('action.withdraw')}
+              </button>
+              <p className="pts-help" id="pts-withdraw-help">
+                {t('detail.withdrawHelp', { id: alias })}
+              </p>
+            </div>
           ) : null}
         </div>
       </header>

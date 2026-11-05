@@ -15,6 +15,7 @@ import {
   useStudy,
   type FilterKey,
 } from '../../api/participants'
+import { useStudyLiveRefresh } from '../../api/entries'
 import { addDays, todayInTimezone } from '../../api/studies'
 import ParticipantsTable, {
   type ParticipantRow,
@@ -34,6 +35,7 @@ export default function ParticipantsPage() {
   const studyQuery = useStudy(studyId)
   const approvals = useApprovals(studyId)
   const canReadIdentity = useCanReadIdentity(studyId)
+  useStudyLiveRefresh(studyId, [participantsKeys.root])
   const list = participants.data
 
   const filtered = useMemo(

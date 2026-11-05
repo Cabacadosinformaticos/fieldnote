@@ -5,13 +5,16 @@ import {
   adherenceTone,
   entryRouteKey,
   participantLabel,
+  ParticipantsApiError,
   participantStatusMeta,
+  useIssuePersonalCode,
   type DayStat,
   type ParticipantOut,
 } from '../../api/participants'
-import { t } from '../../i18n/participants'
+import { errorKey, t } from '../../i18n/participants'
 import { availabilityRanges, formatDate, formatDateTime } from './format'
-import { EllipsisIcon, LockIcon, UserMinusIcon } from './icons'
+import { EllipsisIcon, LockIcon, TicketIcon, UserMinusIcon } from './icons'
+import PersonalCodeModal from './PersonalCodeModal'
 
 export interface ParticipantRow extends ParticipantOut {
   days: (DayStat | null)[]
@@ -98,6 +101,10 @@ export default function ParticipantsTable({
   canReadIdentity: boolean
 }) {
   const [menu, setMenu] = useState<MenuState | null>(null)
+  const [issueAlias, setIssueAlias] = useState('')
+  const issueCode = useIssuePersonalCode(studyId)
+  const issueError =
+    issueCode.error instanceof ParticipantsApiError ? issueCode.error.code : null
 
   useEffect(() => {
     if (!menu) return
@@ -127,6 +134,12 @@ export default function ParticipantsTable({
 
   return (
     <>
+      {issueError ? (
+        <p className="pts-error" role="alert">
+          {t(errorKey(issueError))}
+        </p>
+      ) : null}
+
       <div className="card pts-table-card">
         <table className="pts-table">
           <thead>
@@ -260,6 +273,24 @@ export default function ParticipantsTable({
                 role="menu"
                 style={{ top: menu.top, left: menu.left, width: MENU_WIDTH }}
               >
+                <button
+                  type="button"
+                  className="pts-menu-item"
+                  role="menuitem"
+                  disabled={issueCode.isPending}
+                  onClick={() => {
+                    const row = rows.find((item) => item.id === menu.id)
+                    setIssueAlias(row ? participantLabel(row) : menu.id)
+                    issueCode.mutate(menu.id)
+                    setMenu(null)
+                  }}
+                >
+                  <TicketIcon />
+                  <span>
+                    {t('action.newInvite')}
+                    <small>{t('list.menuNewCodeHint')}</small>
+                  </span>
+                </button>
                 {rows.find((row) => row.id === menu.id)?.status === 'active' ||
                 rows.find((row) => row.id === menu.id)?.status === 'pending_approval' ? (
                   <Link
@@ -299,6 +330,18 @@ export default function ParticipantsTable({
             document.body,
           )
         : null}
+
+      {issueCode.data && issueAlias ? (
+        <PersonalCodeModal
+          alias={issueAlias}
+          code={issueCode.data.code}
+          expiresAt={issueCode.data.expires_at}
+          onClose={() => {
+            issueCode.reset()
+            setIssueAlias('')
+          }}
+        />
+      ) : null}
     </>
   )
 }
