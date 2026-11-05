@@ -3,12 +3,14 @@ import '../../styles/participants.css'
 import { Link, useParams } from 'react-router-dom'
 import {
   ParticipantsApiError,
+  participantsKeys,
   useApprovals,
   useApproveEntry,
   useDeclineEntry,
   useStudyCodes,
   type StudyCodeOut,
 } from '../../api/participants'
+import { useStudyLiveRefresh } from '../../api/entries'
 import EditStudyCodeModal from '../../components/participants/EditStudyCodeModal'
 import ParticipantsTabs from '../../components/participants/ParticipantsTabs'
 import StudyCodeCard from '../../components/participants/StudyCodeCard'
@@ -29,6 +31,7 @@ export default function InviteCodesPage() {
   const approve = useApproveEntry(studyId)
   const decline = useDeclineEntry(studyId)
   const [editing, setEditing] = useState<StudyCodeOut | null>(null)
+  useStudyLiveRefresh(studyId, [participantsKeys.root])
 
   const waiting = approvals.data ?? []
   const base = `/estudos/${studyId}/participantes`

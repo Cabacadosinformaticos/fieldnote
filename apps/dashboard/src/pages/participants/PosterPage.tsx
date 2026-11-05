@@ -2,7 +2,8 @@ import { useState } from 'react'
 import '../../styles/participants.css'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useActivities } from '../../api/activities'
-import { useStudy, useStudyCodes, useStudyMembers } from '../../api/participants'
+import { useStudyLiveRefresh } from '../../api/entries'
+import { participantsKeys, useStudy, useStudyCodes, useStudyMembers } from '../../api/participants'
 import PosterPreview, {
   type PosterContent,
   type PosterStyle,
@@ -49,6 +50,7 @@ export default function PosterPage() {
   const study = useStudy(studyId)
   const members = useStudyMembers(studyId)
   const activities = useActivities(studyId)
+  useStudyLiveRefresh(studyId, [participantsKeys.root])
   const team = (members.data ?? []).map((member) => emailDisplayName(member.email))
   const minutesPerDay = (activities.data ?? []).reduce(
     (total, activity) => total + activity.expected_minutes * activity.prompts_per_day,

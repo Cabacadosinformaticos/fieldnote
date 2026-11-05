@@ -3,8 +3,9 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryKey,
 } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { client, refreshSession } from './client'
 import type { components } from './schema'
@@ -399,8 +400,12 @@ function parseSseChunk(chunk: string): StreamingEvent | null {
  * The stream needs the Bearer token, which EventSource cannot send, so this reads the response
  * body with fetch and reconnects from the last received entry when the connection drops.
  */
-export function useStudyEvents(studyId: string | undefined) {
+export function useStudyEvents(studyId: string | undefined, onEvent?: () => void) {
   const queryClient = useQueryClient()
+  const onEventRef = useRef(onEvent)
+  useEffect(() => {
+    onEventRef.current = onEvent
+  })
   const [status, setStatus] = useState<'connecting' | 'live' | 'offline'>('connecting')
 
   useEffect(() => {
@@ -421,6 +426,7 @@ export function useStudyEvents(studyId: string | undefined) {
       invalidateTimer = setTimeout(() => {
         invalidateTimer = undefined
         void queryClient.invalidateQueries({ queryKey: entryKeys.all(studyId) })
+        onEventRef.current?.()
       }, 250)
     }
 
@@ -530,6 +536,26 @@ export function useStudyEvents(studyId: string | undefined) {
   }, [studyId, queryClient])
 
   return status
+}
+
+/**
+ * Re-runs the queries a page reads whenever the study event stream reports a change.
+ * The stream already invalidates the entries; pass the other keys the page depends on.
+ */
+export function useStudyLiveRefresh(
+  studyId: string | undefined,
+  queryKeys: readonly QueryKey[],
+) {
+  const queryClient = useQueryClient()
+  const keysRef = useRef(queryKeys)
+  useEffect(() => {
+    keysRef.current = queryKeys
+  })
+  return useStudyEvents(studyId, () => {
+    for (const queryKey of keysRef.current) {
+      void queryClient.invalidateQueries({ queryKey })
+    }
+  })
 }
 
 async function exportResponse(url: string): Promise<Response> {

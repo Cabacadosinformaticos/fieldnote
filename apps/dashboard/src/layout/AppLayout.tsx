@@ -104,6 +104,14 @@ export default function AppLayout() {
   )
   const isStudiesIndex = location.pathname === '/estudos'
   const isPasswordPage = location.pathname === '/conta/palavra-passe'
+  // The mockups draw the badge only on the pages that follow the study event stream.
+  const studyBase = studyId ? `/estudos/${studyId}` : ''
+  const showsRealtimeBadge =
+    Boolean(studyId) &&
+    (location.pathname === `${studyBase}/visao-geral` ||
+      (location.pathname.startsWith(`${studyBase}/participantes`) &&
+        !location.pathname.startsWith(`${studyBase}/participantes/convidar`)) ||
+      location.pathname.startsWith(`${studyBase}/registos`))
 
   const userEmail = user?.email ?? ''
   const userCard = {
@@ -300,12 +308,12 @@ export default function AppLayout() {
               <ShieldCheckIcon width={16} height={16} />
               {t('topbar.totp')}
             </span>
-          ) : (
+          ) : showsRealtimeBadge ? (
             <span className="realtime-badge">
               <span className="status-dot" aria-hidden="true" />
               {t('topbar.realtime')}
             </span>
-          )}
+          ) : null}
         </header>
 
         <main className="app-content">
