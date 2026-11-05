@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useActivities, type Activity } from '../../api/activities'
+import { useStudyLiveRefresh } from '../../api/entries'
 import { formatDateRange, formatDayMonthYear } from '../../components/studies/format'
 import { ChevronRightIcon } from '../../components/icons'
 import {
@@ -13,6 +14,7 @@ import {
   clockInTimezone,
   nowClockInTimezone,
   studiesErrorMessage,
+  studyKeys,
   styleLabel,
   todayInTimezone,
   useStudy,
@@ -442,6 +444,7 @@ export default function StudyPlanPage() {
   const date = selectedDate ?? defaultDate
   const planQuery = useStudyPlan(studyId, date)
   const plan = planQuery.data
+  useStudyLiveRefresh(studyId, [studyKeys.plan(studyId, date)])
 
   const dateIndex = days.indexOf(date)
   const previousDate = dateIndex > 0 ? days[dateIndex - 1] : null
@@ -501,6 +504,16 @@ export default function StudyPlanPage() {
 
   const intervalBins = plan ? buildIntervalBins(plan, timezone) : []
   const intervalTotals = binTotals(intervalBins)
+  const sameHourCounts = [0, 0, 0, 0]
+  if (plan) {
+    const perParticipant = new Map<string, number>()
+    for (const prompt of plan.prompts) {
+      const index = perParticipant.get(prompt.participant_id) ?? 0
+      sameHourCounts[index % sameHourCounts.length] += 1
+      perParticipant.set(prompt.participant_id, index + 1)
+    }
+  }
+  const sameHourPeak = Math.max(0, ...sameHourCounts)
   const intervalScale = Math.max(intervalTotals.peak, study.max_prompts_per_slot, 1)
   const nowClock = nowClockInTimezone(timezone)
   const nowMinutes = nowClock.hour * 60 + nowClock.minute
@@ -770,7 +783,7 @@ export default function StudyPlanPage() {
       ) : null}
 
       {plan && plan.prompts.length > 0 ? (
-        <>
+        <div className="st-grid-interval">
           <section className="card st-interval-card" aria-label={t('plan.interval.title')}>
             <div>
               <h2 className="h2">{t('plan.interval.title')}</h2>
@@ -892,7 +905,69 @@ export default function StudyPlanPage() {
               ) : null}
             </div>
           </section>
-        </>
+
+          <section className="card st-compare-card" aria-label={t('plan.compare.title')}>
+            <div className="st-card-head st-card-head-start">
+              <h2 className="h2">{t('plan.compare.title')}</h2>
+              <p className="st-sub">
+                {t('plan.compare.subtitle', { count: plan.prompts.length })}
+              </p>
+            </div>
+
+            <div className="st-compare-chart">
+              <div className="st-compare-axis" aria-hidden="true">
+                <span>{sameHourPeak}</span>
+                <span>0</span>
+              </div>
+              <div className="st-compare-plot">
+                <span className="st-compare-baseline" />
+                <span className="st-compare-limit" aria-hidden="true" />
+                <div className="st-compare-bars">
+                  {Array.from({ length: INTERVAL_BIN_COUNT }, (_, index) => {
+                    const fixedHour = [0, 16, 32, 48].indexOf(index)
+                    return (
+                      <span
+                        key={index}
+                        className="st-compare-bar"
+                        style={{
+                          height:
+                            fixedHour >= 0
+                              ? `${(sameHourCounts[fixedHour] / Math.max(1, sameHourPeak)) * 88}px`
+                              : '0',
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="st-compare-labels" aria-hidden="true">
+              {['08:00', '12:00', '16:00', '20:00'].map((label, index) => (
+                <span key={label} className="mono" style={{ left: `${index * 27.586}%` }}>
+                  {label}
+                </span>
+              ))}
+            </div>
+
+            <div className="st-compare-stats">
+              <div className="st-compare-stat">
+                <span className="st-compare-stat-label">{t('plan.compare.sameHours')}</span>
+                <span className="st-compare-stat-value">
+                  {sameHourPeak}{' '}
+                  <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
+                </span>
+              </div>
+              <div className="st-compare-stat st-compare-stat-primary">
+                <span className="st-compare-stat-label">{t('plan.compare.fieldnote')}</span>
+                <span className="st-compare-stat-value">
+                  {intervalTotals.peak}{' '}
+                  <span className="st-compare-stat-sub">{t('plan.compare.sameHoursPeak')}</span>
+                </span>
+              </div>
+            </div>
+            <p className="st-sub">{t('plan.compare.note')}</p>
+          </section>
+        </div>
       ) : null}
 
       {plan ? (
