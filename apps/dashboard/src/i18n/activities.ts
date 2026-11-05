@@ -204,9 +204,9 @@ const pt = {
   'settings.plan.invalidLimits': 'Os limites têm de ser números inteiros maiores do que zero.',
   'settings.section.consent': 'Texto de consentimento',
   'settings.consent.subtitle':
-    'Versão {version}, em português e inglês. Foi aceite por {count} participantes.',
+    'Versão {version}. Foi aceite por {count} participantes.',
   'settings.consent.subtitleOne':
-    'Versão {version}, em português e inglês. Foi aceite por 1 participante.',
+    'Versão {version}. Foi aceite por 1 participante.',
   'settings.consent.pill': 'Versão {version} em uso',
   'settings.consent.info':
     'Se publicar uma versão nova, ela aplica-se só aos participantes que entrarem depois. Quem já aceitou mantém a versão {version}, e o texto aceite fica guardado com a data.',
@@ -272,25 +272,6 @@ const pt = {
     'Só quem tem conta na plataforma. Os colaboradores veem os dados do estudo, sem as identidades.',
   'settings.team.removeAria': 'Remover {name}',
   'settings.team.duplicate': 'Esta pessoa já está na equipa.',
-  'settings.section.codes': 'Cartazes e códigos',
-  'settings.codes.subtitle':
-    'Como as pessoas entram no estudo. Pode usar as duas formas ao mesmo tempo.',
-  'settings.codes.label': 'Código do estudo, para cartazes',
-  'settings.codes.copy': 'Copiar',
-  'settings.codes.copied': 'Copiado',
-  'settings.codes.accept': 'Aceitar entradas com o código do estudo',
-  'settings.codes.qr': 'Incluir QR code nos cartazes',
-  'settings.codes.print': 'Imprimir o código no cartaz',
-  'settings.codes.hint':
-    'Cada participante recebe um código de uso único, que lê com o QR ou escreve na app. Gera os códigos em Participantes, depois de guardar.',
-  'settings.codes.empty': 'Ainda não há códigos de estudo. Crie-os em Participantes.',
-  'settings.codes.active': 'Aceitar entradas com este código',
-  'settings.codes.approval': 'Pedir aprovação a quem entra',
-  'settings.codes.account': 'Exigir conta na plataforma',
-  'settings.codes.state.active': 'Ativo',
-  'settings.codes.state.off': 'Desligado',
-  'settings.codes.state.ended': 'Terminado',
-  'settings.codes.state.limit_reached': 'Limite de utilizações atingido',
   'settings.section.end': 'Terminar estudo',
   'settings.end.text':
     'Ao terminar, deixam de ser planeados e enviados pedidos. Os registos que ainda estejam à espera de rede nos telemóveis continuam a ser recebidos e pode exportar tudo.',

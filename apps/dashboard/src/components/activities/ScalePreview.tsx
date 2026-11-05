@@ -18,7 +18,12 @@ export default function ScalePreview({ scale }: { scale: ActivityScaleDraft }) {
   const high = scale.highLabel
   const neutral = scale.midLabel.trim() || t('edit.scale.wordNeutral')
 
-  const selectedNumber = Math.max(1, Math.min(points, Math.round((points * 5) / 7)))
+  // An 11-point numbers scale runs from 0 to 10, as in the app; the others start at 1.
+  const lowestNumber = kind === 'number' && points === 11 ? 0 : 1
+  const selectedNumber = Math.max(
+    lowestNumber,
+    Math.min(lowestNumber + points - 1, Math.round((points * 5) / 7)),
+  )
   const faceIndexes = points === 3 ? [1, 2, 3] : [0, 1, 2, 3, 4]
   const selectedFace = points === 3 ? 2 : 3
 
@@ -46,7 +51,7 @@ export default function ScalePreview({ scale }: { scale: ActivityScaleDraft }) {
             points >= 10 ? 'ac-scale-numbers ac-scale-numbers-dense' : 'ac-scale-numbers'
           }
         >
-          {Array.from({ length: points }, (_, index) => index + 1).map((number) => (
+          {Array.from({ length: points }, (_, index) => index + lowestNumber).map((number) => (
             <span
               key={number}
               className={number === selectedNumber ? 'ac-scale-num ac-scale-num-on' : 'ac-scale-num'}
@@ -109,7 +114,7 @@ export default function ScalePreview({ scale }: { scale: ActivityScaleDraft }) {
       {!isText ? (
         <div className="ac-scale-ends">
           <span>
-            {isBar ? '0' : '1'} · {low}
+            {isBar ? '0' : lowestNumber} · {low}
           </span>
           <span className="ac-scale-ends-mid">{scale.midLabel && oddOrBar ? scale.midLabel : ''}</span>
           <span>

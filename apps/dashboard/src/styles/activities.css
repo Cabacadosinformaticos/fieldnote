@@ -1341,68 +1341,10 @@
   padding: 0 var(--fn-space-8);
 }
 
-.ac-code-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fn-space-10);
-  padding-bottom: var(--fn-space-14);
-  border-bottom: 1px solid var(--fn-color-border);
-}
-
-.ac-code-block:last-of-type {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.ac-code-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--fn-space-8);
-  color: var(--fn-color-text-muted);
-  font-size: var(--fn-text-13);
-}
-
 .ac-field-error {
   color: var(--fn-color-danger-text);
   font-size: var(--fn-text-12);
   font-weight: 600;
-}
-
-/* Poster and code options */
-
-.ac-code-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--fn-space-10);
-  padding: var(--fn-space-10) var(--fn-space-12);
-  border: 1px solid var(--fn-color-border-input);
-  border-radius: var(--fn-radius-md);
-  background: var(--fn-color-bg);
-}
-
-.ac-code-value {
-  font-size: var(--fn-text-14);
-  letter-spacing: 0.04em;
-}
-
-.ac-switch-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fn-space-10);
-}
-
-.ac-switch-item {
-  display: flex;
-  align-items: center;
-  gap: var(--fn-space-10);
-  font-size: var(--fn-text-14);
-  font-weight: 600;
-}
-
-.ac-switch-item svg {
-  color: var(--fn-color-text-muted);
 }
 
 /* Ending the study */

@@ -43,10 +43,10 @@ const typeLabelKeys: Record<CaptureType, ActivitiesKey> = {
 }
 
 const scaleKinds: ScaleKind[] = ['number', 'faces', 'text', 'bar']
-const scalePointChoices = [3, 5, 7, 10] as const
+const scalePointChoices = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const
 
 const allowedScalePoints: Record<ScaleKind, readonly number[]> = {
-  number: [3, 5, 7, 10],
+  number: scalePointChoices,
   faces: [3, 5],
   text: [3, 5, 7],
   bar: [],
@@ -533,7 +533,9 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
                   </label>
                   <div className="ac-prefix-row">
                     {showPrefix ? (
-                      <span className="ac-prefix mono">{isBar ? '0' : '1'} =</span>
+                      <span className="ac-prefix mono">
+                        {isBar || (scale.kind === 'number' && scale.points === 11) ? '0' : '1'} =
+                      </span>
                     ) : null}
                     <input
                       id="scale-low"
