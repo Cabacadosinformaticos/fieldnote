@@ -172,7 +172,7 @@ export interface paths {
         put?: never;
         /**
          * Create Account
-         * @description FR-41: create an account and return its temporary password once.
+         * @description FR-41: create an account and mail it a link to choose its own password.
          */
         post: operations["create_account_api_v1_admin_accounts_post"];
         delete?: never;
@@ -191,11 +191,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * Delete Account
-         * @description FR-41: remove an account.
-         */
-        delete: operations["delete_account_api_v1_admin_accounts__user_id__delete"];
+        delete?: never;
         options?: never;
         head?: never;
         /**
@@ -219,6 +215,26 @@ export interface paths {
          * @description FR-41 and UC14: deactivate an account and revoke its refresh tokens.
          */
         post: operations["lock_account_api_v1_admin_accounts__user_id__lock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/{user_id}/send-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Account Link
+         * @description FR-41: send a fresh single-use link for the person to choose a password.
+         */
+        post: operations["send_account_link_api_v1_admin_accounts__user_id__send_link_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -444,7 +460,7 @@ export interface paths {
         put?: never;
         /**
          * Change Password
-         * @description Change the signed-in account's password; a temporary password can do this too.
+         * @description Change the signed-in account's password.
          */
         post: operations["change_password_api_v1_auth_password_change_post"];
         delete?: never;
@@ -481,6 +497,26 @@ export interface paths {
         put?: never;
         /** Enrol Totp */
         post: operations["enrol_totp_api_v1_auth_totp_enrolment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/totp/enrolment/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Totp Enrolment
+         * @description Check the first code and make the authenticator the account's second factor.
+         */
+        post: operations["confirm_totp_enrolment_api_v1_auth_totp_enrolment_confirm_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1560,15 +1596,29 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Last Session At */
+            last_session_at: string | null;
             /** Locked */
             locked: boolean;
             /** Locked Until */
             locked_until: string | null;
+            /** Mail Sent */
+            mail_sent: boolean;
             role: components["schemas"]["UserRole"];
-            /** Temporary Password */
-            temporary_password: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "active" | "deactivated" | "locked";
+            /** Studies */
+            studies: number;
             /** Totp Enrolled */
             totp_enrolled: boolean;
+        };
+        /** AccountLinkOut */
+        AccountLinkOut: {
+            /** Mail Sent */
+            mail_sent: boolean;
         };
         /** AccountLinkRequest */
         AccountLinkRequest: {
@@ -2488,6 +2538,11 @@ export interface components {
              */
             expired: number;
             /**
+             * Opened
+             * @default 0
+             */
+            opened: number;
+            /**
              * Percentage
              * @default 0
              */
@@ -2502,6 +2557,11 @@ export interface components {
              * @default 0
              */
             sent: number;
+            /**
+             * Shown
+             * @default 0
+             */
+            shown: number;
         };
         /** OverviewAlert */
         OverviewAlert: {
@@ -3612,6 +3672,15 @@ export interface components {
             token_type: string;
             user: components["schemas"]["UserOut"];
         };
+        /** TotpConfirmationRequest */
+        TotpConfirmationRequest: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+            /** Totp Code */
+            totp_code: string;
+        };
         /** TotpEnrolmentRequest */
         TotpEnrolmentRequest: {
             /** Email */
@@ -3645,8 +3714,6 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Must Change Password */
-            must_change_password: boolean;
             role: components["schemas"]["UserRole"];
         };
         /**
@@ -3696,11 +3763,20 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Last Session At */
+            last_session_at: string | null;
             /** Locked */
             locked: boolean;
             /** Locked Until */
             locked_until: string | null;
             role: components["schemas"]["UserRole"];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "active" | "deactivated" | "locked";
+            /** Studies */
+            studies: number;
             /** Totp Enrolled */
             totp_enrolled: boolean;
         };
@@ -4054,35 +4130,6 @@ export interface operations {
             };
         };
     };
-    delete_account_api_v1_admin_accounts__user_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     change_account_role_api_v1_admin_accounts__user_id__patch: {
         parameters: {
             query?: never;
@@ -4136,6 +4183,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["app__schemas__admin__AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_account_link_api_v1_admin_accounts__user_id__send_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountLinkOut"];
                 };
             };
             /** @description Validation Error */
@@ -4527,6 +4605,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TotpEnrolmentResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_totp_enrolment_api_v1_auth_totp_enrolment_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotpConfirmationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

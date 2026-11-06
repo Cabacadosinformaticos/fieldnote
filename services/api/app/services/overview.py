@@ -44,7 +44,7 @@ def _local_day_bounds(day: date, timezone: ZoneInfo) -> tuple[datetime, datetime
     return start, end
 
 
-def _adherence(statuses: Counter) -> dict[str, object]:
+def _adherence(statuses: Counter, shown: int, opened: int) -> dict[str, object]:
     answered = statuses.get(PromptStatus.ANSWERED, 0)
     sent = statuses.get(PromptStatus.SENT, 0)
     expired = statuses.get(PromptStatus.EXPIRED, 0)
@@ -53,20 +53,28 @@ def _adherence(statuses: Counter) -> dict[str, object]:
     return {
         "answered": answered,
         "sent": sent,
+        "shown": shown,
+        "opened": opened,
         "expired": expired,
         "planned": planned,
         "percentage": round(answered * 100 / denominator, 1) if denominator else 0.0,
     }
 
 
-def _prompt_statuses(
+def _prompt_counts(
     session: Session,
     study_id: uuid.UUID,
     *,
     plan_date: date | None = None,
-) -> Counter:
+) -> tuple[Counter, int, int]:
+    """Statuses plus how many of the same prompts were shown and opened in the app."""
     statement = (
-        select(Prompt.status, func.count())
+        select(
+            Prompt.status,
+            func.count(),
+            func.count(Prompt.shown_at),
+            func.count(Prompt.opened_at),
+        )
         .join(Participant, Participant.id == Prompt.participant_id)
         .where(
             Participant.study_id == study_id,
@@ -76,7 +84,16 @@ def _prompt_statuses(
     )
     if plan_date is not None:
         statement = statement.where(Prompt.plan_date == plan_date)
-    return Counter(dict(session.execute(statement.group_by(Prompt.status)).all()))
+    statuses: Counter = Counter()
+    shown = 0
+    opened = 0
+    for status, total, shown_count, opened_count in session.execute(
+        statement.group_by(Prompt.status)
+    ):
+        statuses[status] = total
+        shown += shown_count
+        opened += opened_count
+    return statuses, shown, opened
 
 
 def _visible_entry_clause(study_id: uuid.UUID):
@@ -211,6 +228,9 @@ def study_overview(session: Session, study_id: uuid.UUID) -> dict[str, object]:
                 }
             )
 
+    today_statuses, today_shown, today_opened = _prompt_counts(session, study_id, plan_date=today)
+    study_statuses, study_shown, study_opened = _prompt_counts(session, study_id)
+
     return {
         "study_id": study.id,
         "date": today,
@@ -229,8 +249,8 @@ def study_overview(session: Session, study_id: uuid.UUID) -> dict[str, object]:
             "today_answered": today_final.get("answered", 0),
             "today_free": today_final.get("free", 0),
         },
-        "adherence_today": _adherence(_prompt_statuses(session, study_id, plan_date=today)),
-        "adherence_study": _adherence(_prompt_statuses(session, study_id)),
+        "adherence_today": _adherence(today_statuses, today_shown, today_opened),
+        "adherence_study": _adherence(study_statuses, study_shown, study_opened),
         "last_entries": last_entries,
         "alerts": alerts,
     }

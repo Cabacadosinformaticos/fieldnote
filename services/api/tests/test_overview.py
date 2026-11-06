@@ -45,6 +45,8 @@ def _make_prompt(
     occurrence: int,
     status: PromptStatus,
     unplanned_reason: UnplannedReason | None = None,
+    shown_at: datetime | None = None,
+    opened_at: datetime | None = None,
 ) -> Prompt:
     prompt = Prompt(
         participant_id=participant.id,
@@ -53,6 +55,8 @@ def _make_prompt(
         occurrence=occurrence,
         status=status,
         unplanned_reason=unplanned_reason,
+        shown_at=shown_at,
+        opened_at=opened_at,
     )
     session.add(prompt)
     session.commit()
@@ -117,6 +121,8 @@ def test_overview_counts_entries_adherence_and_alerts(
         plan_date=today_local,
         occurrence=0,
         status=PromptStatus.ANSWERED,
+        shown_at=now,
+        opened_at=now,
     )
     _make_prompt(
         session,
@@ -125,6 +131,7 @@ def test_overview_counts_entries_adherence_and_alerts(
         plan_date=today_local,
         occurrence=1,
         status=PromptStatus.SENT,
+        shown_at=now,
     )
     _make_prompt(
         session,
@@ -158,6 +165,8 @@ def test_overview_counts_entries_adherence_and_alerts(
         plan_date=yesterday,
         occurrence=0,
         status=PromptStatus.ANSWERED,
+        shown_at=now - timedelta(days=1),
+        opened_at=now - timedelta(days=1),
     )
     _make_prompt(
         session,
@@ -166,6 +175,8 @@ def test_overview_counts_entries_adherence_and_alerts(
         plan_date=today_local,
         occurrence=0,
         status=PromptStatus.ANSWERED,
+        shown_at=now,
+        opened_at=now,
     )
 
     newest = _make_entry(
@@ -232,6 +243,8 @@ def test_overview_counts_entries_adherence_and_alerts(
     assert body["adherence_today"] == {
         "answered": 1,
         "sent": 1,
+        "shown": 2,
+        "opened": 1,
         "expired": 1,
         "planned": 1,
         "percentage": 33.3,
@@ -239,6 +252,8 @@ def test_overview_counts_entries_adherence_and_alerts(
     assert body["adherence_study"] == {
         "answered": 2,
         "sent": 1,
+        "shown": 3,
+        "opened": 2,
         "expired": 1,
         "planned": 1,
         "percentage": 50.0,

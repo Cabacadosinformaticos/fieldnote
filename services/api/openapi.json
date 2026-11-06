@@ -62,6 +62,18 @@
             "title": "Id",
             "type": "string"
           },
+          "last_session_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Session At"
+          },
           "locked": {
             "title": "Locked",
             "type": "boolean"
@@ -78,12 +90,25 @@
             ],
             "title": "Locked Until"
           },
+          "mail_sent": {
+            "title": "Mail Sent",
+            "type": "boolean"
+          },
           "role": {
             "$ref": "#/components/schemas/UserRole"
           },
-          "temporary_password": {
-            "title": "Temporary Password",
+          "state": {
+            "enum": [
+              "active",
+              "deactivated",
+              "locked"
+            ],
+            "title": "State",
             "type": "string"
+          },
+          "studies": {
+            "title": "Studies",
+            "type": "integer"
           },
           "totp_enrolled": {
             "title": "Totp Enrolled",
@@ -94,13 +119,29 @@
           "id",
           "email",
           "role",
+          "state",
           "locked",
           "locked_until",
+          "studies",
+          "last_session_at",
           "totp_enrolled",
           "created_at",
-          "temporary_password"
+          "mail_sent"
         ],
         "title": "AccountCreatedOut",
+        "type": "object"
+      },
+      "AccountLinkOut": {
+        "properties": {
+          "mail_sent": {
+            "title": "Mail Sent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mail_sent"
+        ],
+        "title": "AccountLinkOut",
         "type": "object"
       },
       "AccountLinkRequest": {
@@ -2770,6 +2811,11 @@
             "title": "Expired",
             "type": "integer"
           },
+          "opened": {
+            "default": 0,
+            "title": "Opened",
+            "type": "integer"
+          },
           "percentage": {
             "default": 0.0,
             "title": "Percentage",
@@ -2783,6 +2829,11 @@
           "sent": {
             "default": 0,
             "title": "Sent",
+            "type": "integer"
+          },
+          "shown": {
+            "default": 0,
+            "title": "Shown",
             "type": "integer"
           }
         },
@@ -6117,6 +6168,35 @@
         "title": "TokenResponse",
         "type": "object"
       },
+      "TotpConfirmationRequest": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "totp_code": {
+            "maxLength": 10,
+            "minLength": 1,
+            "title": "Totp Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "totp_code"
+        ],
+        "title": "TotpConfirmationRequest",
+        "type": "object"
+      },
       "TotpEnrolmentRequest": {
         "properties": {
           "email": {
@@ -6191,10 +6271,6 @@
             "title": "Id",
             "type": "string"
           },
-          "must_change_password": {
-            "title": "Must Change Password",
-            "type": "boolean"
-          },
           "role": {
             "$ref": "#/components/schemas/UserRole"
           }
@@ -6202,8 +6278,7 @@
         "required": [
           "id",
           "email",
-          "role",
-          "must_change_password"
+          "role"
         ],
         "title": "UserOut",
         "type": "object"
@@ -6308,6 +6383,18 @@
             "title": "Id",
             "type": "string"
           },
+          "last_session_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Session At"
+          },
           "locked": {
             "title": "Locked",
             "type": "boolean"
@@ -6327,6 +6414,19 @@
           "role": {
             "$ref": "#/components/schemas/UserRole"
           },
+          "state": {
+            "enum": [
+              "active",
+              "deactivated",
+              "locked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "studies": {
+            "title": "Studies",
+            "type": "integer"
+          },
           "totp_enrolled": {
             "title": "Totp Enrolled",
             "type": "boolean"
@@ -6336,8 +6436,11 @@
           "id",
           "email",
           "role",
+          "state",
           "locked",
           "locked_until",
+          "studies",
+          "last_session_at",
           "totp_enrolled",
           "created_at"
         ],
@@ -6858,7 +6961,7 @@
         ]
       },
       "post": {
-        "description": "FR-41: create an account and return its temporary password once.",
+        "description": "FR-41: create an account and mail it a link to choose its own password.",
         "operationId": "create_account_api_v1_admin_accounts_post",
         "requestBody": {
           "content": {
@@ -6904,46 +7007,6 @@
       }
     },
     "/api/v1/admin/accounts/{user_id}": {
-      "delete": {
-        "description": "FR-41: remove an account.",
-        "operationId": "delete_account_api_v1_admin_accounts__user_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "User Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Delete Account",
-        "tags": [
-          "admin"
-        ]
-      },
       "patch": {
         "description": "FR-41: change an account between researcher and administrator.",
         "operationId": "change_account_role_api_v1_admin_accounts__user_id__patch",
@@ -7046,6 +7109,55 @@
           }
         ],
         "summary": "Lock Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts/{user_id}/send-link": {
+      "post": {
+        "description": "FR-41: send a fresh single-use link for the person to choose a password.",
+        "operationId": "send_account_link_api_v1_admin_accounts__user_id__send_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Account Link",
         "tags": [
           "admin"
         ]
@@ -7585,7 +7697,7 @@
     },
     "/api/v1/auth/password/change": {
       "post": {
-        "description": "Change the signed-in account's password; a temporary password can do this too.",
+        "description": "Change the signed-in account's password.",
         "operationId": "change_password_api_v1_auth_password_change_post",
         "requestBody": {
           "content": {
@@ -7680,6 +7792,41 @@
           }
         },
         "summary": "Enrol Totp",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/totp/enrolment/confirm": {
+      "post": {
+        "description": "Check the first code and make the authenticator the account's second factor.",
+        "operationId": "confirm_totp_enrolment_api_v1_auth_totp_enrolment_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpConfirmationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Totp Enrolment",
         "tags": [
           "auth"
         ]

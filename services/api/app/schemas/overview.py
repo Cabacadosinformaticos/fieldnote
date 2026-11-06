@@ -28,6 +28,8 @@ class OverviewEntryCounts(BaseModel):
 class OverviewAdherence(BaseModel):
     answered: int = 0
     sent: int = 0
+    shown: int = 0
+    opened: int = 0
     expired: int = 0
     planned: int = 0
     percentage: float = 0.0
