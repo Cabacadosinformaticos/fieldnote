@@ -412,10 +412,10 @@
 
 .ad-account-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) 130px 120px 130px 300px;
+  grid-template-columns: minmax(0, 1.4fr) 108px minmax(0, 1fr) 100px 104px 104px 272px;
   gap: var(--fn-space-12);
   align-items: center;
-  min-width: 900px;
+  min-width: 1080px;
   padding: 0 20px;
 }
 
@@ -462,6 +462,13 @@
   font-family: var(--fn-font-mono);
   font-size: var(--fn-text-12);
   font-weight: 500;
+}
+
+.ad-session-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .ad-row-actions {
@@ -1732,6 +1739,79 @@
   border-top: 1px solid var(--fn-color-border-soft);
   color: var(--fn-color-text-muted);
   font-size: var(--fn-text-13);
+  line-height: 20px;
+}
+
+/* TOTP first enrolment */
+
+.ad-totp-enrol-card {
+  max-width: 480px;
+}
+
+.ad-totp-enrol-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fn-space-10);
+  padding: var(--fn-space-18);
+  border: 1px solid var(--fn-color-border-soft);
+  border-radius: var(--fn-radius-lg);
+  background: var(--fn-color-surface-muted, #f7f8fb);
+}
+
+.ad-totp-enrol-title {
+  margin: 0;
+  font-size: var(--fn-text-15);
+  font-weight: 800;
+}
+
+.ad-totp-enrol-text {
+  margin: 0;
+  color: var(--fn-color-text-muted);
+  font-size: var(--fn-text-14);
+  line-height: 20px;
+}
+
+.ad-totp-qr {
+  align-self: center;
+  width: 190px;
+  padding: var(--fn-space-6);
+  border: 1px solid var(--fn-color-border);
+  border-radius: var(--fn-radius-sm);
+  background: #fff;
+}
+
+.ad-totp-secret {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border: 1px solid var(--fn-color-border);
+  border-radius: var(--fn-radius-sm);
+  background: var(--fn-color-surface);
+  color: var(--fn-color-text);
+  font-family: var(--fn-font-mono);
+  font-size: var(--fn-text-14);
+  letter-spacing: 0.06em;
+  word-break: break-all;
+}
+
+.ad-totp-link {
+  align-self: flex-start;
+  color: var(--fn-color-primary-strong);
+  font-size: var(--fn-text-14);
+  font-weight: 700;
+}
+
+.ad-totp-error {
+  color: var(--fn-color-danger-text, #b42318);
+  font-size: var(--fn-text-14);
+}
+
+.ad-totp-load {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fn-space-14);
+  margin: 0;
+  color: var(--fn-color-text-muted);
+  font-size: var(--fn-text-14);
   line-height: 20px;
 }
 

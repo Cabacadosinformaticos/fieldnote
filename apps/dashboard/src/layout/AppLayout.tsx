@@ -76,10 +76,8 @@ export default function AppLayout() {
   }, [switcherOpen])
 
   const isAdmin = user?.role === 'admin'
-  // While a temporary password is pending, every other API route answers 403; do not ask.
-  const mustChangePassword = user?.must_change_password ?? false
-  const studiesQuery = useStudies(!mustChangePassword)
-  const erasuresQuery = useErasures(isAdmin && !mustChangePassword)
+  const studiesQuery = useStudies()
+  const erasuresQuery = useErasures(isAdmin)
   const studies = studiesQuery.data ?? []
   const currentStudy = studies.find((study) => study.id === studyId)
   const studyTitle =

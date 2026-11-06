@@ -4,6 +4,7 @@ import type { components } from './schema'
 
 export type AdminAccount = components['schemas']['app__schemas__admin__AccountOut']
 export type CreatedAccount = components['schemas']['AccountCreatedOut']
+export type AccountLinkResult = components['schemas']['AccountLinkOut']
 export type AdminStudy = components['schemas']['AdminStudyOut']
 export type AuditActorType = components['schemas']['AuditActorType']
 export type AuditEvent = components['schemas']['AuditEventOut']
@@ -107,13 +108,14 @@ export function unlockAccount(userId: string): Promise<AdminAccount> {
   return accountAction('unlock', userId)
 }
 
-export async function deleteAccount(userId: string): Promise<void> {
-  const { error, response } = await client.DELETE('/admin/accounts/{user_id}', {
+export async function sendAccountLink(userId: string): Promise<AccountLinkResult> {
+  const { data, error, response } = await client.POST('/admin/accounts/{user_id}/send-link', {
     params: { path: { user_id: userId } },
   })
-  if (!response.ok) {
-    throw await toAdminError(error, response)
+  if (data) {
+    return data
   }
+  throw await toAdminError(error, response)
 }
 
 export async function fetchStudies(): Promise<AdminStudy[]> {
@@ -246,8 +248,8 @@ export function useUnlockAccount() {
   return useAccountMutation((userId: string) => unlockAccount(userId))
 }
 
-export function useDeleteAccount() {
-  return useAccountMutation((userId: string) => deleteAccount(userId))
+export function useSendAccountLink() {
+  return useAccountMutation((userId: string) => sendAccountLink(userId))
 }
 
 export function useEraseParticipant() {
