@@ -96,9 +96,6 @@ def confirm_reset(session: Session, raw_token: str, new_password: str) -> uuid.U
 
     passwords.validate_new_password(new_password, user.email)
     user.password_hash = passwords.hash_password(new_password)
-    # Recovery is the account owner choosing a password, so a temporary password no longer
-    # blocks the account.
-    user.must_change_password = False
     row.used_at = now
     # Links issued before this one stop working as soon as one is used.
     session.execute(

@@ -16,6 +16,12 @@ class TotpEnrolmentRequest(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
 
 
+class TotpConfirmationRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=1024)
+    totp_code: str = Field(min_length=1, max_length=10)
+
+
 class PasswordResetRequest(BaseModel):
     email: str = Field(min_length=3, max_length=320)
 
@@ -42,7 +48,6 @@ class UserOut(BaseModel):
     id: uuid.UUID
     email: str
     role: UserRole
-    must_change_password: bool
 
 
 class TokenResponse(BaseModel):

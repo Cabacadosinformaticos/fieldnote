@@ -113,12 +113,16 @@ def make_user(session: Session) -> Callable[..., UserAccount]:
         password: str = TEST_PASSWORD,
         role: UserRole = UserRole.RESEARCHER,
         totp_secret: str | None = None,
+        totp_confirmed: bool = True,
     ) -> UserAccount:
         user = UserAccount(
             email=email,
             password_hash=hash_password(password),
             role=role,
             totp_secret=totp_secret,
+            totp_confirmed_at=(
+                datetime.now(UTC) if totp_secret is not None and totp_confirmed else None
+            ),
         )
         session.add(user)
         session.commit()

@@ -18,8 +18,6 @@ from app.security import tokens
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
-PASSWORD_CHANGE_REQUIRED = "The password must be changed before continuing."
-
 
 @dataclass(frozen=True)
 class StudyAccess:
@@ -58,17 +56,6 @@ def current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
     session: Annotated[Session, Depends(get_session)],
 ) -> UserAccount:
-    user = _resolve_user(credentials, session)
-    if user.must_change_password:
-        raise ApiError(403, "password_change_required", PASSWORD_CHANGE_REQUIRED)
-    return user
-
-
-def current_user_allow_password_change(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
-    session: Annotated[Session, Depends(get_session)],
-) -> UserAccount:
-    """Sign-in, the account itself and the change-password form work before the change."""
     return _resolve_user(credentials, session)
 
 

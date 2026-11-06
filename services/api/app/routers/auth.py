@@ -22,13 +22,14 @@ from app.schemas.auth import (
     PasswordResetRequest,
     PasswordResetRequestOut,
     TokenResponse,
+    TotpConfirmationRequest,
     TotpEnrolmentRequest,
     TotpEnrolmentResponse,
     UserOut,
 )
 from app.security import passwords, tokens, totp
 from app.security.audit import record
-from app.security.deps import current_user_allow_password_change
+from app.security.deps import current_user
 from app.services import password_reset
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -175,7 +176,7 @@ def login(
     user = _authenticate_password(session, email, payload.password)
 
     if user.role == UserRole.ADMIN:
-        if user.totp_secret is None:
+        if user.totp_secret is None or user.totp_confirmed_at is None:
             _audit_login_failure(session, user, email, "totp_enrolment_required")
             raise ApiError(
                 403,
@@ -291,9 +292,9 @@ def change_password(
     payload: PasswordChangeRequest,
     request: Request,
     session: Annotated[Session, Depends(get_session)],
-    user: Annotated[UserAccount, Depends(current_user_allow_password_change)],
+    user: Annotated[UserAccount, Depends(current_user)],
 ) -> None:
-    """Change the signed-in account's password; a temporary password can do this too."""
+    """Change the signed-in account's password."""
     # A wrong current password follows the same path as a failed sign-in: counted, audited and
     # locked after the same number of attempts.
     _authenticate_password(session, user.email, payload.current_password)
@@ -302,7 +303,6 @@ def change_password(
         raise ApiError(422, "password_unchanged", PASSWORD_UNCHANGED)
 
     user.password_hash = passwords.hash_password(payload.new_password)
-    user.must_change_password = False
     _revoke_other_refresh_tokens(session, user, request)
     record(
         session,
@@ -316,7 +316,7 @@ def change_password(
 
 @router.get("/me", response_model=UserOut)
 def me(
-    user: Annotated[UserAccount, Depends(current_user_allow_password_change)],
+    user: Annotated[UserAccount, Depends(current_user)],
 ) -> UserAccount:
     return user
 
@@ -331,9 +331,11 @@ def enrol_totp(
 
     if user.role != UserRole.ADMIN:
         raise ApiError(403, "totp_not_applicable", "Only administrators use TOTP.")
-    if user.totp_secret is not None:
+    if user.totp_confirmed_at is not None:
         raise ApiError(409, "totp_already_enrolled", "TOTP is already enrolled for this account.")
 
+    # Until the first code confirms it, the secret is provisional: asking again replaces it, so
+    # an interrupted enrolment never leaves the administrator without a way in.
     secret = totp.generate_secret()
     user.totp_secret = secret
     record(session, user, "totp_enrolment", target=str(user.id))
@@ -341,3 +343,34 @@ def enrol_totp(
     return TotpEnrolmentResponse(
         secret=secret, otpauth_uri=totp.provisioning_uri(secret, user.email)
     )
+
+
+@router.post("/totp/enrolment/confirm", status_code=204)
+def confirm_totp_enrolment(
+    payload: TotpConfirmationRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> None:
+    """Check the first code and make the authenticator the account's second factor."""
+    email = payload.email.strip().lower()
+    user = _authenticate_password(session, email, payload.password)
+
+    if user.role != UserRole.ADMIN:
+        raise ApiError(403, "totp_not_applicable", "Only administrators use TOTP.")
+    if user.totp_confirmed_at is not None:
+        raise ApiError(409, "totp_already_enrolled", "TOTP is already enrolled for this account.")
+    if user.totp_secret is None:
+        raise ApiError(409, "totp_not_enrolled", "Start the TOTP enrolment first.")
+
+    if not totp.verify_code(user.totp_secret, payload.totp_code):
+        locked = _register_failure(user)
+        _note_failure(email)
+        _audit_login_failure(session, user, email, "bad_totp")
+        if locked:
+            raise ApiError(429, "account_locked", ACCOUNT_LOCKED)
+        raise ApiError(401, "invalid_credentials", INVALID_CREDENTIALS)
+
+    user.totp_confirmed_at = datetime.now(UTC)
+    user.failed_logins = 0
+    user.locked_until = None
+    record(session, user, "totp_enrolment_confirmed", target=str(user.id))
+    session.commit()
