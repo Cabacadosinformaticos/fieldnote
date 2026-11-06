@@ -211,35 +211,39 @@ export default function PoolProfileScreen() {
           value={concelho}
         />
 
-        <FieldSelect
-          label={ta('poolProfile.freguesia')}
-          onPress={() => setSheet('freguesia')}
-          optional
-          placeholder={ta('poolProfile.choose')}
-          value={freguesia}
-        />
-        <View style={styles.preferNotRow}>
-          <Pressable
-            accessibilityLabel={ta('poolProfile.preferNot')}
-            accessibilityRole="button"
-            accessibilityState={{ selected: freguesia === '' }}
-            onPress={() => setFreguesia('')}
-            style={({ pressed }) => [
-              styles.preferNot,
-              freguesia === '' && styles.preferNotOn,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text
-              style={[
-                styles.preferNotLabel,
-                freguesia === '' && styles.preferNotLabelOn,
-              ]}
-            >
-              {ta('poolProfile.preferNot')}
-            </Text>
-          </Pressable>
-        </View>
+        {freguesiaOptions.length > 0 ? (
+          <>
+            <FieldSelect
+              label={ta('poolProfile.freguesia')}
+              onPress={() => setSheet('freguesia')}
+              optional
+              placeholder={ta('poolProfile.choose')}
+              value={freguesia}
+            />
+            <View style={styles.preferNotRow}>
+              <Pressable
+                accessibilityLabel={ta('poolProfile.preferNot')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: freguesia === '' }}
+                onPress={() => setFreguesia('')}
+                style={({ pressed }) => [
+                  styles.preferNot,
+                  freguesia === '' && styles.preferNotOn,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.preferNotLabel,
+                    freguesia === '' && styles.preferNotLabelOn,
+                  ]}
+                >
+                  {ta('poolProfile.preferNot')}
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
 
         <ChoiceGroup
           label={ta('poolProfile.age')}

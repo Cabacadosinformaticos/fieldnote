@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
@@ -22,6 +22,16 @@ export default function ConsentTextScreen() {
     setDeclineVisible(false);
     router.replace('/');
   };
+
+  useEffect(() => {
+    if (!lookup) {
+      router.replace('/join/code');
+    }
+  }, [lookup]);
+
+  if (!lookup) {
+    return null;
+  }
 
   return (
     <Screen contentStyle={styles.content}>

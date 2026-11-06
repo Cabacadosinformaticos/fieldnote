@@ -12,6 +12,7 @@ import { Screen } from '@/components/Screen';
 import { ConfirmSheet } from '@/components/account/ConfirmSheet';
 import { Note } from '@/components/account/Note';
 import { accountHref } from '@/components/account/navigation';
+import { ConsentText } from '@/components/join/ConsentText';
 import {
   formatDate,
   formatEntryTypes,
@@ -19,9 +20,9 @@ import {
   formatTeam,
 } from '@/components/join/format';
 import { ta } from '@/i18n/ta';
+import { tj } from '@/i18n/tj';
 import {
   acceptPoolInvitation,
-  CONSENT_VERSION,
   declinePoolInvitation,
   getPoolCredential,
   getPoolInvitation,
@@ -76,7 +77,11 @@ export default function PoolInviteScreen() {
     const { data, error: apiError } = await acceptPoolInvitation(
       credential,
       invitation.id,
-      { consent_version: CONSENT_VERSION, locale: 'pt', android_id: null },
+      {
+        consent_version: invitation.consent_version,
+        locale: 'pt',
+        android_id: null,
+      },
     );
     setBusy(false);
 
@@ -90,6 +95,9 @@ export default function PoolInviteScreen() {
     await saveParticipation({
       studyId: study.id,
       title: study.title,
+      description: study.description,
+      team: study.team,
+      maxPromptsPerDay: study.max_prompts_per_day,
       status: data.participant.status,
       alias: data.participant.alias,
       startsOn: study.starts_on,
@@ -218,6 +226,17 @@ export default function PoolInviteScreen() {
         </View>
       </View>
 
+      <View style={styles.consentCard}>
+        <Text style={styles.consentTitle}>{tj('consent.title')}</Text>
+        <Text style={styles.consentMeta}>
+          {tj('consent.subtitle', {
+            title: study.title,
+            version: invitation.consent_version,
+          })}
+        </Text>
+        <ConsentText study={study} />
+      </View>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.spacer} />
@@ -326,6 +345,27 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 13,
     lineHeight: 18,
+    color: colors.textMuted,
+  },
+  consentCard: {
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radii.card,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    backgroundColor: colors.surface,
+  },
+  consentTitle: {
+    fontFamily: fonts.extrabold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.text,
+  },
+  consentMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.textMuted,
   },
   divider: {
