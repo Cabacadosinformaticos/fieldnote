@@ -16,9 +16,6 @@ function errorMessage(error: unknown): string {
     if (error.code === 'account_locked') {
       return t('totp.error.locked')
     }
-    if (error.code === 'totp_enrolment_required') {
-      return t('totp.error.enrolment')
-    }
   }
   return t('totp.error.invalid')
 }
@@ -87,6 +84,10 @@ export default function TotpPage() {
     } catch (caught) {
       if (caught instanceof AuthError && caught.code === 'totp_session_missing') {
         navigate('/entrar', { replace: true })
+        return
+      }
+      if (caught instanceof AuthError && caught.code === 'totp_enrolment_required') {
+        navigate('/entrar/ativar', { replace: true })
         return
       }
       setError(errorMessage(caught))

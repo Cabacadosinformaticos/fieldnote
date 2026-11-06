@@ -50,7 +50,6 @@ export const pt = {
   'pages.admin.pool.title': 'Bolsa de voluntários',
   'pages.admin.audit.title': 'Auditoria',
   'pages.admin.erasure.title': 'Pedidos de apagamento',
-  'common.underConstruction': 'Em construção',
 
   'signIn.heroTitle': 'Acompanhe o dia a dia de quem participa no seu estudo.',
   'signIn.heroBody':
@@ -74,8 +73,6 @@ export const pt = {
     'Contas de administrador: depois da palavra-passe é pedido um código de 6 dígitos.',
   'signIn.error': 'Não foi possível entrar. Verifique o email e a palavra-passe.',
   'signIn.accountLocked': 'Demasiadas tentativas falhadas. Tente novamente mais tarde.',
-  'signIn.totpEnrolmentRequired':
-    'Esta conta de administrador ainda não tem um autenticador configurado.',
   'signIn.forgotTitle': 'Recuperar palavra-passe',
   'signIn.forgotSubtitle':
     'Indique o email da conta de investigação. Enviamos uma ligação para definir uma nova palavra-passe.',
@@ -114,15 +111,9 @@ export const pt = {
   'totp.submitting': 'A verificar…',
   'totp.error.invalid': 'Código inválido. Verifique o código e tente novamente.',
   'totp.error.locked': 'Demasiadas tentativas falhadas. Tente novamente mais tarde.',
-  'totp.error.enrolment':
-    'Esta conta de administrador ainda não tem um autenticador configurado.',
 
   'password.title': 'Palavra-passe',
   'password.subtitle': 'Escolha uma nova palavra-passe para a sua conta.',
-  'password.requiredSubtitle':
-    'Antes de continuar, tem de substituir a palavra-passe temporária.',
-  'password.requiredBody':
-    'A palavra-passe desta conta foi definida por um administrador e tem de ser alterada no primeiro acesso. Enquanto não a mudar, as restantes áreas da aplicação ficam bloqueadas.',
   'password.current': 'Palavra-passe atual',
   'password.new': 'Nova palavra-passe',
   'password.repeat': 'Repetir nova palavra-passe',

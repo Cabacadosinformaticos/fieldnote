@@ -6,6 +6,12 @@ export type { AuthUser }
 export type SignInOutcome =
   | { status: 'authenticated'; user: AuthUser }
   | { status: 'totp_required' }
+  | { status: 'totp_enrolment_required' }
+
+export type TotpEnrolment = {
+  secret: string
+  otpauth_uri: string
+}
 
 export class AuthError extends Error {
   readonly code: string
@@ -49,7 +55,33 @@ export async function signIn(email: string, password: string): Promise<SignInOut
     if (error instanceof AuthError && error.code === 'totp_required') {
       return { status: 'totp_required' }
     }
+    if (error instanceof AuthError && error.code === 'totp_enrolment_required') {
+      return { status: 'totp_enrolment_required' }
+    }
     throw error
+  }
+}
+
+export async function enrolTotp(email: string, password: string): Promise<TotpEnrolment> {
+  const { data, error, response } = await client.POST('/auth/totp/enrolment', {
+    body: { email, password },
+  })
+  if (data) {
+    return data
+  }
+  throw toAuthError(error, response)
+}
+
+export async function confirmTotpEnrolment(
+  email: string,
+  password: string,
+  totpCode: string,
+): Promise<void> {
+  const { error, response } = await client.POST('/auth/totp/enrolment/confirm', {
+    body: { email, password, totp_code: totpCode },
+  })
+  if (!response.ok) {
+    throw toAuthError(error, response)
   }
 }
 

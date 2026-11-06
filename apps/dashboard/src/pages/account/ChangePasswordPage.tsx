@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthError, changePassword } from '../../api/auth'
-import { useAuth } from '../../auth/useAuth'
 import { EyeIcon } from '../../components/icons'
 import { t } from '../../i18n'
 import '../../styles/activities.css'
@@ -32,8 +31,6 @@ function errorMessage(error: unknown): string {
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate()
-  const { user, clearPasswordChange } = useAuth()
-  const mustChange = user?.must_change_password ?? false
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -58,7 +55,6 @@ export default function ChangePasswordPage() {
     setSubmitting(true)
     try {
       await changePassword(currentPassword, newPassword)
-      clearPasswordChange()
       navigate('/estudos', { replace: true })
     } catch (caught) {
       setError(errorMessage(caught))
@@ -72,17 +68,9 @@ export default function ChangePasswordPage() {
       <header className="ac-header">
         <div className="ac-header-copy">
           <h1 className="ac-title">{t('password.title')}</h1>
-          <p className="ac-subtitle">
-            {mustChange ? t('password.requiredSubtitle') : t('password.subtitle')}
-          </p>
+          <p className="ac-subtitle">{t('password.subtitle')}</p>
         </div>
       </header>
-
-      {mustChange ? (
-        <p className="ac-info-box" role="status">
-          <span>{t('password.requiredBody')}</span>
-        </p>
-      ) : null}
 
       <form
         className="card ac-form-narrow"

@@ -16,9 +16,6 @@ function errorMessage(error: unknown): string {
     if (error.code === 'account_locked') {
       return t('signIn.accountLocked')
     }
-    if (error.code === 'totp_enrolment_required') {
-      return t('signIn.totpEnrolmentRequired')
-    }
   }
   return t('signIn.error')
 }
@@ -33,7 +30,7 @@ function forgotErrorMessage(error: unknown): string {
 export default function SignInPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { status, user, signIn } = useAuth()
+  const { status, signIn } = useAuth()
   const [mode, setMode] = useState<'signin' | 'forgot'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,11 +47,9 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      navigate(user?.must_change_password ? '/conta/palavra-passe' : '/estudos', {
-        replace: true,
-      })
+      navigate('/estudos', { replace: true })
     }
-  }, [status, user, navigate])
+  }, [status, navigate])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -65,6 +60,10 @@ export default function SignInPage() {
       const outcome = await signIn(email, password)
       if (outcome === 'totp_required') {
         navigate('/entrar/codigo', { replace: true })
+        return
+      }
+      if (outcome === 'totp_enrolment_required') {
+        navigate('/entrar/ativar', { replace: true })
         return
       }
       navigate('/estudos', { replace: true })

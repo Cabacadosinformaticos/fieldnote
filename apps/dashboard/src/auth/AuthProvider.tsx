@@ -35,9 +35,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const outcome = await authApi.signIn(email, password)
-    if (outcome.status === 'totp_required') {
+    if (outcome.status === 'totp_required' || outcome.status === 'totp_enrolment_required') {
       setPending({ email, password })
-      return 'totp_required' as const
+      return outcome.status
     }
     setPending(null)
     setUser(outcome.user)
@@ -62,6 +62,35 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     [pending],
   )
 
+  const enrolTotp = useCallback(async () => {
+    if (!pending) {
+      throw new authApi.AuthError(
+        'totp_session_missing',
+        401,
+        'The sign-in was restarted. Enter the password again.',
+      )
+    }
+    return authApi.enrolTotp(pending.email, pending.password)
+  }, [pending])
+
+  const confirmTotpEnrolment = useCallback(
+    async (totpCode: string) => {
+      if (!pending) {
+        throw new authApi.AuthError(
+          'totp_session_missing',
+          401,
+          'The sign-in was restarted. Enter the password again.',
+        )
+      }
+      await authApi.confirmTotpEnrolment(pending.email, pending.password, totpCode)
+      const nextUser = await authApi.signInTotp(pending.email, pending.password, totpCode)
+      setPending(null)
+      setUser(nextUser)
+      setStatus('authenticated')
+    },
+    [pending],
+  )
+
   const signOut = useCallback(async () => {
     try {
       await authApi.signOut()
@@ -72,12 +101,6 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const clearPasswordChange = useCallback(() => {
-    setUser((current) =>
-      current ? { ...current, must_change_password: false } : current,
-    )
-  }, [])
-
   const value = useMemo(
     () => ({
       status,
@@ -85,10 +108,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       pendingEmail: pending?.email ?? null,
       signIn,
       signInTotp,
+      enrolTotp,
+      confirmTotpEnrolment,
       signOut,
-      clearPasswordChange,
     }),
-    [status, user, pending, signIn, signInTotp, signOut, clearPasswordChange],
+    [status, user, pending, signIn, signInTotp, enrolTotp, confirmTotpEnrolment, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
