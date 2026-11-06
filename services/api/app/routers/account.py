@@ -35,6 +35,7 @@ from app.schemas.participation import StudySummaryOut
 from app.schemas.pool import PoolMemberOut
 from app.security import codes
 from app.services import account as service
+from app.services import participation as participation_service
 
 router = APIRouter(prefix="/account", tags=["account"])
 
@@ -95,23 +96,30 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _study_summary(study: Study) -> StudySummaryOut:
+def _study_summary(session: Session, study: Study) -> StudySummaryOut:
+    card = participation_service.study_card(session, study)
     return StudySummaryOut(
         id=study.id,
         title=study.title,
+        description=study.description,
         status=study.status,
         starts_on=study.starts_on,
         ends_on=study.ends_on,
         timezone=study.timezone,
+        team=list(card["team"]),
+        max_prompts_per_day=int(card["requests_per_day"]),
     )
 
 
 def _participation_out(
-    participant: Participant, study: Study, device_token: str | None = None
+    session: Session,
+    participant: Participant,
+    study: Study,
+    device_token: str | None = None,
 ) -> AccountParticipationOut:
     return AccountParticipationOut(
         participant_id=participant.id,
-        study=_study_summary(study),
+        study=_study_summary(session, study),
         status=participant.status,
         alias=participant.alias,
         erasure_due_at=participant.erasure_due_at,
@@ -145,7 +153,7 @@ def _account_out(session: Session, account: ParticipantAccount) -> AccountOut:
             google=False,
         ),
         participations=[
-            _participation_out(participant, study)
+            _participation_out(session, participant, study)
             for participant, study in service.linked_participations(session, account)
         ],
         pool_linked=service.member_for_account(session, account) is not None,
@@ -158,7 +166,7 @@ def _sign_in_out(session: Session, result: service.SignInResult) -> SignInOut:
         study = session.get(Study, restored.participant.study_id)
         if study is not None:
             participations.append(
-                _participation_out(restored.participant, study, restored.device_token)
+                _participation_out(session, restored.participant, study, restored.device_token)
             )
     pool = None
     if result.pool_member is not None and result.pool_credential is not None:

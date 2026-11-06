@@ -131,6 +131,9 @@ function participationInput(
   return {
     studyId: study.id,
     title: study.title,
+    description: study.description,
+    team: study.team,
+    maxPromptsPerDay: study.max_prompts_per_day,
     status: item.status,
     alias: item.alias,
     startsOn: study.starts_on,

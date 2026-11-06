@@ -325,6 +325,7 @@ def test_a_member_sees_the_invitation_and_accepts_it_as_a_new_participant(
     assert invitation["concelho"] == "Lisboa"
     assert invitation["study"]["title"] == "Diário de Lisboa"
     assert invitation["study"]["consent_text"] == "Texto de consentimento do Diário de Lisboa."
+    assert invitation["consent_version"] == participation_service.CONSENT_VERSION
     assert "participant_id" not in invitation
     invitation_id = invitation["id"]
 

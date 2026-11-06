@@ -81,10 +81,13 @@ class InvitationLookupResponse(BaseModel):
 class StudySummaryOut(BaseModel):
     id: uuid.UUID
     title: str
+    description: str | None
     status: StudyStatus
     starts_on: date | None
     ends_on: date | None
     timezone: str
+    team: list[str]
+    max_prompts_per_day: int
 
 
 class ParticipantMeOut(BaseModel):

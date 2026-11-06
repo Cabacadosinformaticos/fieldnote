@@ -2851,6 +2851,8 @@ export interface components {
         PoolInvitationOut: {
             /** Concelho */
             concelho: string;
+            /** Consent Version */
+            consent_version: string;
             /**
              * Expires At
              * Format: date-time
@@ -3452,6 +3454,8 @@ export interface components {
         StudyStatus: "draft" | "running" | "closed";
         /** StudySummaryOut */
         StudySummaryOut: {
+            /** Description */
+            description: string | null;
             /** Ends On */
             ends_on: string | null;
             /**
@@ -3459,9 +3463,13 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Max Prompts Per Day */
+            max_prompts_per_day: number;
             /** Starts On */
             starts_on: string | null;
             status: components["schemas"]["StudyStatus"];
+            /** Team */
+            team: string[];
             /** Timezone */
             timezone: string;
             /** Title */

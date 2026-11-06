@@ -89,18 +89,23 @@ def _invitation_out(
         sent_at=invitation.sent_at,
         expires_at=invitation.expires_at,
         responded_at=invitation.responded_at,
+        consent_version=participation_service.CONSENT_VERSION,
         study=StudyCardOut(**card),
     )
 
 
-def _study_summary(study: Study) -> StudySummaryOut:
+def _study_summary(session: Session, study: Study) -> StudySummaryOut:
+    card = participation_service.study_card(session, study)
     return StudySummaryOut(
         id=study.id,
         title=study.title,
+        description=study.description,
         status=study.status,
         starts_on=study.starts_on,
         ends_on=study.ends_on,
         timezone=study.timezone,
+        team=list(card["team"]),
+        max_prompts_per_day=int(card["requests_per_day"]),
     )
 
 
@@ -165,7 +170,7 @@ def accept_my_invitation(
         device_token=acceptance.device_token,
         participant=PoolJoinedParticipantOut(
             id=participant.id,
-            study=_study_summary(study),
+            study=_study_summary(session, study),
             alias=participant.alias,
             status=participant.status,
             has_consent=participation_service.has_consent(session, participant),

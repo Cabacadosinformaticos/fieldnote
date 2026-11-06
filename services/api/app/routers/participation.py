@@ -65,14 +65,18 @@ def _optional_account(
 OptionalAccount = Annotated[AccountAuth | None, Depends(_optional_account)]
 
 
-def _study_summary(study: Study) -> StudySummaryOut:
+def _study_summary(session: Session, study: Study) -> StudySummaryOut:
+    card = service.study_card(session, study)
     return StudySummaryOut(
         id=study.id,
         title=study.title,
+        description=study.description,
         status=study.status,
         starts_on=study.starts_on,
         ends_on=study.ends_on,
         timezone=study.timezone,
+        team=list(card["team"]),
+        max_prompts_per_day=int(card["requests_per_day"]),
     )
 
 
@@ -80,7 +84,7 @@ def _participant_out(session: Session, participant: Participant) -> ParticipantM
     study = service.get_study(session, participant)
     return ParticipantMeOut(
         id=participant.id,
-        study=_study_summary(study),
+        study=_study_summary(session, study),
         status=participant.status,
         alias=participant.alias,
         locale=participant.locale,

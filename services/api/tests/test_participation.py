@@ -981,6 +981,25 @@ def test_get_me_returns_the_study_and_the_state(
     assert body["erasure_due_at"] is None
 
 
+def test_get_me_includes_the_description_team_and_daily_request_limit(
+    client: TestClient, session: Session, make_study, make_participant, make_user
+) -> None:
+    study = make_study(title="Sleep")
+    study.description = "Como é que o bairro dorme."
+    session.commit()
+    _participant_with_token(session, make_participant, study, "detail-token")
+    _add_activity(session, study, prompts_per_day=3, expected_minutes=4)
+    team_email = _add_team_member(session, study, make_user)
+
+    response = client.get(ME, headers=_device("detail-token"))
+
+    assert response.status_code == 200
+    summary = response.json()["study"]
+    assert summary["description"] == "Como é que o bairro dorme."
+    assert summary["team"] == [team_email]
+    assert summary["max_prompts_per_day"] == 3
+
+
 def test_availability_replaces_intervals_and_supports_any_time(
     client: TestClient, session: Session, make_study, make_participant
 ) -> None:

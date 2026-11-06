@@ -148,6 +148,7 @@ class PoolInvitationOut(BaseModel):
     sent_at: datetime
     expires_at: datetime
     responded_at: datetime | None
+    consent_version: str
     study: StudyCardOut
 
 

@@ -8,6 +8,9 @@ export type ParticipationStatus = components['schemas']['ParticipantStatus'];
 export type Participation = {
   studyId: string;
   title: string;
+  description: string | null;
+  team: string[];
+  maxPromptsPerDay: number | null;
   status: ParticipationStatus;
   alias: string | null;
   startsOn: string | null;
@@ -16,7 +19,15 @@ export type Participation = {
   updatedAt: string;
 };
 
-export type ParticipationInput = Omit<Participation, 'updatedAt'>;
+/** Older callers keep the fields they do not know; the stored value is preserved. */
+export type ParticipationInput = Omit<
+  Participation,
+  'updatedAt' | 'description' | 'team' | 'maxPromptsPerDay'
+> & {
+  description?: string | null;
+  team?: string[] | null;
+  maxPromptsPerDay?: number | null;
+};
 
 const DATABASE_NAME = 'fieldnote-participations.db';
 const TOKEN_PREFIX = 'fieldnote.device.';
@@ -27,6 +38,9 @@ const CREATE_TABLE = `
   CREATE TABLE IF NOT EXISTS participations (
     study_id TEXT PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
+    description TEXT,
+    team TEXT,
+    max_prompts_per_day INTEGER,
     status TEXT NOT NULL,
     alias TEXT,
     starts_on TEXT,
@@ -36,13 +50,35 @@ const CREATE_TABLE = `
   );
 `;
 
+const ADDED_COLUMNS: { name: string; definition: string }[] = [
+  { name: 'description', definition: 'TEXT' },
+  { name: 'team', definition: 'TEXT' },
+  { name: 'max_prompts_per_day', definition: 'INTEGER' },
+];
+
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+async function ensureColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(participations)',
+  );
+  const present = new Set(columns.map((column) => column.name));
+
+  for (const column of ADDED_COLUMNS) {
+    if (!present.has(column.name)) {
+      await db.execAsync(
+        `ALTER TABLE participations ADD COLUMN ${column.name} ${column.definition}`,
+      );
+    }
+  }
+}
 
 function database(): Promise<SQLite.SQLiteDatabase> {
   if (!databasePromise) {
     databasePromise = (async () => {
       const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
       await db.execAsync(CREATE_TABLE);
+      await ensureColumns(db);
       return db;
     })();
   }
@@ -53,6 +89,9 @@ function database(): Promise<SQLite.SQLiteDatabase> {
 type ParticipationRow = {
   study_id: string;
   title: string;
+  description: string | null;
+  team: string | null;
+  max_prompts_per_day: number | null;
   status: ParticipationStatus;
   alias: string | null;
   starts_on: string | null;
@@ -61,10 +100,28 @@ type ParticipationRow = {
   updated_at: string;
 };
 
+function parseTeam(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function toParticipation(row: ParticipationRow): Participation {
   return {
     studyId: row.study_id,
     title: row.title,
+    description: row.description,
+    team: parseTeam(row.team),
+    maxPromptsPerDay: row.max_prompts_per_day,
     status: row.status,
     alias: row.alias,
     startsOn: row.starts_on,
@@ -90,10 +147,17 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
   const db = await database();
   await db.runAsync(
     `INSERT INTO participations
-       (study_id, title, status, alias, starts_on, ends_on, timezone, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       (study_id, title, description, team, max_prompts_per_day, status, alias,
+        starts_on, ends_on, timezone, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(study_id) DO UPDATE SET
        title = excluded.title,
+       description = COALESCE(excluded.description, participations.description),
+       team = COALESCE(excluded.team, participations.team),
+       max_prompts_per_day = COALESCE(
+         excluded.max_prompts_per_day,
+         participations.max_prompts_per_day
+       ),
        status = excluded.status,
        alias = excluded.alias,
        starts_on = excluded.starts_on,
@@ -103,6 +167,9 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
     [
       input.studyId,
       input.title,
+      input.description ?? null,
+      input.team ? JSON.stringify(input.team) : null,
+      input.maxPromptsPerDay ?? null,
       input.status,
       input.alias,
       input.startsOn,
