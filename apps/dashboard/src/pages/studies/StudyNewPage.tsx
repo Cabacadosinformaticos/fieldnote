@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { CheckIcon } from '../../components/icons'
@@ -7,7 +7,6 @@ import {
   InfoIcon,
   LightbulbIcon,
   PencilIcon,
-  UploadIcon,
 } from '../../components/studies/StudyIcons'
 import {
   formatDate,
@@ -22,14 +21,13 @@ import '../../styles/studies.css'
 
 type ConsentState = {
   text: string
-  fileName: string
   editing: boolean
 }
 
 type CalendarStyleId = 'fixed' | 'balanced' | 'varied'
 type CalendarStyle = { id: CalendarStyleId; dots: { x: number; y: number }[] }
 
-const emptyConsent: ConsentState = { text: '', fileName: '', editing: false }
+const emptyConsent: ConsentState = { text: '', editing: false }
 
 const calendarStyles: CalendarStyle[] = [
   {
@@ -178,46 +176,28 @@ function StylePreview({ style }: { style: CalendarStyle }) {
 }
 
 function ConsentCard({
-  language,
   title,
   hint,
-  required,
   value,
   onChange,
 }: {
-  language: 'pt' | 'en'
   title: string
   hint: string
-  required: boolean
   value: ConsentState
   onChange: (next: ConsentState) => void
 }) {
-  const hasContent = value.text.trim().length > 0 || value.fileName.length > 0
-
-  function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (file) {
-      onChange({ ...value, fileName: file.name, editing: false })
-    }
-    event.target.value = ''
-  }
+  const hasContent = value.text.trim().length > 0
 
   return (
     <div className="st-consent-card">
       <div className="st-consent-head">
         <span className="st-consent-language">{title}</span>
-        <span className={required ? 'st-mini-tag st-mini-tag-required' : 'st-mini-tag'}>
-          {required ? t('new.consent.required') : t('new.consent.optional')}
-        </span>
+        <span className="st-mini-tag st-mini-tag-required">{t('new.consent.required')}</span>
       </div>
 
       {hasContent ? (
         <div className="st-consent-filled">
-          {value.fileName ? (
-            <span className="st-consent-file mono">{t('new.consent.file', { name: value.fileName })}</span>
-          ) : (
-            <span className="st-consent-text">{value.text}</span>
-          )}
+          <span className="st-consent-text">{value.text}</span>
           <button
             type="button"
             className="st-link-button"
@@ -245,17 +225,6 @@ function ConsentCard({
       ) : null}
 
       <div className="st-consent-actions">
-        <label className="st-btn st-btn-ghost st-btn-sm" htmlFor={`consent-file-${language}`}>
-          <UploadIcon />
-          {t('new.consent.upload')}
-        </label>
-        <input
-          id={`consent-file-${language}`}
-          type="file"
-          className="st-visually-hidden"
-          accept=".txt,.pdf,.doc,.docx"
-          onChange={handleFile}
-        />
         <button
           type="button"
           className="st-btn st-btn-ghost st-btn-sm"
@@ -304,7 +273,7 @@ export default function StudyNewPage() {
   const [maxPerDay, setMaxPerDay] = useState(3)
   const [maxPerSlot, setMaxPerSlot] = useState(2)
   const [consentPt, setConsentPt] = useState<ConsentState>(emptyConsent)
-  const [consentEn, setConsentEn] = useState<ConsentState>(emptyConsent)
+  const [poolInvite, setPoolInvite] = useState(false)
   const [collaboratorEmail, setCollaboratorEmail] = useState('')
   const [collaborators, setCollaborators] = useState<string[]>([])
   const [formError, setFormError] = useState('')
@@ -321,10 +290,8 @@ export default function StudyNewPage() {
   const titleDatesDone =
     title.trim().length > 0 && start.trim().length > 0 && end.trim().length > 0
   const studyDays = daysBetweenIso(start, end)
-  const consentDone = consentPt.text.trim().length > 0 || consentPt.fileName.length > 0
-  const consentDetail = consentDone
-    ? consentPt.fileName || consentPt.text
-    : t('new.checklist.consentMissing')
+  const consentDone = consentPt.text.trim().length > 0
+  const consentDetail = consentDone ? consentPt.text : t('new.checklist.consentMissing')
   const canStart = created !== null && created.status === 'draft'
   const saving = createStudy.isPending
   const starting = startStudy.isPending
@@ -536,24 +503,12 @@ export default function StudyNewPage() {
               title={t('new.section.consent')}
               hint={t('new.section.consentHint')}
             />
-            <div className="st-grid-2">
-              <ConsentCard
-                language="pt"
-                title={t('new.consent.pt')}
-                hint={t('new.consent.emptyHintPt')}
-                required
-                value={consentPt}
-                onChange={setConsentPt}
-              />
-              <ConsentCard
-                language="en"
-                title={t('new.consent.en')}
-                hint={t('new.consent.emptyHintEn')}
-                required={false}
-                value={consentEn}
-                onChange={setConsentEn}
-              />
-            </div>
+            <ConsentCard
+              title={t('new.consent.pt')}
+              hint={t('new.consent.emptyHintPt')}
+              value={consentPt}
+              onChange={setConsentPt}
+            />
           </section>
 
           <section className="card st-section" aria-labelledby="new-recruitment">
@@ -577,6 +532,25 @@ export default function StudyNewPage() {
                 </span>
               </span>
             </div>
+
+            <label
+              className={
+                poolInvite ? 'st-recruit-row st-recruit-row-active' : 'st-recruit-row'
+              }
+            >
+              <input
+                type="checkbox"
+                className="st-checkbox"
+                checked={poolInvite}
+                onChange={(event) => setPoolInvite(event.target.checked)}
+              />
+              <span className="st-recruit-copy">
+                <span className="st-recruit-title">{t('new.recruitment.pool.title')}</span>
+                <span className="st-recruit-description">
+                  {t('new.recruitment.pool.description')}
+                </span>
+              </span>
+            </label>
 
             <div className="st-note st-note-info">
               <InfoIcon />
@@ -742,6 +716,11 @@ export default function StudyNewPage() {
                 <Link className="st-link" to={`/estudos/${created.id}/visao-geral`}>
                   {t('new.openCreated')}
                 </Link>
+                {poolInvite ? (
+                  <Link className="st-link" to={`/estudos/${created.id}/participantes/convidar`}>
+                    {t('new.openRecruit')}
+                  </Link>
+                ) : null}
               </div>
             ) : null}
           </section>
