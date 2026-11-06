@@ -42,6 +42,7 @@ import { colors, fonts, radii, spacing } from '@/theme';
 export default function SettingsScreen() {
   const [confirmation, setConfirmation] = useState('');
   const [count, setCount] = useState(0);
+  const [consentStudyId, setConsentStudyId] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountOut | null>(null);
   const [hasPool, setHasPool] = useState(false);
   const [poolSince, setPoolSince] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export default function SettingsScreen() {
   const load = useCallback(async () => {
     const rows = await listParticipations().catch(() => []);
     setCount(rows.length);
+    setConsentStudyId(rows[0]?.studyId ?? null);
 
     const accountToken = await getAccountToken().catch(() => null);
     if (accountToken) {
@@ -235,7 +237,16 @@ export default function SettingsScreen() {
         />
         <SettingsRow
           icon="shield-outline"
-          onPress={() => router.push('/join/consent-text')}
+          onPress={() =>
+            router.push(
+              consentStudyId
+                ? {
+                    pathname: '/join/consent-text',
+                    params: { studyId: consentStudyId },
+                  }
+                : '/join/consent-text',
+            )
+          }
           title={tm('settings.privacy')}
         />
       </View>

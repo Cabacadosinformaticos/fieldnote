@@ -102,6 +102,7 @@ def _study_summary(session: Session, study: Study) -> StudySummaryOut:
         id=study.id,
         title=study.title,
         description=study.description,
+        consent_text=study.consent_text,
         status=study.status,
         starts_on=study.starts_on,
         ends_on=study.ends_on,

@@ -73,6 +73,7 @@ function rowModel(me: ParticipantMe): ParticipationInput {
     studyId: me.study.id,
     title: me.study.title,
     description: me.study.description,
+    consentText: me.study.consent_text,
     team: me.study.team,
     maxPromptsPerDay: me.study.max_prompts_per_day,
     status: me.status,
@@ -262,7 +263,12 @@ export default function StudyDetailsScreen() {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => router.push('/join/consent-text')}
+        onPress={() =>
+          router.push({
+            pathname: '/join/consent-text',
+            params: { studyId: me.study.id },
+          })
+        }
         style={({ pressed }) => [styles.consentRow, pressed && styles.pressed]}
       >
         <Ionicons

@@ -54,6 +54,7 @@ export default function StudyEndedScreen() {
           studyId: data.study.id,
           title: data.study.title,
           description: data.study.description,
+          consentText: data.study.consent_text,
           team: data.study.team,
           maxPromptsPerDay: data.study.max_prompts_per_day,
           status: data.status,

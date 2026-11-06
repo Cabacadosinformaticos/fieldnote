@@ -3454,6 +3454,8 @@ export interface components {
         StudyStatus: "draft" | "running" | "closed";
         /** StudySummaryOut */
         StudySummaryOut: {
+            /** Consent Text */
+            consent_text: string | null;
             /** Description */
             description: string | null;
             /** Ends On */

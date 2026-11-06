@@ -986,6 +986,7 @@ def test_get_me_includes_the_description_team_and_daily_request_limit(
 ) -> None:
     study = make_study(title="Sleep")
     study.description = "Como é que o bairro dorme."
+    study.consent_text = "Texto de consentimento deste estudo."
     session.commit()
     _participant_with_token(session, make_participant, study, "detail-token")
     _add_activity(session, study, prompts_per_day=3, expected_minutes=4)
@@ -996,6 +997,7 @@ def test_get_me_includes_the_description_team_and_daily_request_limit(
     assert response.status_code == 200
     summary = response.json()["study"]
     assert summary["description"] == "Como é que o bairro dorme."
+    assert summary["consent_text"] == "Texto de consentimento deste estudo."
     assert summary["team"] == [team_email]
     assert summary["max_prompts_per_day"] == 3
 

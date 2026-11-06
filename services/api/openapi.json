@@ -5660,6 +5660,17 @@
       },
       "StudySummaryOut": {
         "properties": {
+          "consent_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent Text"
+          },
           "description": {
             "anyOf": [
               {
@@ -5727,6 +5738,7 @@
           "id",
           "title",
           "description",
+          "consent_text",
           "status",
           "starts_on",
           "ends_on",

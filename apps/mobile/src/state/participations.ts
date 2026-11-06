@@ -9,6 +9,7 @@ export type Participation = {
   studyId: string;
   title: string;
   description: string | null;
+  consentText: string | null;
   team: string[];
   maxPromptsPerDay: number | null;
   status: ParticipationStatus;
@@ -22,9 +23,10 @@ export type Participation = {
 /** Older callers keep the fields they do not know; the stored value is preserved. */
 export type ParticipationInput = Omit<
   Participation,
-  'updatedAt' | 'description' | 'team' | 'maxPromptsPerDay'
+  'updatedAt' | 'description' | 'consentText' | 'team' | 'maxPromptsPerDay'
 > & {
   description?: string | null;
+  consentText?: string | null;
   team?: string[] | null;
   maxPromptsPerDay?: number | null;
 };
@@ -39,6 +41,7 @@ const CREATE_TABLE = `
     study_id TEXT PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
+    consent_text TEXT,
     team TEXT,
     max_prompts_per_day INTEGER,
     status TEXT NOT NULL,
@@ -52,6 +55,7 @@ const CREATE_TABLE = `
 
 const ADDED_COLUMNS: { name: string; definition: string }[] = [
   { name: 'description', definition: 'TEXT' },
+  { name: 'consent_text', definition: 'TEXT' },
   { name: 'team', definition: 'TEXT' },
   { name: 'max_prompts_per_day', definition: 'INTEGER' },
 ];
@@ -90,6 +94,7 @@ type ParticipationRow = {
   study_id: string;
   title: string;
   description: string | null;
+  consent_text: string | null;
   team: string | null;
   max_prompts_per_day: number | null;
   status: ParticipationStatus;
@@ -120,6 +125,7 @@ function toParticipation(row: ParticipationRow): Participation {
     studyId: row.study_id,
     title: row.title,
     description: row.description,
+    consentText: row.consent_text,
     team: parseTeam(row.team),
     maxPromptsPerDay: row.max_prompts_per_day,
     status: row.status,
@@ -147,12 +153,13 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
   const db = await database();
   await db.runAsync(
     `INSERT INTO participations
-       (study_id, title, description, team, max_prompts_per_day, status, alias,
+       (study_id, title, description, consent_text, team, max_prompts_per_day, status, alias,
         starts_on, ends_on, timezone, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(study_id) DO UPDATE SET
        title = excluded.title,
        description = COALESCE(excluded.description, participations.description),
+       consent_text = COALESCE(excluded.consent_text, participations.consent_text),
        team = COALESCE(excluded.team, participations.team),
        max_prompts_per_day = COALESCE(
          excluded.max_prompts_per_day,
@@ -168,6 +175,7 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
       input.studyId,
       input.title,
       input.description ?? null,
+      input.consentText ?? null,
       input.team ? JSON.stringify(input.team) : null,
       input.maxPromptsPerDay ?? null,
       input.status,

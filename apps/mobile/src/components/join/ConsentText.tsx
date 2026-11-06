@@ -13,8 +13,25 @@ import {
 
 type Study = components['schemas']['StudyCardOut'];
 
+/**
+ * The join flow has the whole study card; a cached participation only keeps the text and the
+ * facts stored on the phone, so the sections without data are left out.
+ */
+type ConsentStudy = Pick<Study, 'title' | 'description' | 'consent_text' | 'team'> &
+  Partial<
+    Pick<
+      Study,
+      | 'starts_on'
+      | 'ends_on'
+      | 'requests_per_day'
+      | 'expected_minutes_per_day'
+      | 'entry_types'
+      | 'captures_location'
+    >
+  >;
+
 type ConsentTextProps = {
-  study: Study | null | undefined;
+  study: ConsentStudy | null | undefined;
 };
 
 function paragraphs(text: string): string[] {
@@ -48,6 +65,13 @@ export function ConsentText({ study }: ConsentTextProps) {
     );
   }
 
+  const requestsPerDay = study.requests_per_day;
+  const expectedMinutes = study.expected_minutes_per_day;
+  const entryTypes = study.entry_types;
+  const capturesLocation = study.captures_location;
+  const hasRequests =
+    requestsPerDay !== undefined || entryTypes !== undefined;
+
   return (
     <View style={styles.container}>
       <View style={styles.section}>
@@ -62,29 +86,34 @@ export function ConsentText({ study }: ConsentTextProps) {
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.heading}>{tj('consent.requests.title')}</Text>
-        <Text style={styles.paragraph}>
-          {`${formatRequestsPerDay(
-            study.requests_per_day,
-            study.expected_minutes_per_day,
-          )}.`}
-        </Text>
-        <Text style={styles.paragraph}>
-          {tj('consent.fallback.recorded', {
-            types: formatEntryTypes(study.entry_types, false),
-          })}
-        </Text>
-      </View>
+      {hasRequests ? (
+        <View style={styles.section}>
+          <Text style={styles.heading}>{tj('consent.requests.title')}</Text>
+          {requestsPerDay !== undefined && expectedMinutes !== undefined ? (
+            <Text style={styles.paragraph}>
+              {`${formatRequestsPerDay(requestsPerDay, expectedMinutes)}.`}
+            </Text>
+          ) : null}
+          {entryTypes !== undefined ? (
+            <Text style={styles.paragraph}>
+              {tj('consent.fallback.recorded', {
+                types: formatEntryTypes(entryTypes, false),
+              })}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.heading}>{tj('consent.location.title')}</Text>
-        <Text style={styles.paragraph}>
-          {study.captures_location
-            ? tj('consent.fallback.locationYes')
-            : tj('consent.fallback.locationNo')}
-        </Text>
-      </View>
+      {capturesLocation !== undefined ? (
+        <View style={styles.section}>
+          <Text style={styles.heading}>{tj('consent.location.title')}</Text>
+          <Text style={styles.paragraph}>
+            {capturesLocation
+              ? tj('consent.fallback.locationYes')
+              : tj('consent.fallback.locationNo')}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.heading}>{tj('consent.contact.title')}</Text>
