@@ -36,7 +36,6 @@ const more = {
   'study.back': 'Estudos',
   'study.title': 'Detalhes do estudo',
   'study.team': 'Equipa',
-  'study.language': 'Idioma',
   'study.rereadConsent': 'Reler o consentimento',
   'study.leaveOrErase': 'Sair ou apagar',
   'study.leave': 'Sair do estudo',
@@ -52,12 +51,6 @@ const more = {
   'study.period': '{period} · dia {day} de {total}',
   'study.loading': 'A carregar…',
   'study.loadError': 'Não foi possível abrir este estudo. Tente outra vez.',
-  'study.alias': 'Pseudónimo',
-  'study.entered': 'Entrou a {date}',
-  'study.noEntry': 'Entrada ainda por confirmar',
-  'study.locale': 'Idioma',
-  'study.consentDone': 'Consentimento aceite',
-  'study.consentMissing': 'Consentimento por aceitar',
   'study.leaving': 'A sair…',
   'study.leaveError': 'Não foi possível sair do estudo. Tente outra vez.',
   'study.return': 'Voltar ao estudo',
@@ -84,9 +77,6 @@ const more = {
   'hours.note1':
     'Se alterar as horas, a mudança vale a partir do próximo pedido que ainda não tenha sido enviado. Os pedidos que já recebeu mantêm-se.',
   'hours.note2': 'As horas exatas de cada pedido não são mostradas com antecedência.',
-
-  'language.portuguese': 'Português',
-  'language.english': 'English',
 
   'settings.title': 'Definições da app',
   'settings.preferences': 'Preferências',
@@ -185,6 +175,7 @@ const more = {
     'Se ainda tiver registos guardados no telemóvel, serão enviados quando houver rede. Não desinstale a app até lá. Os seus registos continuam guardados com o pseudónimo para a investigação; pode apagá-los em Estudos, Detalhes, quando quiser.',
   'ended.contact': 'Dúvidas ou pedido de apagamento',
   'ended.contactBody': 'Contacte a equipa do estudo.',
+  'ended.contactBodyTeam': 'Contacte a equipa do estudo: {team}.',
   'ended.entries': 'Ver os meus registos',
 
   'removed.title': 'A equipa retirou-o deste estudo.',
@@ -199,6 +190,7 @@ const more = {
   'removed.erase': 'Apagar os meus dados',
   'removed.contact': 'Dúvidas',
   'removed.contactBody': 'Contacte a equipa do estudo.',
+  'removed.contactBodyTeam': 'Contacte a equipa do estudo: {team}.',
 
   'notifications.step': 'Passo 4 de 4 · Avisos',
   'notifications.title': 'Quer receber avisos de novas atividades?',

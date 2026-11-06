@@ -64,7 +64,7 @@ const daily = {
   'sync.waitingNote': 'Não desinstale a app até lá.',
   'sync.failedTitle': 'Registos com problema',
   'sync.failedBody':
-    '{failed} registos não puderam ser aceites e {waiting} continuam à espera de envio.',
+    'Registos com problema: {failed}. Registos à espera de envio: {waiting}.',
   'sync.failedNote':
     'Abra o registo com problema para ver o estado. Se o problema continuar, contacte a equipa do estudo.',
   'sync.retry': 'Tentar enviar agora',

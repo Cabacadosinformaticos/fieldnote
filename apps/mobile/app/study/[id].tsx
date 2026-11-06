@@ -19,7 +19,7 @@ import { Bullets } from '@/components/more/Bullets';
 import { SettingsRow } from '@/components/more/SettingsRow';
 import { StatusPill, type StatusTone } from '@/components/more/StatusPill';
 import { moreHref } from '@/components/more/navigation';
-import { formatDate, formatPeriod } from '@/components/join/format';
+import { formatDate, formatPeriod, formatTeam } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
 import { setErasureDue } from '@/state/actions';
 import {
@@ -68,17 +68,13 @@ function isEnded(me: ParticipantMe): boolean {
   return !Number.isNaN(end.getTime()) && end.getTime() < Date.now();
 }
 
-function localeLabel(me: ParticipantMe): string {
-  if (me.locale === 'en') {
-    return tm('language.english');
-  }
-  return tm('language.portuguese');
-}
-
 function rowModel(me: ParticipantMe): ParticipationInput {
   return {
     studyId: me.study.id,
     title: me.study.title,
+    description: me.study.description,
+    team: me.study.team,
+    maxPromptsPerDay: me.study.max_prompts_per_day,
     status: me.status,
     alias: me.alias,
     startsOn: me.study.starts_on,
@@ -244,6 +240,9 @@ export default function StudyDetailsScreen() {
           <Text style={styles.studyName}>{me.study.title}</Text>
           <StatusPill label={status.label} tone={status.tone} />
         </View>
+        {me.study.description ? (
+          <Text style={styles.body}>{me.study.description}</Text>
+        ) : null}
         <Text style={styles.period}>
           {formatPeriod(me.study.starts_on, me.study.ends_on)}
         </Text>
@@ -252,32 +251,12 @@ export default function StudyDetailsScreen() {
         ) : null}
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.factRow}>
-          <Text style={styles.factLabel}>{tm('study.alias')}</Text>
-          <Text style={styles.factValue}>{me.alias ?? '—'}</Text>
-        </View>
-        <View style={styles.factRow}>
-          <Text style={styles.factLabel}>{tm('study.entered')}</Text>
-          <Text style={styles.factValue}>
-            {me.entered_at
-              ? formatDate(me.entered_at)
-              : tm('study.noEntry')}
+      <View style={styles.teamSection}>
+        <Text style={styles.sectionLabel}>{tm('study.team')}</Text>
+        <View style={styles.teamCard}>
+          <Text style={styles.teamValue}>
+            {formatTeam(me.study.team)}
           </Text>
-        </View>
-        <View style={styles.factRow}>
-          <Text style={styles.factLabel}>{tm('study.locale')}</Text>
-          <Text style={styles.factValue}>{localeLabel(me)}</Text>
-        </View>
-        <View style={styles.factRow}>
-          <Text style={styles.factLabel}>
-            {me.has_consent ? tm('study.consentDone') : tm('study.consentMissing')}
-          </Text>
-          <Ionicons
-            name={me.has_consent ? 'checkmark-circle' : 'ellipse-outline'}
-            size={22}
-            color={me.has_consent ? colors.primaryDark : colors.textMuted}
-          />
         </View>
       </View>
 
@@ -482,23 +461,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.textBody,
   },
-  factRow: {
-    minHeight: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+  teamSection: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
-  factLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    lineHeight: 21,
-    color: colors.textMuted,
+  teamCard: {
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
   },
-  factValue: {
-    minWidth: 0,
-    flexShrink: 1,
-    textAlign: 'right',
+  teamValue: {
     fontFamily: fonts.semibold,
     fontSize: 15,
     lineHeight: 21,

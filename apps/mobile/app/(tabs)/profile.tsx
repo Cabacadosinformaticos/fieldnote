@@ -22,7 +22,12 @@ import {
 import type { JoinKey } from '@/i18n/join';
 import { tj } from '@/i18n/tj';
 import { tm } from '@/i18n/tm';
-import { getDeviceToken, listParticipations, type Participation } from '@/state/participations';
+import {
+  getDeviceToken,
+  listParticipations,
+  saveParticipation,
+  type Participation,
+} from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
 
 const WEEKDAY_DAYS = [true, true, true, true, true, false, false];
@@ -91,6 +96,7 @@ export default function HoursScreen() {
 
   const selected = participations.find((item) => item.studyId === selectedId);
   const meta = studyDay(selected);
+  const requestsPerDay = selected?.maxPromptsPerDay ?? null;
 
   const loadAvailability = useCallback(async (studyId: string) => {
     const token = await getDeviceToken(studyId);
@@ -117,6 +123,43 @@ export default function HoursScreen() {
       setError(null);
     } catch {
       setError(networkErrorMessage());
+    }
+
+    // The cached card may predate the daily limit; refresh it while the hours are loaded.
+    try {
+      const { data: me } = await deviceClient(token).GET(
+        '/api/v1/participation/me',
+      );
+      if (!me) {
+        return;
+      }
+
+      setParticipations((current) =>
+        current.map((row) =>
+          row.studyId === studyId
+            ? {
+                ...row,
+                description: me.study.description,
+                team: me.study.team,
+                maxPromptsPerDay: me.study.max_prompts_per_day,
+              }
+            : row,
+        ),
+      );
+      await saveParticipation({
+        studyId: me.study.id,
+        title: me.study.title,
+        description: me.study.description,
+        team: me.study.team,
+        maxPromptsPerDay: me.study.max_prompts_per_day,
+        status: me.status,
+        alias: me.alias,
+        startsOn: me.study.starts_on,
+        endsOn: me.study.ends_on,
+        timezone: me.study.timezone,
+      }).catch(() => undefined);
+    } catch {
+      // The cached limit is enough when the phone is offline.
     }
   }, []);
 
@@ -461,7 +504,16 @@ export default function HoursScreen() {
 
       <View style={styles.noteRow}>
         <Ionicons name="time-outline" size={20} color={colors.primaryDark} />
-        <Text style={styles.noteText}>{tj('availability.dailyNoteUnknown')}</Text>
+        <Text style={styles.noteText}>
+          {requestsPerDay === null
+            ? tj('availability.dailyNoteUnknown')
+            : tj(
+                requestsPerDay === 1
+                  ? 'availability.dailyNoteOne'
+                  : 'availability.dailyNote',
+                { count: requestsPerDay },
+              )}
+        </Text>
       </View>
 
       {error ? (

@@ -8,7 +8,7 @@ import { deviceClient } from '@/api/client';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { InfoRow } from '@/components/more/InfoRow';
-import { formatDate } from '@/components/join/format';
+import { formatDate, formatTeam } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
 import { getDeviceToken, getParticipation, saveParticipation } from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
@@ -17,6 +17,7 @@ export default function StudyEndedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [title, setTitle] = useState('');
   const [endedOn, setEndedOn] = useState<string | null>(null);
+  const [team, setTeam] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -30,6 +31,7 @@ export default function StudyEndedScreen() {
       if (active && cached) {
         setTitle(cached.title);
         setEndedOn(cached.endsOn);
+        setTeam(cached.team);
       }
 
       const token = await getDeviceToken(id).catch(() => null);
@@ -47,9 +49,13 @@ export default function StudyEndedScreen() {
 
         setTitle(data.study.title);
         setEndedOn(data.study.ends_on);
+        setTeam(data.study.team);
         await saveParticipation({
           studyId: data.study.id,
           title: data.study.title,
+          description: data.study.description,
+          team: data.study.team,
+          maxPromptsPerDay: data.study.max_prompts_per_day,
           status: data.status,
           alias: data.alias,
           startsOn: data.study.starts_on,
@@ -98,7 +104,11 @@ export default function StudyEndedScreen() {
           title={tm('ended.waiting')}
         />
         <InfoRow
-          body={tm('ended.contactBody')}
+          body={
+            team.length > 0
+              ? tm('ended.contactBodyTeam', { team: formatTeam(team) })
+              : tm('ended.contactBody')
+          }
           icon="mail-outline"
           title={tm('ended.contact')}
         />

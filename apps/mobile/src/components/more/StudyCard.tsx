@@ -25,6 +25,8 @@ export type StudyCardModel = {
 
 type StudyCardProps = {
   study: StudyCardModel;
+  current?: boolean;
+  requestLabel?: string | null;
   onOpen: () => void;
   onDetails: () => void;
 };
@@ -50,7 +52,15 @@ function metaFor(study: StudyCardModel): string {
   }
 }
 
-export function StudyCard({ study, onOpen, onDetails }: StudyCardProps) {
+export function StudyCard({
+  study,
+  current = false,
+  requestLabel = null,
+  onOpen,
+  onDetails,
+}: StudyCardProps) {
+  const active = study.state === 'active';
+
   return (
     <View style={styles.card}>
       <Pressable
@@ -63,6 +73,9 @@ export function StudyCard({ study, onOpen, onDetails }: StudyCardProps) {
           <Text style={styles.title}>{study.title}</Text>
 
           <View style={styles.pills}>
+            {current && active ? (
+              <StatusPill label={tm('studies.now')} tone="now" />
+            ) : null}
             {study.state === 'active' ? (
               <StatusPill label={tm('studies.active')} tone="active" />
             ) : null}
@@ -97,15 +110,12 @@ export function StudyCard({ study, onOpen, onDetails }: StudyCardProps) {
           </View>
 
           <View style={styles.meta}>
-            {study.state === 'active' ? <View style={styles.dot} /> : null}
+            {active ? <View style={styles.dot} /> : null}
             <Text
               numberOfLines={2}
-              style={[
-                styles.metaText,
-                study.state !== 'active' && styles.metaTextMuted,
-              ]}
+              style={[styles.metaText, !active && styles.metaTextMuted]}
             >
-              {metaFor(study)}
+              {requestLabel ?? metaFor(study)}
             </Text>
           </View>
         </View>

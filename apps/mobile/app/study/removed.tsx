@@ -8,6 +8,7 @@ import { deviceClient } from '@/api/client';
 import { networkErrorMessage } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { formatTeam } from '@/components/join/format';
 import { InfoRow } from '@/components/more/InfoRow';
 import { moreHref } from '@/components/more/navigation';
 import { tm } from '@/i18n/tm';
@@ -17,6 +18,7 @@ import { colors, fonts, radii, spacing } from '@/theme';
 export default function StudyRemovedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [title, setTitle] = useState<string | null>(null);
+  const [team, setTeam] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export default function StudyRemovedScreen() {
       const cached = await getParticipation(id).catch(() => null);
       if (active && cached) {
         setTitle(cached.title);
+        setTeam(cached.team);
       }
 
       const token = await getDeviceToken(id).catch(() => null);
@@ -50,9 +53,13 @@ export default function StudyRemovedScreen() {
         }
 
         setTitle(data.study.title);
+        setTeam(data.study.team);
         await saveParticipation({
           studyId: data.study.id,
           title: data.study.title,
+          description: data.study.description,
+          team: data.study.team,
+          maxPromptsPerDay: data.study.max_prompts_per_day,
           status: data.status,
           alias: data.alias,
           startsOn: data.study.starts_on,
@@ -102,7 +109,11 @@ export default function StudyRemovedScreen() {
           tone="danger"
         />
         <InfoRow
-          body={tm('removed.contactBody')}
+          body={
+            team.length > 0
+              ? tm('removed.contactBodyTeam', { team: formatTeam(team) })
+              : tm('removed.contactBody')
+          }
           icon="mail-outline"
           title={tm('removed.contact')}
         />

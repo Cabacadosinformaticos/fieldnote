@@ -1,19 +1,17 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { deviceClient } from '@/api/client';
 import { Screen } from '@/components/Screen';
-import { formatDate } from '@/components/join/format';
 import { clockOf } from '@/components/daily/entryFormat';
 import { SettingsRow } from '@/components/more/SettingsRow';
 import {
+  StudyCard,
   type StudyCardModel,
   type StudyCardState,
 } from '@/components/more/StudyCard';
-import { StatusPill } from '@/components/more/StatusPill';
 import { moreHref } from '@/components/more/navigation';
 import { tm } from '@/i18n/tm';
 import { loadTodayPrompts } from '@/queue/prompts';
@@ -125,119 +123,6 @@ function openRequestLabel(requests: OpenRequests | undefined): string | null {
   return tm('studies.openRequests', { count: requests.count });
 }
 
-function metaFor(study: StudyCardModel): string {
-  switch (study.state) {
-    case 'erasing':
-      return tm('studies.erasingNote');
-    case 'ended':
-      return study.endsOn
-        ? tm('studies.endedOn', { date: formatDate(study.endsOn) })
-        : tm('studies.ended');
-    case 'pending':
-      return tm('studies.pendingNote');
-    case 'withdrawn':
-      return tm('studies.withdrawnNote');
-    case 'removed':
-      return tm('studies.removedNote');
-    case 'declined':
-      return tm('studies.declinedNote');
-    default:
-      return tm('studies.activeNote');
-  }
-}
-
-type StudyRowCardProps = {
-  current: boolean;
-  onDetails: () => void;
-  onOpen: () => void;
-  requests: OpenRequests | undefined;
-  study: StudyRow;
-};
-
-function StudyRowCard({
-  current,
-  onDetails,
-  onOpen,
-  requests,
-  study,
-}: StudyRowCardProps) {
-  const active = study.state === 'active';
-  const requestLabel = active ? openRequestLabel(requests) : null;
-
-  return (
-    <View style={styles.card}>
-      <Pressable
-        accessibilityLabel={study.title}
-        accessibilityRole="button"
-        onPress={onOpen}
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      >
-        <View style={styles.text}>
-          <Text style={styles.cardTitle}>{study.title}</Text>
-
-          <View style={styles.pills}>
-            {current && active ? (
-              <StatusPill label={tm('studies.now')} tone="now" />
-            ) : null}
-            {active ? (
-              <StatusPill label={tm('studies.active')} tone="active" />
-            ) : null}
-            {study.state === 'pending' ? (
-              <StatusPill label={tm('studies.pending')} tone="now" />
-            ) : null}
-            {study.state === 'withdrawn' ? (
-              <StatusPill label={tm('studies.withdrawn')} tone="ended" />
-            ) : null}
-            {study.state === 'removed' ? (
-              <StatusPill label={tm('studies.removed')} tone="erasing" />
-            ) : null}
-            {study.state === 'declined' ? (
-              <StatusPill label={tm('studies.declined')} tone="ended" />
-            ) : null}
-            {study.state === 'ended' ? (
-              <StatusPill label={tm('studies.ended')} tone="ended" />
-            ) : null}
-            {study.state === 'erasing' ? (
-              <>
-                <StatusPill label={tm('studies.ended')} tone="ended" />
-                <StatusPill
-                  label={tm('studies.erasing', {
-                    date: study.erasureDueAt
-                      ? formatDate(study.erasureDueAt)
-                      : '',
-                  })}
-                  tone="erasing"
-                />
-              </>
-            ) : null}
-          </View>
-
-          <View style={styles.meta}>
-            {active ? <View style={styles.dot} /> : null}
-            <Text
-              numberOfLines={2}
-              style={[styles.metaText, !active && styles.metaTextMuted]}
-            >
-              {requestLabel ?? metaFor(study)}
-            </Text>
-          </View>
-        </View>
-
-        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-      </Pressable>
-
-      <Pressable
-        accessibilityLabel={tm('studies.details')}
-        accessibilityRole="button"
-        onPress={onDetails}
-        style={({ pressed }) => [styles.details, pressed && styles.pressed]}
-      >
-        <Text style={styles.detailsLabel}>{tm('studies.details')}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 function openStudy(
   row: StudyRow,
   focusStudy: (studyId: string) => void,
@@ -330,6 +215,9 @@ export default function StudiesScreen() {
           await saveParticipation({
             studyId: data.study.id,
             title: data.study.title,
+            description: data.study.description,
+            team: data.study.team,
+            maxPromptsPerDay: data.study.max_prompts_per_day,
             status: data.status,
             alias: data.alias,
             startsOn: data.study.starts_on,
@@ -344,6 +232,9 @@ export default function StudiesScreen() {
             ...participation,
             studyId: data.study.id,
             title: data.study.title,
+            description: data.study.description,
+            team: data.study.team,
+            maxPromptsPerDay: data.study.max_prompts_per_day,
             status: data.status,
             alias: data.alias,
             startsOn: data.study.starts_on,
@@ -411,14 +302,18 @@ export default function StudiesScreen() {
       ) : null}
 
       {rows.map((study) => (
-        <StudyRowCard
+        <StudyCard
           current={study.id === currentId}
           key={study.id}
           onDetails={() =>
             router.push({ pathname: '/study/[id]', params: { id: study.id } })
           }
           onOpen={() => openStudy(study, focusStudy)}
-          requests={openRequests[study.id]}
+          requestLabel={
+            study.state === 'active'
+              ? openRequestLabel(openRequests[study.id])
+              : null
+          }
           study={study}
         />
       ))}
@@ -501,74 +396,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.divider,
     backgroundColor: colors.surface,
-  },
-  card: {
-    overflow: 'hidden',
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingTop: 14,
-    paddingRight: spacing.md,
-    paddingBottom: spacing.sm,
-    paddingLeft: spacing.lg,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  text: {
-    minWidth: 0,
-    flex: 1,
-    gap: spacing.sm,
-  },
-  cardTitle: {
-    fontFamily: fonts.extrabold,
-    fontSize: 17,
-    lineHeight: 23,
-    color: colors.text,
-  },
-  pills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  meta: {
-    minHeight: 19,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
-  },
-  metaText: {
-    flexShrink: 1,
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 19,
-    color: colors.text,
-  },
-  metaTextMuted: {
-    color: colors.textMuted,
-  },
-  details: {
-    alignSelf: 'flex-start',
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  detailsLabel: {
-    fontFamily: fonts.extrabold,
-    fontSize: 14,
-    lineHeight: 19,
-    color: colors.primaryDark,
   },
 });
