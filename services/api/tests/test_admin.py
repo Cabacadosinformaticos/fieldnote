@@ -6,10 +6,19 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AuditLog, Entry, RefreshToken, StudyMember, UserAccount
+from app.models import (
+    AuditLog,
+    Entry,
+    PasswordResetToken,
+    RefreshToken,
+    StudyMember,
+    UserAccount,
+)
 from app.models.enums import AuditActorType, EntryType, StudyRole, UserRole
 from app.security import tokens
 from app.security.passwords import verify_password
+from app.security.tokens import hash_token
+from app.services import mail
 
 API = "/api/v1"
 ADMIN = f"{API}/admin"
@@ -25,6 +34,13 @@ def admin(make_user) -> UserAccount:
 @pytest.fixture
 def researcher(make_user) -> UserAccount:
     return make_user(email="researcher@example.org")
+
+
+@pytest.fixture
+def sent_links(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str]]:
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail, "send_account_link", lambda to, token: sent.append((to, token)))
+    return sent
 
 
 def _add_event(
@@ -65,8 +81,12 @@ def test_accounts_are_admin_only(
     )
 
 
-def test_create_account_returns_the_temporary_password_once_and_stores_only_its_hash(
-    client: TestClient, session: Session, admin: UserAccount, bearer_headers
+def test_create_account_mails_a_link_and_stores_no_usable_password(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    bearer_headers,
+    sent_links: list[tuple[str, str]],
 ) -> None:
     response = client.post(
         f"{ADMIN}/accounts",
@@ -78,34 +98,81 @@ def test_create_account_returns_the_temporary_password_once_and_stores_only_its_
     body = response.json()
     assert body["email"] == "new.researcher@example.org"
     assert body["role"] == "researcher"
+    assert body["state"] == "active"
     assert body["locked"] is False
+    assert body["studies"] == 0
+    assert body["last_session_at"] is None
     assert body["totp_enrolled"] is False
-    password = body["temporary_password"]
-    assert len(password) >= 16
+    assert body["mail_sent"] is True
+    assert "temporary_password" not in body
 
     stored = session.scalar(
         select(UserAccount).where(UserAccount.email == "new.researcher@example.org")
     )
     assert stored is not None
-    assert stored.password_hash != password
-    assert verify_password(stored.password_hash, password)
     assert str(stored.id) == body["id"]
+    assert not verify_password(stored.password_hash, "")
+    assert not verify_password(stored.password_hash, "correct horse battery staple")
 
-    audit = session.scalar(
+    token_row = session.scalar(
+        select(PasswordResetToken).where(PasswordResetToken.user_id == stored.id)
+    )
+    assert token_row is not None
+    assert len(sent_links) == 1
+    assert sent_links[0][0] == "new.researcher@example.org"
+    assert token_row.token_hash == hash_token(sent_links[0][1])
+
+    for action in ("account_created", "account_link_sent"):
+        audit = session.scalar(
+            select(AuditLog).where(AuditLog.action == action, AuditLog.target == str(stored.id))
+        )
+        assert audit is not None
+        assert audit.actor_id == admin.id
+        assert audit.actor_type == AuditActorType.USER
+
+    login = client.post(LOGIN, json={"email": "new.researcher@example.org", "password": "anything"})
+    assert login.status_code == 401
+
+
+def test_create_account_reports_mail_failure_but_keeps_the_account(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    bearer_headers,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail(to: str, token: str) -> None:
+        raise mail.MailUnavailable("down")
+
+    monkeypatch.setattr(mail, "send_account_link", fail)
+
+    response = client.post(
+        f"{ADMIN}/accounts",
+        headers=bearer_headers(admin),
+        json={"email": "no.mail@example.org"},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["mail_sent"] is False
+    stored = session.scalar(select(UserAccount).where(UserAccount.email == "no.mail@example.org"))
+    assert stored is not None
+    assert (
+        session.scalar(select(PasswordResetToken).where(PasswordResetToken.user_id == stored.id))
+        is None
+    )
+    failed = session.scalar(
         select(AuditLog).where(
-            AuditLog.action == "account_created", AuditLog.target == str(stored.id)
+            AuditLog.action == "account_link_failed", AuditLog.target == str(stored.id)
         )
     )
-    assert audit is not None
-    assert audit.actor_id == admin.id
-    assert audit.actor_type == AuditActorType.USER
-
-    login = client.post(LOGIN, json={"email": "new.researcher@example.org", "password": password})
-    assert login.status_code == 200
+    assert failed is not None
 
 
 def test_create_account_refuses_a_duplicate_email_ignoring_case(
-    client: TestClient, admin: UserAccount, bearer_headers
+    client: TestClient,
+    admin: UserAccount,
+    bearer_headers,
+    sent_links: list[tuple[str, str]],
 ) -> None:
     headers = bearer_headers(admin)
     first = client.post(f"{ADMIN}/accounts", headers=headers, json={"email": "ana@example.org"})
@@ -116,16 +183,41 @@ def test_create_account_refuses_a_duplicate_email_ignoring_case(
     assert second.json()["error"]["code"] == "email_in_use"
 
 
-def test_list_accounts_shows_role_and_lock_state(
-    client: TestClient, admin: UserAccount, researcher: UserAccount, bearer_headers
+def test_list_accounts_shows_role_state_studies_and_last_session(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    researcher: UserAccount,
+    make_study,
+    bearer_headers,
 ) -> None:
+    study = make_study()
+    session.add(StudyMember(study_id=study.id, user_id=researcher.id, role=StudyRole.MEMBER))
+    seen_at = datetime(2026, 11, 4, 9, 30, tzinfo=UTC)
+    session.add(
+        AuditLog(
+            actor_type=AuditActorType.USER,
+            actor_id=researcher.id,
+            action="login",
+            target=str(researcher.id),
+            details={"role": "researcher"},
+            at=seen_at,
+        )
+    )
+    session.commit()
+
     response = client.get(f"{ADMIN}/accounts", headers=bearer_headers(admin))
 
     assert response.status_code == 200
     rows = {row["email"]: row for row in response.json()}
     assert rows["admin@example.org"]["role"] == "admin"
+    assert rows["admin@example.org"]["state"] == "active"
+    assert rows["admin@example.org"]["studies"] == 0
     assert rows["researcher@example.org"]["role"] == "researcher"
+    assert rows["researcher@example.org"]["state"] == "active"
     assert rows["researcher@example.org"]["locked"] is False
+    assert rows["researcher@example.org"]["studies"] == 1
+    assert rows["researcher@example.org"]["last_session_at"].startswith("2026-11-04T09:30:00")
 
 
 def test_change_role_is_audited_and_a_user_cannot_change_their_own_role(
@@ -172,6 +264,7 @@ def test_lock_revokes_refresh_tokens_and_blocks_sign_in_until_unlocked(
 
     assert locked.status_code == 200
     assert locked.json()["locked"] is True
+    assert locked.json()["state"] == "deactivated"
     session.expire_all()
     assert session.get(RefreshToken, refresh.id).revoked_at is not None
     blocked = client.post(LOGIN, json={"email": researcher.email, "password": PASSWORD})
@@ -190,6 +283,7 @@ def test_lock_revokes_refresh_tokens_and_blocks_sign_in_until_unlocked(
 
     assert unlocked.status_code == 200
     assert unlocked.json()["locked"] is False
+    assert unlocked.json()["state"] == "active"
     session.expire_all()
     assert session.get(UserAccount, researcher.id).locked_until is None
     login = client.post(LOGIN, json={"email": researcher.email, "password": PASSWORD})
@@ -204,40 +298,133 @@ def test_lock_revokes_refresh_tokens_and_blocks_sign_in_until_unlocked(
     )
 
 
-def test_an_administrator_cannot_lock_or_delete_their_own_account(
+def test_an_administrator_cannot_deactivate_their_own_account(
     client: TestClient, admin: UserAccount, bearer_headers
 ) -> None:
     headers = bearer_headers(admin)
 
     assert client.post(f"{ADMIN}/accounts/{admin.id}/lock", headers=headers).status_code == 409
-    assert client.delete(f"{ADMIN}/accounts/{admin.id}", headers=headers).status_code == 409
 
 
-def test_delete_removes_the_account_and_is_audited(
+def test_send_link_mails_a_single_use_token(
     client: TestClient,
     session: Session,
     admin: UserAccount,
     researcher: UserAccount,
     bearer_headers,
+    sent_links: list[tuple[str, str]],
 ) -> None:
-    response = client.delete(f"{ADMIN}/accounts/{researcher.id}", headers=bearer_headers(admin))
+    response = client.post(
+        f"{ADMIN}/accounts/{researcher.id}/send-link", headers=bearer_headers(admin)
+    )
 
-    assert response.status_code == 204
-    session.expire_all()
-    assert session.get(UserAccount, researcher.id) is None
+    assert response.status_code == 200
+    assert response.json() == {"mail_sent": True}
+    assert [to for to, _ in sent_links] == [researcher.email]
+    raw = sent_links[0][1]
+    row = session.scalar(
+        select(PasswordResetToken).where(PasswordResetToken.user_id == researcher.id)
+    )
+    assert row is not None
+    assert row.token_hash == hash_token(raw)
+    assert row.token_hash != raw
     audit = session.scalar(
         select(AuditLog).where(
-            AuditLog.action == "account_deleted", AuditLog.target == str(researcher.id)
+            AuditLog.action == "account_link_sent", AuditLog.target == str(researcher.id)
         )
     )
     assert audit is not None
-    assert audit.details == {"email": "researcher@example.org"}
+    assert audit.actor_id == admin.id
+
+    confirmed = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": raw, "new_password": "a brand new password"},
+    )
+    assert confirmed.status_code == 204
+    replay = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": raw, "new_password": "another password"},
+    )
+    assert replay.status_code == 400
 
 
-def test_delete_unknown_account_returns_not_found(
+def test_send_link_reports_mail_failure_and_stores_no_token(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    researcher: UserAccount,
+    bearer_headers,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail(to: str, token: str) -> None:
+        raise mail.MailUnavailable("down")
+
+    monkeypatch.setattr(mail, "send_account_link", fail)
+
+    response = client.post(
+        f"{ADMIN}/accounts/{researcher.id}/send-link", headers=bearer_headers(admin)
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"mail_sent": False}
+    assert (
+        session.scalar(
+            select(PasswordResetToken).where(PasswordResetToken.user_id == researcher.id)
+        )
+        is None
+    )
+    assert (
+        session.scalar(
+            select(AuditLog).where(
+                AuditLog.action == "account_link_failed",
+                AuditLog.target == str(researcher.id),
+            )
+        )
+        is not None
+    )
+
+
+def test_send_link_is_limited_to_three_per_hour(
+    client: TestClient,
+    admin: UserAccount,
+    researcher: UserAccount,
+    bearer_headers,
+    sent_links: list[tuple[str, str]],
+) -> None:
+    headers = bearer_headers(admin)
+    responses = [
+        client.post(f"{ADMIN}/accounts/{researcher.id}/send-link", headers=headers)
+        for _ in range(4)
+    ]
+
+    assert [response.status_code for response in responses] == [200, 200, 200, 429]
+    assert responses[-1].json()["error"]["code"] == "link_limit_reached"
+    assert len(sent_links) == 3
+
+
+def test_send_link_refuses_a_deactivated_account(
+    client: TestClient,
+    admin: UserAccount,
+    researcher: UserAccount,
+    bearer_headers,
+    sent_links: list[tuple[str, str]],
+) -> None:
+    headers = bearer_headers(admin)
+    assert client.post(f"{ADMIN}/accounts/{researcher.id}/lock", headers=headers).status_code == 200
+
+    response = client.post(f"{ADMIN}/accounts/{researcher.id}/send-link", headers=headers)
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "account_deactivated"
+    assert sent_links == []
+
+
+def test_send_link_to_an_unknown_account_returns_not_found(
     client: TestClient, admin: UserAccount, bearer_headers
 ) -> None:
-    response = client.delete(f"{ADMIN}/accounts/{uuid.uuid4()}", headers=bearer_headers(admin))
+    response = client.post(
+        f"{ADMIN}/accounts/{uuid.uuid4()}/send-link", headers=bearer_headers(admin)
+    )
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "account_not_found"

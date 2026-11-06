@@ -19,6 +19,11 @@ PASSWORD_RESET_BODY = (
     "Use este link para definir uma nova palavra-passe:\n\n{link}\n\n"
     "É válido durante 1 hora e só pode ser usado uma vez."
 )
+ACCOUNT_LINK_SUBJECT = "Acesso à sua conta Fieldnote"
+ACCOUNT_LINK_BODY = (
+    "Use este link para escolher a palavra-passe da sua conta Fieldnote:\n\n{link}\n\n"
+    "É válido durante 30 minutos e só pode ser usado uma vez."
+)
 
 
 class MailSettings(BaseSettings):
@@ -73,4 +78,12 @@ def send_password_reset(to: str, token: str) -> None:
         to,
         PASSWORD_RESET_SUBJECT,
         PASSWORD_RESET_BODY.format(link=password_reset_link(token)),
+    )
+
+
+def send_account_link(to: str, token: str) -> None:
+    _send(
+        to,
+        ACCOUNT_LINK_SUBJECT,
+        ACCOUNT_LINK_BODY.format(link=password_reset_link(token)),
     )

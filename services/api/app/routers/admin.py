@@ -13,6 +13,7 @@ from app.models.enums import AuditActorType
 from app.schemas.admin import (
     AccountCreate,
     AccountCreatedOut,
+    AccountLinkOut,
     AccountOut,
     AccountRoleUpdate,
     AdminPoolConcelhoOut,
@@ -39,14 +40,18 @@ SessionDep = Annotated[Session, Depends(get_session)]
 AdminUser = Annotated[UserAccount, Depends(require_admin)]
 
 
-def _account_out(user: UserAccount) -> AccountOut:
+def _account_out(summary: service.AccountSummary) -> AccountOut:
+    user = summary.user
     return AccountOut(
         id=user.id,
         email=user.email,
         role=user.role,
+        state=service.account_state(user),
         locked=service.is_locked(user),
         locked_until=user.locked_until,
-        totp_enrolled=user.totp_secret is not None,
+        studies=summary.studies,
+        last_session_at=summary.last_session_at,
+        totp_enrolled=user.totp_confirmed_at is not None,
         created_at=user.created_at,
     )
 
@@ -67,18 +72,17 @@ def _int_or_zero(value: object) -> int:
 @router.get("/accounts", response_model=list[AccountOut])
 def list_accounts(session: SessionDep, _admin: AdminUser) -> list[AccountOut]:
     """FR-41: every researcher and administrator account."""
-    return [_account_out(user) for user in service.list_accounts(session)]
+    return [_account_out(summary) for summary in service.list_accounts(session)]
 
 
 @router.post("/accounts", response_model=AccountCreatedOut, status_code=201)
 def create_account(
     payload: AccountCreate, session: SessionDep, admin: AdminUser
 ) -> AccountCreatedOut:
-    """FR-41: create an account and return its temporary password once."""
-    user, temporary_password = service.create_account(session, admin, payload.email, payload.role)
-    return AccountCreatedOut(
-        **_account_out(user).model_dump(), temporary_password=temporary_password
-    )
+    """FR-41: create an account and mail it a link to choose its own password."""
+    user, mail_sent = service.create_account(session, admin, payload.email, payload.role)
+    summary = service.account_summary(session, user)
+    return AccountCreatedOut(**_account_out(summary).model_dump(), mail_sent=mail_sent)
 
 
 @router.patch("/accounts/{user_id}", response_model=AccountOut)
@@ -89,25 +93,28 @@ def change_account_role(
     admin: AdminUser,
 ) -> AccountOut:
     """FR-41: change an account between researcher and administrator."""
-    return _account_out(service.change_role(session, admin, user_id, payload.role))
+    user = service.change_role(session, admin, user_id, payload.role)
+    return _account_out(service.account_summary(session, user))
 
 
 @router.post("/accounts/{user_id}/lock", response_model=AccountOut)
 def lock_account(user_id: uuid.UUID, session: SessionDep, admin: AdminUser) -> AccountOut:
     """FR-41 and UC14: deactivate an account and revoke its refresh tokens."""
-    return _account_out(service.lock_account(session, admin, user_id))
+    user = service.lock_account(session, admin, user_id)
+    return _account_out(service.account_summary(session, user))
 
 
 @router.post("/accounts/{user_id}/unlock", response_model=AccountOut)
 def unlock_account(user_id: uuid.UUID, session: SessionDep, admin: AdminUser) -> AccountOut:
     """FR-41: reactivate an account."""
-    return _account_out(service.unlock_account(session, admin, user_id))
+    user = service.unlock_account(session, admin, user_id)
+    return _account_out(service.account_summary(session, user))
 
 
-@router.delete("/accounts/{user_id}", status_code=204)
-def delete_account(user_id: uuid.UUID, session: SessionDep, admin: AdminUser) -> None:
-    """FR-41: remove an account."""
-    service.delete_account(session, admin, user_id)
+@router.post("/accounts/{user_id}/send-link", response_model=AccountLinkOut)
+def send_account_link(user_id: uuid.UUID, session: SessionDep, admin: AdminUser) -> AccountLinkOut:
+    """FR-41: send a fresh single-use link for the person to choose a password."""
+    return AccountLinkOut(mail_sent=service.send_account_link(session, admin, user_id))
 
 
 @router.get("/studies", response_model=list[AdminStudyOut])

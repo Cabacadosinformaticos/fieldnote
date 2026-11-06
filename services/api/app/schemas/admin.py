@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -19,14 +20,21 @@ class AccountOut(BaseModel):
     id: uuid.UUID
     email: str
     role: UserRole
+    state: Literal["active", "deactivated", "locked"]
     locked: bool
     locked_until: datetime | None
+    studies: int
+    last_session_at: datetime | None
     totp_enrolled: bool
     created_at: datetime
 
 
 class AccountCreatedOut(AccountOut):
-    temporary_password: str
+    mail_sent: bool
+
+
+class AccountLinkOut(BaseModel):
+    mail_sent: bool
 
 
 class StudyResearcherOut(BaseModel):
