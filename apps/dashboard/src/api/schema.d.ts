@@ -2124,6 +2124,10 @@ export interface components {
             next_cursor?: string | null;
             /** Total */
             total: number;
+            /** Type Totals */
+            type_totals: {
+                [key: string]: number;
+            };
         };
         /** EntryOut */
         EntryOut: {
@@ -2813,6 +2817,8 @@ export interface components {
         };
         /** PlanParticipant */
         PlanParticipant: {
+            /** Active */
+            active: boolean;
             /** Alias */
             alias: string | null;
             /** Availability */
@@ -2854,6 +2860,24 @@ export interface components {
             sent_at: string | null;
             status: components["schemas"]["PromptStatus"];
             unplanned_reason: components["schemas"]["UnplannedReason"] | null;
+        };
+        /** PlanRunOut */
+        PlanRunOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Finished */
+            finished: boolean;
+            /** Nodes Expanded */
+            nodes_expanded: number;
+            /** Planned */
+            planned: number;
+            /** Solve Ms */
+            solve_ms: number;
+            /** Unplanned */
+            unplanned: number;
         };
         /** PoolCountOut */
         PoolCountOut: {
@@ -3452,6 +3476,7 @@ export interface components {
             participants: components["schemas"]["PlanParticipant"][];
             /** Prompts */
             prompts: components["schemas"]["PlanPrompt"][];
+            run?: components["schemas"]["PlanRunOut"] | null;
             /** Weekday */
             weekday: number;
         };

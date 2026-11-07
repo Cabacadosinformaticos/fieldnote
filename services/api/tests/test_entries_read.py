@@ -152,6 +152,14 @@ def test_list_entries_filters_and_cursor_pagination(
     assert [item["id"] for item in body["items"]] == [str(four.id), str(three.id)]
     assert body["next_cursor"]
     assert body["total"] == 4
+    assert body["type_totals"] == {
+        "text": 2,
+        "photo": 1,
+        "video": 0,
+        "audio": 0,
+        "scale": 1,
+        "choice": 0,
+    }
 
     second_page = client.get(
         url, params={"limit": 2, "cursor": body["next_cursor"]}, headers=headers
@@ -176,6 +184,23 @@ def test_list_entries_filters_and_cursor_pagination(
 
     by_type = client.get(url, params={"entry_type": "text"}, headers=headers)
     assert {item["id"] for item in by_type.json()["items"]} == {str(one.id), str(four.id)}
+    # The chips keep counting every type while one type is selected.
+    assert by_type.json()["type_totals"] == {
+        "text": 2,
+        "photo": 1,
+        "video": 0,
+        "audio": 0,
+        "scale": 1,
+        "choice": 0,
+    }
+    assert by_participant.json()["type_totals"] == {
+        "text": 1,
+        "photo": 0,
+        "video": 0,
+        "audio": 0,
+        "scale": 1,
+        "choice": 0,
+    }
 
     by_tag = client.get(url, params={"tag_id": str(tag.id)}, headers=headers)
     assert [item["id"] for item in by_tag.json()["items"]] == [str(one.id)]

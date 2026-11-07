@@ -49,6 +49,7 @@ class EntryListResponse(BaseModel):
     items: list[EntryOut]
     next_cursor: str | None = None
     total: int
+    type_totals: dict[EntryType, int]
 
 
 class EntryTagsUpdate(BaseModel):

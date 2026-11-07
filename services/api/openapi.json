@@ -1646,11 +1646,22 @@
           "total": {
             "title": "Total",
             "type": "integer"
+          },
+          "type_totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/EntryType"
+            },
+            "title": "Type Totals",
+            "type": "object"
           }
         },
         "required": [
           "items",
-          "total"
+          "total",
+          "type_totals"
         ],
         "title": "EntryListResponse",
         "type": "object"
@@ -3577,6 +3588,10 @@
       },
       "PlanParticipant": {
         "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
           "alias": {
             "anyOf": [
               {
@@ -3608,6 +3623,7 @@
         "required": [
           "participant_id",
           "alias",
+          "active",
           "availability_any_time",
           "availability"
         ],
@@ -3701,6 +3717,45 @@
           "unplanned_reason"
         ],
         "title": "PlanPrompt",
+        "type": "object"
+      },
+      "PlanRunOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "finished": {
+            "title": "Finished",
+            "type": "boolean"
+          },
+          "nodes_expanded": {
+            "title": "Nodes Expanded",
+            "type": "integer"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "integer"
+          },
+          "solve_ms": {
+            "title": "Solve Ms",
+            "type": "integer"
+          },
+          "unplanned": {
+            "title": "Unplanned",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "finished",
+          "nodes_expanded",
+          "planned",
+          "unplanned",
+          "solve_ms",
+          "created_at"
+        ],
+        "title": "PlanRunOut",
         "type": "object"
       },
       "PoolCountOut": {
@@ -5534,6 +5589,16 @@
             },
             "title": "Prompts",
             "type": "array"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "weekday": {
             "title": "Weekday",

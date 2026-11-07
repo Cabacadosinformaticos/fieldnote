@@ -202,8 +202,6 @@ def list_entries(
         conditions.append(Entry.participant_id == participant_id)
     if activity_id is not None:
         conditions.append(Entry.activity_id == activity_id)
-    if entry_type is not None:
-        conditions.append(Entry.entry_type == entry_type)
     if tag_id is not None:
         conditions.append(
             Entry.id.in_(
@@ -223,7 +221,13 @@ def list_entries(
     if late_only:
         conditions.append(Entry.received_at > Entry.recorded_at + LATE_THRESHOLD)
 
-    # ``total`` counts every match under the same filters, independent of the cursor and page.
+    # The type chips show how many entries of each type match every other filter, so the type
+    # itself is applied after this snapshot. ``total`` counts the full filtered set and ignores
+    # both the cursor and the page.
+    type_conditions = list(conditions)
+    if entry_type is not None:
+        conditions.append(Entry.entry_type == entry_type)
+
     total = (
         session.scalar(
             select(func.count())
@@ -233,6 +237,16 @@ def list_entries(
         )
         or 0
     )
+
+    type_totals: dict[EntryType, int] = dict.fromkeys(EntryType, 0)
+    for kind, count in session.execute(
+        select(Entry.entry_type, func.count())
+        .select_from(Entry)
+        .join(Participant, Participant.id == Entry.participant_id)
+        .where(*type_conditions)
+        .group_by(Entry.entry_type)
+    ):
+        type_totals[kind] = count
 
     statement = _entry_statement(study_id).where(*conditions)
     if cursor is not None:
@@ -267,7 +281,12 @@ def list_entries(
     if has_more and rows:
         last = rows[-1][0]
         next_cursor = encode_cursor(last.recorded_at, last.id)
-    return {"items": items, "next_cursor": next_cursor, "total": total}
+    return {
+        "items": items,
+        "next_cursor": next_cursor,
+        "total": total,
+        "type_totals": type_totals,
+    }
 
 
 def get_entry(
