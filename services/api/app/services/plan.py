@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
-from app.models import Activity, Availability, Participant, Prompt, Study
+from app.models import Activity, Availability, Participant, PlanRun, Prompt, Study
+from app.models.enums import ParticipantStatus
 from app.services.entries_read import RESEARCHER_VISIBLE_STATUSES
 
 
@@ -83,6 +84,31 @@ def study_plan(session: Session, study_id: uuid.UUID, plan_date: date) -> dict[s
             for prompt, alias, activity_title in prompt_rows
         ]
 
+    # The scheduler can write several rows for the same day (the day plan and its replans). The
+    # row that planned the most prompts is the day plan; the others only add or move prompts.
+    run_row = session.scalars(
+        select(PlanRun)
+        .where(PlanRun.study_id == study_id, PlanRun.plan_date == plan_date)
+        .order_by(
+            (PlanRun.planned + PlanRun.unplanned).desc(),
+            PlanRun.finished.desc(),
+            PlanRun.solve_ms.desc(),
+        )
+        .limit(1)
+    ).first()
+    run = (
+        None
+        if run_row is None
+        else {
+            "finished": run_row.finished,
+            "nodes_expanded": run_row.nodes_expanded,
+            "planned": run_row.planned,
+            "unplanned": run_row.unplanned,
+            "solve_ms": run_row.solve_ms,
+            "created_at": run_row.created_at,
+        }
+    )
+
     return {
         "date": plan_date,
         "weekday": weekday,
@@ -90,10 +116,12 @@ def study_plan(session: Session, study_id: uuid.UUID, plan_date: date) -> dict[s
             {
                 "participant_id": participant.id,
                 "alias": participant.alias,
+                "active": participant.status == ParticipantStatus.ACTIVE,
                 "availability_any_time": bool(participant.availability_any_time),
                 "availability": intervals[participant.id],
             }
             for participant in participants
         ],
         "prompts": prompts,
+        "run": run,
     }

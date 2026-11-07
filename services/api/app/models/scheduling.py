@@ -70,6 +70,9 @@ class PlanRun(Base):
     planned: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     unplanned: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     solve_ms: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
 
 
 class LeaderLease(Base):

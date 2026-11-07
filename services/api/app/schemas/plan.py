@@ -16,8 +16,18 @@ class PlanAvailabilityInterval(BaseModel):
 class PlanParticipant(BaseModel):
     participant_id: uuid.UUID
     alias: str | None
+    active: bool
     availability_any_time: bool
     availability: list[PlanAvailabilityInterval]
+
+
+class PlanRunOut(BaseModel):
+    finished: bool
+    nodes_expanded: int
+    planned: int
+    unplanned: int
+    solve_ms: int
+    created_at: datetime
 
 
 class PlanPrompt(BaseModel):
@@ -38,3 +48,4 @@ class StudyPlanOut(BaseModel):
     weekday: int
     participants: list[PlanParticipant]
     prompts: list[PlanPrompt]
+    run: PlanRunOut | None = None

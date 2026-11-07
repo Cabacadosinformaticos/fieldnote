@@ -3,7 +3,16 @@ from datetime import UTC, date, datetime, time
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import Activity, Availability, Participant, Prompt, Study, StudyMember, UserAccount
+from app.models import (
+    Activity,
+    Availability,
+    Participant,
+    PlanRun,
+    Prompt,
+    Study,
+    StudyMember,
+    UserAccount,
+)
 from app.models.enums import (
     EntryType,
     ParticipantStatus,
@@ -129,6 +138,7 @@ def test_plan_lists_the_day_prompts_and_the_weekday_availability(
     person = body["participants"][0]
     assert person["participant_id"] == str(participant.id)
     assert person["alias"] == "P01"
+    assert person["active"] is True
     assert person["availability_any_time"] is False
     assert person["availability"] == [{"start_time": "08:00:00", "end_time": "12:00:00"}]
 
@@ -146,6 +156,70 @@ def test_plan_lists_the_day_prompts_and_the_weekday_availability(
     assert second["scheduled_at"] is None
     assert second["status"] == "unplanned"
     assert second["unplanned_reason"] == "outside_availability"
+    assert body["run"] is None
+
+
+def test_plan_flags_who_is_active_and_reports_the_day_plan_run(
+    client: TestClient, session: Session, make_user, make_study, make_participant, bearer_headers
+) -> None:
+    study = make_study()
+    user = make_user()
+    _add_member(session, study, user)
+    active = make_participant(study, alias="P01")
+    withdrawn = make_participant(study, alias="P02")
+    withdrawn.status = ParticipantStatus.WITHDRAWN
+    session.commit()
+    activity = _make_activity(session, study)
+    _make_prompt(session, active, activity, occurrence=0, status=PromptStatus.PLANNED)
+    _make_prompt(session, withdrawn, activity, occurrence=0, status=PromptStatus.UNPLANNED)
+
+    # A replan only adds a few prompts; the day plan is the run that planned the most.
+    session.add_all(
+        [
+            PlanRun(
+                study_id=study.id,
+                plan_date=MONDAY,
+                finished=True,
+                nodes_expanded=12,
+                planned=2,
+                unplanned=0,
+                solve_ms=420,
+            ),
+            PlanRun(
+                study_id=study.id,
+                plan_date=MONDAY,
+                finished=True,
+                nodes_expanded=2,
+                planned=0,
+                unplanned=1,
+                solve_ms=5,
+            ),
+        ]
+    )
+    session.commit()
+
+    response = client.get(
+        f"/api/v1/studies/{study.id}/plan",
+        params={"date": MONDAY.isoformat()},
+        headers=bearer_headers(user),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    # The page keeps the prompts of people who left so the overview matrix keeps their history.
+    assert {person["alias"]: person["active"] for person in body["participants"]} == {
+        "P01": True,
+        "P02": False,
+    }
+    assert {prompt["participant_alias"] for prompt in body["prompts"]} == {"P01", "P02"}
+    assert body["run"].pop("created_at")
+    assert body["run"] == {
+        "finished": True,
+        "nodes_expanded": 12,
+        "planned": 2,
+        "unplanned": 0,
+        "solve_ms": 420,
+    }
 
 
 def test_plan_reports_any_time_and_hides_other_states(
