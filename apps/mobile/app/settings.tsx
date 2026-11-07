@@ -258,7 +258,9 @@ export default function SettingsScreen() {
         </Text>
         <Bullets
           items={[
-            tm('settings.eraseB1', { count }),
+            count === 1
+              ? tm('settings.eraseB1One')
+              : tm('settings.eraseB1', { count }),
             tm('settings.eraseB2'),
             tm('settings.eraseB3'),
             tm('settings.eraseB4'),

@@ -290,7 +290,9 @@ export default function StudiesScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>{tm('studies.title')}</Text>
         <Text style={styles.subtitle}>
-          {tm('studies.count', { count: rows.length })}
+          {rows.length === 1
+            ? tm('studies.countOne')
+            : tm('studies.count', { count: rows.length })}
         </Text>
       </View>
 

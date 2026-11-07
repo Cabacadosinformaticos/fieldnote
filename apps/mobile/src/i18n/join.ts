@@ -28,7 +28,7 @@ const join = {
   'consent.fallback.locationNo': 'A localização não é recolhida neste estudo.',
   'consent.fallback.team': 'Equipa: {team}.',
   'consent.closing':
-    'Ao tocar em «Aceito participar», confirma que leu e compreendeu este texto e que aceita participar. Guardamos a versão do texto e o momento em que aceitou.',
+    'Ao tocar em «Aceito participar», confirma que leu e compreendeu este texto e que aceita participar.',
 
   'questions.step': 'Passo 2 de 4 · Perguntas do estudo',
   'questions.title': 'Algumas perguntas da equipa',

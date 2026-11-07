@@ -50,7 +50,7 @@ export default function NotificationsScreen() {
         <BackButton onPress={() => router.back()} />
       </View>
 
-      <StepProgress filled={4} label={tm('notifications.step')} />
+      {next ? <StepProgress filled={4} label={tm('notifications.step')} /> : null}
 
       <Text style={styles.title}>{tm('notifications.title')}</Text>
 

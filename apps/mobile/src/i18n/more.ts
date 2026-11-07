@@ -4,6 +4,7 @@ const more = {
 
   'studies.title': 'Estudos',
   'studies.count': '{count} estudos neste telemóvel',
+  'studies.countOne': '1 estudo neste telemóvel',
   'studies.now': 'A ver agora',
   'studies.active': 'Em curso',
   'studies.ended': 'Terminado',
@@ -94,6 +95,8 @@ const more = {
   'settings.notificationsBody': 'Pedidos e lembretes dos seus estudos',
   'settings.privacy': 'Política de privacidade',
   'settings.myData': 'Apagar todos os meus dados',
+  'settings.eraseB1One':
+    'O estudo neste telemóvel para, fica escondido da equipa e os dados já não entram nas cópias de segurança. Ao fim de 7 dias, tudo é apagado sem ficar nenhuma cópia.',
   'settings.eraseB1':
     'Os {count} estudos neste telemóvel param, ficam escondidos da equipa e os dados já não entram nas cópias de segurança. Ao fim de 7 dias, tudo é apagado sem ficar nenhuma cópia.',
   'settings.eraseB2':
