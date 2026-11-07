@@ -90,6 +90,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.environ.get("FIELDNOTE_LOADGEN_ADMIN_TOTP_SECRET"),
         help="TOTP secret when the administrator is already enrolled",
     )
+    parser.add_argument(
+        "--mailpit-url",
+        default=os.environ.get("FIELDNOTE_LOADGEN_MAILPIT_URL", "http://127.0.0.1:8025"),
+        help="local Mailpit API used to read the account link (default: %(default)s)",
+    )
     return parser
 
 
@@ -120,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         admin_email=arguments.admin_email,
         admin_password=password,
         admin_totp_secret=arguments.admin_totp_secret,
+        mailpit_url=arguments.mailpit_url,
     )
     return LoadGenerator(config).execute()
 

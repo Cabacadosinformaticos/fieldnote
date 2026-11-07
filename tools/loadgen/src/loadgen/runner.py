@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import random
+import re
+import secrets
 import sys
 import threading
 import time
@@ -18,7 +20,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
+
+import httpx
 
 from loadgen.client import (
     ApiError,
@@ -44,6 +48,7 @@ TEXT_BODIES = (
 )
 
 RETRYABLE_ENTRY_CODES = frozenset({"media_not_uploaded", "media_object_not_found"})
+LOCAL_MAIL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 def log(message: str) -> None:
@@ -69,6 +74,7 @@ class RunConfig:
     admin_email: str
     admin_password: str
     admin_totp_secret: str | None
+    mailpit_url: str
 
 
 @dataclass(frozen=True)
@@ -114,6 +120,44 @@ def _sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _local_mailpit(url: str) -> str:
+    """Only read mail from a Mailpit on this machine; never from a shared server."""
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or parsed.hostname not in LOCAL_MAIL_HOSTS:
+        raise LoadgenError(f"refusing to read mail from {url}: Mailpit must be on this machine")
+    return url.rstrip("/")
+
+
+def _account_link(mailpit_url: str, email: str, timeout: float = 20.0) -> str:
+    """Return the single-use token mailed to ``email`` by the account-creation route."""
+    base = _local_mailpit(mailpit_url)
+    deadline = time.monotonic() + timeout
+    try:
+        with httpx.Client(timeout=httpx.Timeout(10.0)) as client:
+            while time.monotonic() < deadline:
+                listing = client.get(f"{base}/api/v1/messages", params={"limit": 50})
+                listing.raise_for_status()
+                for message in listing.json().get("messages", []):
+                    recipients = {
+                        str(item.get("Address", "")).lower() for item in message.get("To", [])
+                    }
+                    if email.lower() not in recipients:
+                        continue
+                    detail = client.get(f"{base}/api/v1/message/{message['ID']}")
+                    detail.raise_for_status()
+                    body = detail.json()
+                    haystack = "\n".join(
+                        str(body.get(key) or "") for key in ("Text", "HTML", "Subject")
+                    )
+                    match = re.search(r"/recuperar#token=([A-Za-z0-9_-]+)", haystack)
+                    if match:
+                        return match.group(1)
+                time.sleep(0.5)
+    except httpx.HTTPError as exc:
+        raise LoadgenError(f"could not read Mailpit at {base}: {exc}") from exc
+    raise LoadgenError(f"no account link arrived for {email}")
+
+
 def _call(
     client: GatewayClient,
     method: str,
@@ -152,6 +196,30 @@ def _login(
             json={"email": email, "password": password},
         )
         secret = enrolment["secret"]
+        # The secret is provisional until the first code confirms it; sign-in keeps
+        # answering totp_enrolment_required until then.
+        for attempt in range(3):
+            confirmation = client.request(
+                "POST",
+                client.api("/auth/totp/enrolment/confirm"),
+                json={**payload, "totp_code": generate_code(secret)},
+            )
+            if confirmation.status_code == 204:
+                break
+            if (
+                confirmation.status_code == 401
+                and error_code(confirmation) == "invalid_credentials"
+                and attempt < 2
+            ):
+                time.sleep(1.0)
+                continue
+            raise ApiError(
+                "POST",
+                client.api("/auth/totp/enrolment/confirm"),
+                confirmation.status_code,
+                error_code(confirmation),
+                confirmation.text,
+            )
     elif code != "totp_required":
         raise ApiError("POST", url, response.status_code, code, response.text)
 
@@ -177,9 +245,7 @@ def _login(
         body = body_json(result)
         error = body.get("error") if isinstance(body, dict) else None
         message = error.get("message") if isinstance(error, dict) else result.text
-        raise ApiError(
-            "POST", url, result.status_code, error_code(result), message or ""
-        )
+        raise ApiError("POST", url, result.status_code, error_code(result), message or "")
     raise LoadgenError("could not sign in as the administrator")
 
 
@@ -224,7 +290,20 @@ class LoadGenerator:
             expected=(201,),
             json={"email": researcher_email, "role": "researcher"},
         )
-        researcher_password = created["temporary_password"]
+        if not created.get("mail_sent"):
+            raise LoadgenError(
+                f"the account {researcher_email} was created but the link could not be mailed"
+            )
+        # The account has no usable password: follow the single-use link that arrived in the
+        # local Mailpit, exactly as the person would.
+        password_token = _account_link(self.config.mailpit_url, researcher_email)
+        researcher_password = secrets.token_urlsafe(12)
+        _call(
+            self.client,
+            "POST",
+            "/auth/password-reset/confirm",
+            json={"token": password_token, "new_password": researcher_password},
+        )
         researcher_token = _login(self.client, researcher_email, researcher_password)
         log(f"researcher {researcher_email} signed in")
 
@@ -259,9 +338,7 @@ class LoadGenerator:
             media_readable=media_readable,
             media_failures=media_failures,
             send_failures=[
-                f"{result.entry_id}: {result.error}"
-                for result in results
-                if not result.success
+                f"{result.entry_id}: {result.error}" for result in results if not result.success
             ],
             switches=self.client.switches,
             first_switch_ms=self.client.first_switch_ms,
@@ -523,8 +600,10 @@ class LoadGenerator:
             if pending == 0:
                 return entries
             if time.monotonic() >= deadline:
-                log(f"{pending} media files are still not processed after "
-                    f"{self.config.media_timeout:g}s")
+                log(
+                    f"{pending} media files are still not processed after "
+                    f"{self.config.media_timeout:g}s"
+                )
                 return entries
             time.sleep(2.0)
             entries = self._list_entries(token)

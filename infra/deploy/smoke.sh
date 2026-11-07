@@ -65,6 +65,11 @@ TOTP_CODE="$(compose exec -T api python -c \
     "$TOTP_SECRET" | tr -d '\r\n')"
 non_empty "$TOTP_CODE" || fail "could not generate a TOTP code"
 
+request POST /api/v1/auth/totp/enrolment/confirm \
+    "$(jq -n --arg email "$ADMIN_EMAIL" --arg password "$ADMIN_PASSWORD" \
+        --arg code "$TOTP_CODE" \
+        '{email: $email, password: $password, totp_code: $code}')" >/dev/null
+
 login="$(request POST /api/v1/auth/login \
     "$(jq -n --arg email "$ADMIN_EMAIL" --arg password "$ADMIN_PASSWORD" \
         --arg code "$TOTP_CODE" \

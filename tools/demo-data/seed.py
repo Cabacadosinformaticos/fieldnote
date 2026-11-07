@@ -31,6 +31,7 @@ import hashlib
 import io
 import os
 import random
+import re
 import secrets
 import subprocess
 import sys
@@ -89,6 +90,7 @@ def _now_lisbon() -> datetime:
     if _is_dst(local_date) != bool(offset):
         offset = 1 - offset
     return now_utc.astimezone(timezone(timedelta(hours=offset)))
+
 
 PRINCIPAL = "ines.marques@fieldnote.test"
 CO_INVESTIGATOR = "duarte.lopes@fieldnote.test"
@@ -254,6 +256,8 @@ HISTORY_ANSWER_LOOKBACK = 2  # an answered prompt is sent at most 30 minutes bef
 # as today's. The limit is raised while the entries are submitted and restored afterwards.
 SEED_FREE_ENTRY_LIMIT = 20
 DATABASE_URL_VARIABLE = "SEED_DATABASE_URL"
+DEFAULT_MAILPIT_URL = "http://127.0.0.1:8025"
+LOCAL_MAIL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 PARTICIPANT_STATUSES = ("active", "withdrawn", "removed")  # the states the researcher views count
 
 # The demonstration is always on day 13 of 14: the study began 12 days ago and ends tomorrow.
@@ -282,6 +286,44 @@ def _normalise_base_url(value: str) -> str:
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _local_mailpit(url: str) -> str:
+    """Only read mail from a Mailpit on this machine; never from a shared server."""
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or parsed.hostname not in LOCAL_MAIL_HOSTS:
+        raise SeedError(f"Refusing to read mail from {url}: Mailpit must be on this machine.")
+    return url.rstrip("/")
+
+
+def _account_link(mailpit_url: str, email: str, timeout: float = 20.0) -> str:
+    """Return the single-use token mailed to ``email`` by the account-creation route."""
+    base = _local_mailpit(mailpit_url)
+    deadline = clock.monotonic() + timeout
+    try:
+        with httpx.Client(timeout=httpx.Timeout(10.0)) as client:
+            while clock.monotonic() < deadline:
+                listing = client.get(f"{base}/api/v1/messages", params={"limit": 50})
+                listing.raise_for_status()
+                for message in listing.json().get("messages", []):
+                    recipients = {
+                        str(item.get("Address", "")).lower() for item in message.get("To", [])
+                    }
+                    if email.lower() not in recipients:
+                        continue
+                    detail = client.get(f"{base}/api/v1/message/{message['ID']}")
+                    detail.raise_for_status()
+                    body = detail.json()
+                    haystack = "\n".join(
+                        str(body.get(key) or "") for key in ("Text", "HTML", "Subject")
+                    )
+                    match = re.search(r"/recuperar#token=([A-Za-z0-9_-]+)", haystack)
+                    if match:
+                        return match.group(1)
+                clock.sleep(0.5)
+    except httpx.HTTPError as exc:
+        raise SeedError(f"Could not read Mailpit at {base}: {exc}") from exc
+    raise SeedError(f"No account link arrived for {email}.")
 
 
 class Api:
@@ -348,6 +390,32 @@ class Api:
             )
             payload = self._checked("POST", "/auth/totp/enrolment", enrolment)
             self.totp_secret = payload["secret"]
+            # Until the first code confirms it, the secret is provisional and sign-in keeps
+            # answering totp_enrolment_required.
+            confirmation: httpx.Response | None = None
+            for attempt in range(3):
+                confirmation = self._raw(
+                    "POST",
+                    "/auth/totp/enrolment/confirm",
+                    json={
+                        "email": self.admin_email,
+                        "password": self.admin_password,
+                        "totp_code": self._totp_code(),
+                    },
+                )
+                if confirmation.status_code == 204:
+                    break
+                if _error_code(confirmation) not in {"invalid_credentials", "totp_required"}:
+                    break
+                clock.sleep(1 + attempt)
+            assert confirmation is not None
+            if confirmation.status_code != 204:
+                raise ApiError(
+                    "POST",
+                    "/auth/totp/enrolment/confirm",
+                    confirmation.status_code,
+                    confirmation.text,
+                )
         elif code != "totp_required":
             raise ApiError("POST", "/auth/login", response.status_code, response.text)
 
@@ -394,9 +462,7 @@ class Api:
     # Researcher ------------------------------------------------------------------------------
 
     def login_user(self, email: str, password: str) -> str:
-        response = self._raw(
-            "POST", "/auth/login", json={"email": email, "password": password}
-        )
+        response = self._raw("POST", "/auth/login", json={"email": email, "password": password})
         payload = self._checked("POST", "/auth/login", response)
         return payload["access_token"]
 
@@ -408,6 +474,14 @@ class Api:
             json={"current_password": current, "new_password": new},
         )
         self._checked("POST", "/auth/password/change", response)
+
+    def reset_password(self, token: str, new: str) -> None:
+        response = self._raw(
+            "POST",
+            "/auth/password-reset/confirm",
+            json={"token": token, "new_password": new},
+        )
+        self._checked("POST", "/auth/password-reset/confirm", response)
 
     # Participant -----------------------------------------------------------------------------
 
@@ -527,9 +601,7 @@ def _print_existing(api: Api, study: dict[str, Any], dashboard_url: str) -> None
         f"{statuses.get('removed', 0)} removed, {statuses.get('declined', 0)} declined"
     )
     print(f"Entries: {study.get('entries', 0)}")
-    team = ", ".join(
-        f"{member['email']} ({member['role']})" for member in study.get("team", [])
-    )
+    team = ", ".join(f"{member['email']} ({member['role']})" for member in study.get("team", []))
     print(f"Team: {team}")
     print(
         "Researcher passwords: unchanged from the first run "
@@ -539,7 +611,7 @@ def _print_existing(api: Api, study: dict[str, Any], dashboard_url: str) -> None
     print("Nothing was created: a second run does not duplicate the study.")
 
 
-def _account_passwords(api: Api) -> dict[str, str]:
+def _account_passwords(api: Api, mailpit_url: str) -> dict[str, str]:
     accounts = api.admin("GET", "/admin/accounts")
     by_email = {account["email"]: account for account in accounts}
     passwords: dict[str, str] = {}
@@ -553,20 +625,19 @@ def _account_passwords(api: Api) -> dict[str, str]:
             expected=(201,),
             json={"email": email, "role": "researcher"},
         )
-        # The administrator password is temporary: sign in with it and replace it with the one
-        # this step prints.
-        temporary = created["temporary_password"]
+        if not created.get("mail_sent"):
+            raise SeedError(f"The account {email} was created but the link could not be mailed.")
+        # The account starts without a usable password: the single-use link in Mailpit is the
+        # only way in, exactly as for a person receiving the welcome message.
         password = secrets.token_urlsafe(12)
-        token = api.login_user(email, temporary)
-        api.change_password(token, temporary, password)
+        api.reset_password(_account_link(mailpit_url, email), password)
+        api.login_user(email, password)
         passwords[email] = password
         print(f"Created account: {email}")
     return passwords
 
 
-def _create_study(
-    api: Api, starts_on: str, ends_on: str, researchers: dict[str, str]
-) -> str:
+def _create_study(api: Api, starts_on: str, ends_on: str, researchers: dict[str, str]) -> str:
     study = api.admin(
         "POST",
         "/studies",
@@ -1784,7 +1855,7 @@ def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) 
             return 0
 
         print("Creating the researcher accounts")
-        passwords = _account_passwords(api)
+        passwords = _account_passwords(api, arguments.mailpit_url)
 
         starts_on, ends_on = _study_dates(arguments.end_in_days)
         print(f"Creating the study ({starts_on.isoformat()} to {ends_on.isoformat()})")
@@ -1853,6 +1924,11 @@ def main(argv: list[str] | None = None) -> int:
         "past and plans today",
     )
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
+    parser.add_argument(
+        "--mailpit-url",
+        default=os.environ.get("SEED_MAILPIT_URL", DEFAULT_MAILPIT_URL),
+        help="local Mailpit API used to read the account links (default: %(default)s)",
+    )
     parser.add_argument("--admin-email")
     parser.add_argument("--admin-password-stdin", action="store_true")
     parser.add_argument(

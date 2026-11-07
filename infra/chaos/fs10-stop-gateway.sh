@@ -80,6 +80,7 @@ LOADGEN_ARGS=(
   --admin-email "$LOADGEN_ADMIN_EMAIL" --admin-password "$LOADGEN_ADMIN_PASSWORD"
   --participants "$PARTICIPANTS" --minutes "$MINUTES" --rate "$RATE"
   --media-ratio "${MEDIA_RATIO:-0.3}" --seed "$SEED" --media-timeout 300
+  --mailpit-url "${FIELDNOTE_LOADGEN_MAILPIT_URL:-http://127.0.0.1:8026}"
 )
 if [ -n "${FIELDNOTE_LOADGEN_ADMIN_TOTP_SECRET:-}" ]; then
   LOADGEN_ARGS+=(--admin-totp-secret "$FIELDNOTE_LOADGEN_ADMIN_TOTP_SECRET")

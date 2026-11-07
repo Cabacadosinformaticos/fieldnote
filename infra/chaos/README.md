@@ -137,6 +137,11 @@ login; for an account that is already enrolled, pass
 scenarios create a fresh `loadgen-fs5-…@fieldnote.test` /
 `loadgen-fs10-…@fieldnote.test` account per run, so they need no setup.
 
+The researcher account is created without a password: the generator reads the
+single-use welcome link from the cluster's Mailpit (`127.0.0.1:8026`) and follows
+it. Pass `--mailpit-url` (or set `FIELDNOTE_LOADGEN_MAILPIT_URL`) when Mailpit is
+elsewhere; the generator refuses a host that is not the local machine.
+
 The report prints `sent`, `confirmed`, `retried`, `duplicates` and `losses`
 (the latter compared with the researcher's `GET /studies/{id}/entries`), the
 latency p50/p90/p99, how many uploaded files are readable, and how often and how
