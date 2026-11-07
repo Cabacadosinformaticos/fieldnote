@@ -844,12 +844,6 @@
   -webkit-line-clamp: 4;
 }
 
-.st-consent-file {
-  color: var(--fn-color-primary-strong);
-  font-size: var(--fn-text-11);
-  word-break: break-all;
-}
-
 .st-consent-textarea {
   min-height: 110px;
 }

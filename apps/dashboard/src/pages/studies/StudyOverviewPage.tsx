@@ -254,6 +254,8 @@ export default function StudyOverviewPage() {
   const openToday = today.sent
   const expiredToday = today.expired
   const sentToday = promptsOut(today)
+  const shownToday = today.shown ?? 0
+  const openedToday = today.opened ?? 0
   const plannedToday = sentToday + today.planned
   const unplannedToday =
     todayPlan?.prompts.filter((prompt) => prompt.status === 'unplanned').length ?? 0
@@ -276,6 +278,22 @@ export default function StudyOverviewPage() {
 
   const participants = participantsQuery.data ?? []
   const participantCount = participants.length || overview.participants.total
+  const pendingInvites = overview.participants.pending_approval
+  const declinedParticipants = overview.participants.declined
+  const inviteNote =
+    pendingInvites === 0
+      ? ''
+      : pendingInvites === 1
+        ? t('overview.activeNoteInviteOne')
+        : t('overview.activeNoteInviteMany', { invites: pendingInvites })
+  const declinedNote =
+    declinedParticipants === 0
+      ? ''
+      : declinedParticipants === 1
+        ? t('overview.activeNoteDeclinedOne')
+        : t('overview.activeNoteDeclinedMany', { declined: declinedParticipants })
+  const activeNote =
+    [inviteNote, declinedNote].filter(Boolean).join(' e ') || t('overview.activeNoteNone')
   const activeIds = new Set(
     participants.filter((participant) => participant.status === 'active').map((p) => p.id),
   )
@@ -564,12 +582,7 @@ export default function StudyOverviewPage() {
               {t('overview.activeOf', { total: overview.participants.total })}
             </span>
           </span>
-          <span className="st-kpi-note">
-            {t('overview.activeNote', {
-              invites: overview.participants.pending_approval,
-              declined: overview.participants.declined,
-            })}
-          </span>
+          <span className="st-kpi-note">{activeNote}</span>
         </div>
 
         <div className="st-kpi">
@@ -716,6 +729,48 @@ export default function StudyOverviewPage() {
                 </span>
               </div>
               <span className="st-funnel-value">{sentToday}</span>
+            </div>
+
+            <div className="st-funnel-row">
+              <span className="st-funnel-label">{t('overview.funnel.shown')}</span>
+              <div className="st-funnel-track-wrap">
+                <div className="st-funnel-track">
+                  <div
+                    className="st-funnel-fill"
+                    style={{
+                      width: `${plannedToday > 0 ? (shownToday * 100) / plannedToday : 0}%`,
+                      background: '#6C8CF0',
+                    }}
+                  />
+                </div>
+                <span className="st-funnel-note">
+                  {t('overview.funnel.ofSent', {
+                    percent: percentValue(shownToday, sentToday),
+                  })}
+                </span>
+              </div>
+              <span className="st-funnel-value">{shownToday}</span>
+            </div>
+
+            <div className="st-funnel-row">
+              <span className="st-funnel-label">{t('overview.funnel.opened')}</span>
+              <div className="st-funnel-track-wrap">
+                <div className="st-funnel-track">
+                  <div
+                    className="st-funnel-fill"
+                    style={{
+                      width: `${plannedToday > 0 ? (openedToday * 100) / plannedToday : 0}%`,
+                      background: '#4A72EC',
+                    }}
+                  />
+                </div>
+                <span className="st-funnel-note">
+                  {t('overview.funnel.ofSent', {
+                    percent: percentValue(openedToday, sentToday),
+                  })}
+                </span>
+              </div>
+              <span className="st-funnel-value">{openedToday}</span>
             </div>
 
             <div className="st-funnel-row">
