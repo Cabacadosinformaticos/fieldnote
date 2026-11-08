@@ -53,6 +53,13 @@ export default function ActivitiesListPage() {
     (total, activity) => total + activity.expected_minutes * activity.prompts_per_day,
     0,
   )
+  const minutesBreakdown = activities
+    .map((activity) =>
+      activity.prompts_per_day === 1
+        ? String(activity.expected_minutes)
+        : `${activity.prompts_per_day} × ${activity.expected_minutes}`,
+    )
+    .join(' + ')
   const breakdown = activities.map((activity) => activity.prompts_per_day).join(' + ')
   const loading = studyQuery.isLoading || activitiesQuery.isLoading
   const error = studyQuery.error ?? activitiesQuery.error ?? null
@@ -97,7 +104,14 @@ export default function ActivitiesListPage() {
         <div className="ac-effort-head">
           <div className="ac-effort-copy">
             <h2 className="h2">{t('list.effortTitle')}</h2>
-            <p className="ac-sub">{t('list.effortSubtitle')}</p>
+            <p className="ac-sub">
+              {activities.length > 0
+                ? t('list.effortSubtitle', {
+                    breakdown: minutesBreakdown,
+                    total: totalMinutes,
+                  })
+                : t('list.effortSubtitleEmpty')}
+            </p>
           </div>
           <div className="ac-effort-total">
             <span className="ac-effort-value">{t('list.effortTotal', { total: totalMinutes })}</span>
@@ -156,11 +170,17 @@ export default function ActivitiesListPage() {
         <div className="ac-info-box">
           <InfoIcon />
           <span>
-            {t('list.effortLimitPrefix', {
-              count: requestsPerDay,
-              breakdown,
-              max: maxRequestsPerDay,
-            })}
+            {requestsPerDay === maxRequestsPerDay
+              ? t(
+                  requestsPerDay === 1 ? 'list.effortLimitOnePrefix' : 'list.effortLimitPrefix',
+                  { count: requestsPerDay, breakdown, max: maxRequestsPerDay },
+                )
+              : t(
+                  requestsPerDay === 1
+                    ? 'list.effortLimitOneDifferentPrefix'
+                    : 'list.effortLimitDifferentPrefix',
+                  { count: requestsPerDay, breakdown, max: maxRequestsPerDay },
+                )}
             <Link to={`/estudos/${studyId}/definicoes`}>{t('list.effortLimitLink')}</Link>
             {t('list.effortLimitSuffix')}
           </span>

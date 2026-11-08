@@ -22,7 +22,6 @@ import {
   useActivities,
   useActivity,
   useCreateActivity,
-  useDeleteActivity,
   useUpdateActivity,
   type ActivityDraft,
   type CaptureType,
@@ -89,7 +88,6 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
   const access = useStudyRole(studyId)
   const createActivity = useCreateActivity(studyId)
   const updateActivity = useUpdateActivity(studyId)
-  const deleteActivity = useDeleteActivity(studyId)
   const [draftState, setDraftState] = useState<ActivityDraft | null>(
     activityId ? null : newActivityDraft(),
   )
@@ -104,10 +102,8 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
   const loadError =
     studyQuery.error ?? activitiesQuery.error ?? activityQuery.error ?? null
   const canWrite = access.canDesign && study?.status !== 'closed'
-  const mutationError =
-    createActivity.error ?? updateActivity.error ?? deleteActivity.error ?? null
+  const mutationError = createActivity.error ?? updateActivity.error ?? null
   const saving = createActivity.isPending || updateActivity.isPending
-  const deleting = deleteActivity.isPending
 
   if (loading && !draft) {
     return (
@@ -133,40 +129,52 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
   const draftIndex = activities.findIndex((activity) => activity.id === draft.id)
   const code = draftIndex >= 0 ? `A${draftIndex + 1}` : `A${activities.length + 1}`
 
+  // An existing activity starts with no local draft, so every edit must fall back to the
+  // draft built from the loaded activity before applying the change.
+  function baseDraft(current: ActivityDraft | null): ActivityDraft | null {
+    return current ?? (activityQuery.data ? draftFromActivity(activityQuery.data) : null)
+  }
+
   function patch(values: Partial<ActivityDraft>) {
-    setDraftState((current) => (current ? { ...current, ...values } : current))
+    setDraftState((current) => {
+      const base = baseDraft(current)
+      return base ? { ...base, ...values } : base
+    })
   }
 
   function patchScale(values: Partial<ActivityDraft['scale']>) {
-    setDraftState((current) =>
-      current ? { ...current, scale: { ...current.scale, ...values } } : current,
-    )
+    setDraftState((current) => {
+      const base = baseDraft(current)
+      return base ? { ...base, scale: { ...base.scale, ...values } } : base
+    })
   }
 
   function toggleType(type: CaptureType) {
     setDraftState((current) => {
-      if (!current) {
-        return current
+      const base = baseDraft(current)
+      if (!base) {
+        return base
       }
-      const selected = current.types.includes(type)
+      const selected = base.types.includes(type)
       return {
-        ...current,
-        types: selected ? current.types.filter((item) => item !== type) : [...current.types, type],
+        ...base,
+        types: selected ? base.types.filter((item) => item !== type) : [...base.types, type],
       }
     })
   }
 
   function pickScaleKind(kind: ScaleKind) {
     setDraftState((current) => {
-      if (!current) {
-        return current
+      const base = baseDraft(current)
+      if (!base) {
+        return base
       }
       const allowed = allowedScalePoints[kind]
-      let points = current.scale.points
+      let points = base.scale.points
       if (allowed.length > 0 && !allowed.includes(points)) {
         points = allowed.filter((point) => point <= points).pop() ?? allowed[0]
       }
-      return { ...current, scale: { ...current.scale, kind, points } }
+      return { ...base, scale: { ...base.scale, kind, points } }
     })
   }
 
@@ -186,13 +194,6 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
     } else {
       createActivity.mutate(body, { onSuccess: () => navigate(basePath) })
     }
-  }
-
-  function remove() {
-    if (!draft.id || !window.confirm(t('edit.deleteConfirm'))) {
-      return
-    }
-    deleteActivity.mutate(draft.id, { onSuccess: () => navigate(basePath) })
   }
 
   const selectedTypes = typeOrder.filter((type) => draft.types.includes(type))
@@ -232,9 +233,17 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
   const requiredMinutes = Math.max(0, draft.requestsPerDay - 1) * draft.minGapMinutes
   const fitsWindow = requiredMinutes <= windowMinutes
   const windowHours = windowMinutes / 60
-  const windowHoursText = Number.isInteger(windowHours)
-    ? String(windowHours)
-    : windowHours.toFixed(1)
+  // Portuguese uses a comma and drops the trailing zero: 15 horas, 14,9 horas.
+  const windowHoursText = (Math.floor(windowHours * 10) / 10)
+    .toFixed(1)
+    .replace('.0', '')
+    .replace('.', ',')
+  const hoursLabel =
+    windowHours === 1 ? t('edit.when.hour') : t('edit.when.hours', { hours: windowHoursText })
+  const gapLabel =
+    draft.minGapMinutes === 1
+      ? t('edit.when.minute')
+      : t('edit.when.minutes', { gap: draft.minGapMinutes })
 
   const impactRows = activities.map((activity, index) => ({
     code: `A${index + 1}`,
@@ -275,26 +284,9 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
             {t('edit.back')}
           </Link>
           {canWrite ? (
-            <>
-              {!isNew ? (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={remove}
-                  disabled={deleting || saving}
-                >
-                  {deleting ? t('edit.deleting') : t('edit.delete')}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="btn btn-p"
-                onClick={save}
-                disabled={saving || deleting}
-              >
-                {saving ? t('edit.saving') : t('edit.save')}
-              </button>
-            </>
+            <button type="button" className="btn btn-p" onClick={save} disabled={saving}>
+              {saving ? t('edit.saving') : t('edit.save')}
+            </button>
           ) : null}
         </div>
       </header>
@@ -713,7 +705,7 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
             </div>
             <p className="ac-sub">
               {t('edit.when.hint', {
-                timezone: study?.timezone ?? 'Europe/Lisbon',
+                timezone: (study?.timezone ?? 'Europe/Lisbon').replace('Lisbon', 'Lisboa'),
                 code,
                 start: draft.windowStart,
                 end: draft.windowEnd,
@@ -723,11 +715,13 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
               {fitsWindow ? <CheckIcon /> : <WarningIcon />}
               <span>
                 {fitsWindow
-                  ? t('edit.when.fits', {
-                      hours: windowHoursText,
-                      requests: draft.requestsPerDay,
-                      gap: draft.minGapMinutes,
-                    })
+                  ? draft.requestsPerDay === 1
+                    ? t('edit.when.fitsOneRequest', { hours: hoursLabel })
+                    : t('edit.when.fitsRequests', {
+                        hours: hoursLabel,
+                        requests: draft.requestsPerDay,
+                        gap: gapLabel,
+                      })
                   : t('edit.when.doesNotFit')}
               </span>
             </div>

@@ -21,7 +21,9 @@ const pt = {
     'O que os participantes são convidados a registar e quando. As mudanças aplicam-se a partir do plano da próxima noite, o de hoje não muda.',
   'list.new': 'Nova atividade',
   'list.effortTitle': 'Esforço previsto por participante e por dia',
-  'list.effortSubtitle': 'Soma dos minutos esperados dos pedidos de um dia: 2 × 3 + 1 + 1.',
+  'list.effortSubtitle':
+    'Soma dos minutos esperados dos pedidos de um dia: {breakdown} = {total} min.',
+  'list.effortSubtitleEmpty': 'Ainda não há atividades: o esforço previsto é 0 min.',
   'list.effortTotal': '{total} min',
   'list.effortAria': '{code} {minutes} minutos',
   'list.effortSegment': '{code} · {minutes} min',
@@ -30,6 +32,12 @@ const pt = {
   'list.effortNote': 'Não há limite para o esforço: serve para decidir se é demasiado.',
   'list.effortLimitPrefix':
     'Os {count} pedidos por dia ({breakdown}) coincidem com o máximo do estudo, que é {max} por participante e dia. Acrescentar pedidos exige subir esse máximo em ',
+  'list.effortLimitOnePrefix':
+    'O pedido por dia coincide com o máximo do estudo, que é {max} por participante e dia. Acrescentar pedidos exige subir esse máximo em ',
+  'list.effortLimitDifferentPrefix':
+    'Os {count} pedidos por dia ({breakdown}) não coincidem com o máximo do estudo, que é {max} por participante e dia. Alterar o máximo faz-se em ',
+  'list.effortLimitOneDifferentPrefix':
+    'O pedido por dia não coincide com o máximo do estudo, que é {max} por participante e dia. Alterar o máximo faz-se em ',
   'list.effortLimitLink': 'Definições',
   'list.effortLimitSuffix': '.',
   'list.typesAria': 'Tipos aceites',
@@ -132,8 +140,13 @@ const pt = {
   'edit.when.gap': 'Intervalo mínimo',
   'edit.when.hint':
     'Horas no fuso do estudo, {timezone}. Os pedidos caem sempre dentro da janela e das horas que cada participante indicou. Esta janela cobre o dia todo, por isso os pedidos de {code} podem chegar a qualquer hora entre as {start} e as {end}.',
-  'edit.when.fits':
-    'O intervalo cabe na janela: {hours} horas dão para {requests} pedidos com {gap} minutos entre eles.',
+  'edit.when.hour': '1 hora',
+  'edit.when.hours': '{hours} horas',
+  'edit.when.minute': '1 minuto',
+  'edit.when.minutes': '{gap} minutos',
+  'edit.when.fitsOneRequest': 'O intervalo cabe na janela: {hours} dá para 1 pedido.',
+  'edit.when.fitsRequests':
+    'O intervalo cabe na janela: {hours} dão para {requests} pedidos com {gap} entre eles.',
   'edit.when.doesNotFit':
     'O intervalo não cabe na janela: os pedidos ficariam por planear com a razão «Não cabe com o intervalo mínimo entre pedidos».',
   'edit.preview.title': 'Como o participante vê',
@@ -151,7 +164,7 @@ const pt = {
   'edit.impact.note':
     'Se mudar o esforço ou os pedidos por dia, este total muda logo. Não há limite, serve para decidir se é demasiado.',
   'edit.impact.schedule':
-    'A alteração aplica-se a partir do plano da próxima noite (03:00). O plano de hoje não muda.',
+    'A alteração aplica-se a partir do plano da próxima noite. O plano de hoje não muda.',
 
   'settings.title': 'Definições',
   'settings.subtitle': 'Estudo {study}.',
@@ -188,7 +201,7 @@ const pt = {
     'Fixo enquanto o estudo decorre: todas as horas dos pedidos e das janelas dependem dele.',
   'settings.section.plan': 'Pedidos e plano',
   'settings.plan.hint':
-    'Estas mudanças só entram no plano da próxima noite (03:00). O plano de hoje não muda.',
+    'Estas mudanças só entram no plano da próxima noite. O plano de hoje não muda.',
   'settings.plan.style': 'Estilo de horário',
   'settings.style.fixed': 'Fixo',
   'settings.style.fixedHint': 'mesma hora, todos os dias',
@@ -201,6 +214,10 @@ const pt = {
   'settings.plan.maxPerWindow': 'Máximo de pedidos por intervalo de 15 min',
   'settings.plan.maxPerWindowHint':
     'Limita quantos pedidos de todo o estudo saem ao mesmo tempo.',
+  'settings.plan.suggested':
+    'Sugerido: {suggested}, para {count} participantes ativos e as horas que indicaram.',
+  'settings.plan.suggestedOne':
+    'Sugerido: {suggested}, para 1 participante ativo e as horas que indicou.',
   'settings.plan.invalidLimits': 'Os limites têm de ser números inteiros maiores do que zero.',
   'settings.section.consent': 'Texto de consentimento',
   'settings.consent.subtitle':
