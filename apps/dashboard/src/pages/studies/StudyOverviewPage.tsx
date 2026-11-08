@@ -271,8 +271,14 @@ export default function StudyOverviewPage() {
   const shownToday = today.shown ?? 0
   const openedToday = today.opened ?? 0
   const plannedToday = sentToday + today.planned
+  // Same count as the Plan page: requests of people who left or were removed are not pending.
+  const activeToday = new Set(
+    todayPlan?.participants.filter((item) => item.active).map((item) => item.participant_id),
+  )
   const unplannedToday =
-    todayPlan?.prompts.filter((prompt) => prompt.status === 'unplanned').length ?? 0
+    todayPlan?.prompts.filter(
+      (prompt) => prompt.status === 'unplanned' && activeToday.has(prompt.participant_id),
+    ).length ?? 0
   const expectedToday = plannedToday + unplannedToday
 
   // The trend and the matrix total row count the same people: active participants only.
