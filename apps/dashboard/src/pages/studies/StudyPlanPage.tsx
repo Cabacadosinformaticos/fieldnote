@@ -112,9 +112,9 @@ function dayLabel(date: string): string {
   }).format(new Date(`${date}T12:00:00Z`))
 }
 
-function buildIntervalBins(plan: StudyPlan, timezone: string): IntervalBin[] {
+function buildIntervalBins(prompts: PlanPrompt[], timezone: string): IntervalBin[] {
   const bins = Array.from({ length: INTERVAL_BIN_COUNT }, () => ({ sent: 0, planned: 0 }))
-  for (const prompt of plan.prompts) {
+  for (const prompt of prompts) {
     if (prompt.status === 'unplanned' || prompt.unplanned_reason !== null) {
       continue
     }
@@ -133,6 +133,44 @@ function buildIntervalBins(plan: StudyPlan, timezone: string): IntervalBin[] {
     }
   }
   return bins
+}
+
+/** The smallest gap any activity asks for; each activity has its own minimum. */
+function smallestGap(activities: Activity[]): number | null {
+  const gaps = activities.map((activity) => activity.min_gap_minutes).filter((gap) => gap > 0)
+  return gaps.length > 0 ? Math.min(...gaps) : null
+}
+
+/** Whether no two prompts of the same activity and participant are closer than its gap. */
+function gapRespected(
+  prompts: PlanPrompt[],
+  activities: Activity[],
+  timezone: string,
+): boolean {
+  const gapByActivity = new Map(
+    activities.map((activity) => [activity.id, activity.min_gap_minutes]),
+  )
+  const lastByPair = new Map<string, number>()
+  const placed = prompts
+    .filter((prompt) => prompt.status !== 'unplanned' && prompt.unplanned_reason === null)
+    .map((prompt) => ({
+      key: `${prompt.participant_id}:${prompt.activity_id}`,
+      minutes: promptMinutes(prompt, timezone),
+      gap: gapByActivity.get(prompt.activity_id) ?? 0,
+    }))
+    .filter(
+      (item): item is { key: string; minutes: number; gap: number } =>
+        item.minutes !== null,
+    )
+    .sort((left, right) => left.key.localeCompare(right.key) || left.minutes - right.minutes)
+  for (const item of placed) {
+    const previous = lastByPair.get(item.key)
+    if (previous !== undefined && item.minutes - previous < item.gap) {
+      return false
+    }
+    lastByPair.set(item.key, item.minutes)
+  }
+  return true
 }
 
 function binTotals(bins: IntervalBin[]): { sent: number; planned: number; peak: number } {
@@ -187,15 +225,29 @@ function studyDays(study: Study | undefined, fallback: string): string[] {
   return days.length > 0 ? days : [fallback]
 }
 
-function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
-  const unplanned = plan.prompts.filter(
+function PlanSummary({
+  plan,
+  study,
+  participants,
+  prompts,
+  minGap,
+  gapOk,
+}: {
+  plan: StudyPlan
+  study: Study
+  participants: StudyPlan['participants']
+  prompts: PlanPrompt[]
+  minGap: number | null
+  gapOk: boolean
+}) {
+  const unplanned = prompts.filter(
     (prompt) => prompt.status === 'unplanned' || prompt.unplanned_reason !== null,
   ).length
-  const expected = plan.prompts.length
+  const expected = prompts.length
   const planned = expected - unplanned
-  const totals = binTotals(buildIntervalBins(plan, study.timezone))
+  const totals = binTotals(buildIntervalBins(prompts, study.timezone))
   const perParticipant = new Map<string, number>()
-  for (const prompt of plan.prompts) {
+  for (const prompt of prompts) {
     if (prompt.status === 'unplanned' || prompt.unplanned_reason !== null) {
       continue
     }
@@ -205,10 +257,20 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
     )
   }
   const highestPerParticipant = Math.max(0, ...perParticipant.values())
-  const withHours = plan.participants.filter(
+  const withHours = participants.filter(
     (participant) =>
       participant.availability_any_time || participant.availability.length > 0,
   ).length
+  const perParticipantCount =
+    participants.length > 0 ? Math.round(expected / participants.length) : 0
+  const evenPerParticipant =
+    participants.length > 0 && perParticipantCount * participants.length === expected
+  const runSeconds =
+    plan.run !== undefined && plan.run !== null ? plan.run.solve_ms / 1000 : null
+  const secondsLabel =
+    runSeconds === null
+      ? ''
+      : String(Math.round(runSeconds * 10) / 10).replace('.', ',')
 
   return (
     <section
@@ -220,6 +282,15 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
           <h2 className="h2 st-plan-summary-heading">
             {t('plan.summary.date', { date: dayLabel(plan.date) })}
           </h2>
+          {plan.run ? (
+            <span className={`pill ${plan.run.finished ? 'ok' : 'wa'}`}>
+              {t(
+                plan.run.finished
+                  ? 'plan.summary.complete'
+                  : 'plan.summary.interrupted',
+              )}
+            </span>
+          ) : null}
           <p className="st-sub">
             {t('plan.summary.styleLine', {
               style: styleLabel(study.schedule_style),
@@ -240,15 +311,26 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
             </span>
           </span>
           <span className="st-plan-stat-note">
-            {t(
-              plan.participants.length === 1
-                ? 'plan.summary.plannedNoteOne'
-                : 'plan.summary.plannedNote',
-              {
-                participants: plan.participants.length,
-                maxDay: study.max_prompts_per_day,
-              },
-            )}
+            {participants.length === 1
+              ? t('plan.summary.plannedNoteOne', {
+                  perParticipant: perParticipantCount,
+                  expected,
+                })
+              : t(
+                  evenPerParticipant
+                    ? 'plan.summary.plannedNote'
+                    : 'plan.summary.plannedNoteUneven',
+                  {
+                    participants: participants.length,
+                    perParticipant: perParticipantCount,
+                    expected,
+                  },
+                )}
+            <br />
+            {t('plan.summary.participantsNote', {
+              count: withHours,
+              total: participants.length,
+            })}
           </span>
         </div>
         <div className="st-plan-stat">
@@ -257,10 +339,21 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
           <span className="st-plan-stat-note">{t('plan.summary.unplannedNote')}</span>
         </div>
         <div className="st-plan-stat">
-          <span className="st-plan-stat-label">{t('plan.summary.participants')}</span>
-          <span className="st-plan-stat-value">{plan.participants.length}</span>
+          <span className="st-plan-stat-label">{t('plan.summary.calculated')}</span>
+          <span className="st-plan-stat-value">
+            {plan.run
+              ? (() => {
+                  const clock = clockInTimezone(plan.run.created_at, study.timezone)
+                  return `${String(clock.hour).padStart(2, '0')}:${String(clock.minute).padStart(2, '0')}`
+                })()
+              : '–'}
+          </span>
           <span className="st-plan-stat-note">
-            {t('plan.summary.participantsNote', { count: withHours })}
+            {plan.run
+              ? secondsLabel === '1'
+                ? t('plan.summary.durationOne')
+                : t('plan.summary.duration', { duration: `${secondsLabel} segundos` })
+              : t('plan.summary.noRun')}
           </span>
         </div>
         <div className="st-plan-stat">
@@ -283,7 +376,27 @@ function PlanSummary({ plan, study }: { plan: StudyPlan; study: Study }) {
         </div>
       </div>
 
+      {plan.run ? (
+        <p className="st-plan-explanation">
+          <b>
+            {t(
+              plan.run.finished
+                ? 'plan.summary.explanationLead'
+                : 'plan.summary.interruptedLead',
+            )}
+          </b>{' '}
+          {plan.run.finished
+            ? t('plan.summary.explanation', { planned })
+            : t('plan.summary.interruptedExplanation')}
+        </p>
+      ) : null}
+
       <div className="st-constraint-row">
+        {minGap !== null && gapOk ? (
+          <span className="st-constraint-pill">
+            {t('plan.summary.intervalOk', { minutes: minGap })}
+          </span>
+        ) : null}
         {highestPerParticipant <= study.max_prompts_per_day ? (
           <span className="st-constraint-pill">
             {t('plan.summary.dailyOk', { maxDay: study.max_prompts_per_day })}
@@ -483,15 +596,16 @@ export default function StudyPlanPage() {
   const activities = plan
     ? buildActivities(plan, activityListQuery.data ?? [])
     : new Map<string, ActivityMeta>()
-  const participants = plan
-    ? showAll
-      ? plan.participants
-      : plan.participants.slice(0, 12)
-    : []
-  const unplannedPrompts =
-    plan?.prompts.filter(
-      (prompt) => prompt.status === 'unplanned' || prompt.unplanned_reason !== null,
-    ) ?? []
+  // People who left or were removed keep their prompts in history, but today's plan, its counts
+  // and the unplanned list are about the people who are still in the study.
+  const activeParticipants = plan?.participants.filter((participant) => participant.active) ?? []
+  const activeIds = new Set(activeParticipants.map((participant) => participant.participant_id))
+  const activePrompts =
+    plan?.prompts.filter((prompt) => activeIds.has(prompt.participant_id)) ?? []
+  const participants = showAll ? activeParticipants : activeParticipants.slice(0, 12)
+  const unplannedPrompts = activePrompts.filter(
+    (prompt) => prompt.status === 'unplanned' || prompt.unplanned_reason !== null,
+  )
   const reasonCounts = new Map<UnplannedReason, number>()
   for (const prompt of unplannedPrompts) {
     if (prompt.unplanned_reason) {
@@ -502,17 +616,20 @@ export default function StudyPlanPage() {
     }
   }
 
-  const intervalBins = plan ? buildIntervalBins(plan, timezone) : []
+  const intervalBins = plan ? buildIntervalBins(activePrompts, timezone) : []
   const intervalTotals = binTotals(intervalBins)
   const sameHourCounts = [0, 0, 0, 0]
   if (plan) {
     const perParticipant = new Map<string, number>()
-    for (const prompt of plan.prompts) {
+    for (const prompt of activePrompts) {
       const index = perParticipant.get(prompt.participant_id) ?? 0
       sameHourCounts[index % sameHourCounts.length] += 1
       perParticipant.set(prompt.participant_id, index + 1)
     }
   }
+  const activityList = activityListQuery.data ?? []
+  const minGap = smallestGap(activityList)
+  const gapOk = gapRespected(activePrompts, activityList, timezone)
   const sameHourPeak = Math.max(0, ...sameHourCounts)
   const intervalScale = Math.max(intervalTotals.peak, study.max_prompts_per_slot, 1)
   const nowClock = nowClockInTimezone(timezone)
@@ -527,7 +644,7 @@ export default function StudyPlanPage() {
   ).sort((left, right) => right - left)
 
   const promptsFor = (participantId: string) =>
-    plan?.prompts.filter((prompt) => prompt.participant_id === participantId) ?? []
+    activePrompts.filter((prompt) => prompt.participant_id === participantId)
 
   return (
     <div className="st-page">
@@ -627,13 +744,22 @@ export default function StudyPlanPage() {
         </div>
       ) : null}
 
-      {plan && plan.prompts.length === 0 ? (
+      {plan && activePrompts.length === 0 ? (
         <div className="st-note st-note-info" role="status">
           <span>{t('plan.schedule.noPrompts')}</span>
         </div>
       ) : null}
 
-      {plan ? <PlanSummary plan={plan} study={study} /> : null}
+      {plan ? (
+        <PlanSummary
+          plan={plan}
+          study={study}
+          participants={activeParticipants}
+          prompts={activePrompts}
+          minGap={minGap}
+          gapOk={gapOk}
+        />
+      ) : null}
 
       <section className="card st-plan-how" aria-label={t('plan.how.title')}>
         <h2 className="h2">{t('plan.how.title')}</h2>
@@ -782,7 +908,7 @@ export default function StudyPlanPage() {
         </section>
       ) : null}
 
-      {plan && plan.prompts.length > 0 ? (
+      {plan && activePrompts.length > 0 ? (
         <div className="st-grid-interval">
           <section className="card st-interval-card" aria-label={t('plan.interval.title')}>
             <div>
@@ -910,7 +1036,7 @@ export default function StudyPlanPage() {
             <div className="st-card-head st-card-head-start">
               <h2 className="h2">{t('plan.compare.title')}</h2>
               <p className="st-sub">
-                {t('plan.compare.subtitle', { count: plan.prompts.length })}
+                {t('plan.compare.subtitle', { count: activePrompts.length })}
               </p>
             </div>
 
@@ -981,7 +1107,7 @@ export default function StudyPlanPage() {
                   : t('plan.schedule.subtitleNoNow')}
               </p>
             </div>
-            {plan.participants.length > 12 ? (
+            {activeParticipants.length > 12 ? (
               <button
                 type="button"
                 className="st-btn st-btn-ghost st-btn-sm"
@@ -989,7 +1115,7 @@ export default function StudyPlanPage() {
               >
                 {showAll
                   ? t('plan.schedule.viewLess')
-                  : t('plan.schedule.viewAll', { count: plan.participants.length })}
+                  : t('plan.schedule.viewAll', { count: activeParticipants.length })}
               </button>
             ) : null}
           </div>
@@ -1011,6 +1137,10 @@ export default function StudyPlanPage() {
                 <span className="st-tag st-tag-sm">{t(statusLabels[status])}</span>
               </span>
             ))}
+            <span className="st-status-legend-item">
+              <span className="st-availability-swatch" />
+              {t('plan.schedule.availability')}
+            </span>
             <span className="st-status-legend-item">
               <span className="st-offwindow-swatch" />
               {t('plan.schedule.outsideWindow')}
@@ -1056,7 +1186,7 @@ export default function StudyPlanPage() {
           <p className="st-fine-print">
             {t('plan.schedule.showing', {
               shown: participants.length,
-              total: plan.participants.length,
+              total: activeParticipants.length,
             })}
           </p>
         </section>

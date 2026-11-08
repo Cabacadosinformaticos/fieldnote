@@ -352,7 +352,7 @@ export function useStudyCard(study: StudyListItem): StudySummary {
     const adherence = study.adherence_study
     adherenceMetric = {
       kind: 'adherenceFinal',
-      value: `${adherence.percentage} %`,
+      value: adherence.out > 0 ? `${Math.round(adherence.percentage)} %` : '–',
       note:
         studyDays > 0
           ? t('list.metric.adherenceFinalNote', { days: studyDays })
@@ -365,7 +365,7 @@ export function useStudyCard(study: StudyListItem): StudySummary {
     const adherence = study.adherence_today
     adherenceMetric = {
       kind: 'adherence',
-      value: `${adherence.percentage} %`,
+      value: adherence.out > 0 ? `${Math.round(adherence.percentage)} %` : '–',
       note: t('list.metric.adherenceNote', {
         answered: adherence.answered,
         out: adherence.out,

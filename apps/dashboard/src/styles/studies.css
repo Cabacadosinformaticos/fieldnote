@@ -2910,6 +2910,14 @@
   border: 1px solid var(--fn-color-border-input);
 }
 
+.st-availability-swatch {
+  width: 28px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--fn-color-surface);
+  border: 1px solid var(--fn-color-border-input);
+}
+
 .st-schedule-table {
   margin-top: var(--fn-space-4);
   border: 1px solid var(--fn-color-border);
