@@ -89,11 +89,7 @@ def study_plan(session: Session, study_id: uuid.UUID, plan_date: date) -> dict[s
     run_row = session.scalars(
         select(PlanRun)
         .where(PlanRun.study_id == study_id, PlanRun.plan_date == plan_date)
-        .order_by(
-            (PlanRun.planned + PlanRun.unplanned).desc(),
-            PlanRun.finished.desc(),
-            PlanRun.solve_ms.desc(),
-        )
+        .order_by(PlanRun.planned.desc(), PlanRun.created_at.desc())
         .limit(1)
     ).first()
     run = (
