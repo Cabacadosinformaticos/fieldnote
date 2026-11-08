@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react'
-import { useAuditLog, type AuditActorType, type AuditEvent } from '../../api/admin'
+import {
+  useAuditLog,
+  useStudies,
+  type AuditActorType,
+  type AuditEvent,
+} from '../../api/admin'
 import { formatDay, formatTime, isUuid, shortId } from '../../components/admin/format'
 import { LockIcon } from '../../components/admin/icons'
 import { t, type AdminKey } from '../../i18n/admin'
@@ -67,34 +72,166 @@ const auditActions: { code: string; labelKey: AdminKey }[] = [
   { code: 'erasure_requested', labelKey: 'audit.action.erasure_requested' },
   { code: 'erasure_cancelled', labelKey: 'audit.action.erasure_cancelled' },
   { code: 'pool_invitations_sent', labelKey: 'audit.action.pool_invitations_sent' },
+  { code: 'password_reset_requested', labelKey: 'audit.action.password_reset_requested' },
+  { code: 'password_reset_completed', labelKey: 'audit.action.password_reset_completed' },
+  { code: 'password_changed', labelKey: 'audit.action.password_changed' },
+  { code: 'entry_tags_changed', labelKey: 'audit.action.entry_tags_changed' },
+  { code: 'media_retry_requested', labelKey: 'audit.action.media_retry_requested' },
 ]
 
 const actionLabels = new Map(auditActions.map((item) => [item.code, item.labelKey]))
 
 const failedActions = new Set(['login_failed', 'refresh_reuse_detected'])
 
-function renderValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return '—'
-  }
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
-  return JSON.stringify(value)
+const detailLabels: Record<string, AdminKey> = {
+  email: 'audit.detail.email',
+  reason: 'audit.detail.reason',
+  role: 'audit.detail.role',
+  fields: 'audit.detail.fields',
+  study_id: 'audit.detail.study_id',
+  title: 'audit.detail.title',
+  name: 'audit.detail.name',
+  due_at: 'audit.detail.due_at',
+  entries: 'audit.detail.entries',
+  files: 'audit.detail.files',
+  format: 'audit.detail.format',
+  include_location: 'audit.detail.include_location',
+  include_identity: 'audit.detail.include_identity',
+  criteria: 'audit.detail.criteria',
+  sent: 'audit.detail.sent',
+  kind: 'audit.detail.kind',
+  order: 'audit.detail.order',
+  mime_type: 'audit.detail.mime_type',
+  size_bytes: 'audit.detail.size_bytes',
 }
 
-function detailSummary(event: AuditEvent): string {
+const reasonLabels: Record<string, AdminKey> = {
+  unknown_email: 'audit.detail.reason.unknown_email',
+  locked: 'audit.detail.reason.locked',
+  bad_password: 'audit.detail.reason.bad_password',
+  totp_enrolment_required: 'audit.detail.reason.totp_enrolment_required',
+  totp_missing: 'audit.detail.reason.totp_missing',
+  bad_totp: 'audit.detail.reason.bad_totp',
+}
+
+const fieldLabels: Record<string, AdminKey> = {
+  name: 'audit.detail.field.name',
+  email: 'audit.detail.field.email',
+  title: 'audit.detail.field.title',
+  description: 'audit.detail.field.description',
+  starts_on: 'audit.detail.field.starts_on',
+  ends_on: 'audit.detail.field.ends_on',
+  timezone: 'audit.detail.field.timezone',
+  consent_text: 'audit.detail.field.consent_text',
+  schedule_style: 'audit.detail.field.schedule_style',
+  max_prompts_per_day: 'audit.detail.field.max_prompts_per_day',
+  max_prompts_per_slot: 'audit.detail.field.max_prompts_per_slot',
+}
+
+const kindLabels: Record<string, AdminKey> = {
+  single_choice: 'audit.detail.kind.single_choice',
+  multiple_choice: 'audit.detail.kind.multiple_choice',
+  yes_no: 'audit.detail.kind.yes_no',
+  short_text: 'audit.detail.kind.short_text',
+}
+
+const hiddenDetailKeys = new Set([
+  'invite_code_id',
+  'entry_id',
+  'prompt_id',
+  'participant_id',
+  'object_key',
+])
+
+type DetailRow = { label: string; value: string }
+
+function detailValue(
+  key: string,
+  value: unknown,
+  studyTitles: Map<string, string>,
+): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (typeof value === 'boolean') {
+    return t(value ? 'audit.detail.value.yes' : 'audit.detail.value.no')
+  }
+  if (key === 'reason' && typeof value === 'string') {
+    const label = reasonLabels[value]
+    return label ? t(label) : null
+  }
+  if (key === 'role' && typeof value === 'string') {
+    if (value === 'admin') {
+      return t('acct.role.admin')
+    }
+    if (value === 'researcher') {
+      return t('acct.role.researcher')
+    }
+    return null
+  }
+  if (key === 'format' && value === 'zip') {
+    return t('audit.detail.value.zip')
+  }
+  if (key === 'kind' && typeof value === 'string') {
+    const label = kindLabels[value]
+    return label ? t(label) : null
+  }
+  if (key === 'study_id' && typeof value === 'string') {
+    return studyTitles.get(value) ?? null
+  }
+  if (key === 'due_at' && typeof value === 'string') {
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime())
+      ? null
+      : `${formatDay(value)} ${formatTime(value)}`
+  }
+  if (key === 'fields' && Array.isArray(value)) {
+    const labels = value.map((item) =>
+      typeof item === 'string' ? fieldLabels[item] : undefined,
+    )
+    return labels.every(Boolean)
+      ? labels.map((label) => t(label as AdminKey)).join(', ')
+      : null
+  }
+  if (key === 'size_bytes' && typeof value === 'number') {
+    return `${value} bytes`
+  }
+  if (hiddenDetailKeys.has(key) || (typeof value === 'string' && isUuid(value))) {
+    return null
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value)
+  }
+  return null
+}
+
+function detailRows(event: AuditEvent, studyTitles: Map<string, string>): DetailRow[] {
   if (!event.details) {
-    return t('audit.detailsEmpty')
+    return []
   }
-  const entries = Object.entries(event.details)
-  if (entries.length === 0) {
-    return t('audit.detailsEmpty')
+  return Object.entries(event.details).flatMap(([key, value]) => {
+    const labelKey = detailLabels[key]
+    if (!labelKey) {
+      return []
+    }
+    const formatted = detailValue(key, value, studyTitles)
+    return formatted === null ? [] : [{ label: t(labelKey), value: formatted }]
+  })
+}
+
+function targetLabel(event: AuditEvent, studyTitles: Map<string, string>): string {
+  const email = event.details?.email
+  if (typeof email === 'string' && email.includes('@')) {
+    return email
   }
-  return entries
-    .slice(0, 2)
-    .map(([key, value]) => `${key}: ${renderValue(value)}`)
-    .join(' · ')
+  if (!event.target) {
+    return '—'
+  }
+  const studyTitle = studyTitles.get(event.target)
+  if (studyTitle) {
+    return studyTitle
+  }
+  return isUuid(event.target) ? shortId(event.target) : event.target
 }
 
 function toIsoDate(value: string, endOfDay: boolean): string | null {
@@ -128,8 +265,13 @@ export default function AdminAuditPage() {
   )
 
   const auditQuery = useAuditLog(filters)
+  const studiesQuery = useStudies()
   const events = auditQuery.data?.items ?? []
   const nextCursor = auditQuery.data?.next_cursor ?? null
+  const studyTitles = useMemo(
+    () => new Map((studiesQuery.data ?? []).map((study) => [study.id, study.title])),
+    [studiesQuery.data],
+  )
 
   function resetPaging() {
     setCursors([null])
@@ -251,7 +393,9 @@ export default function AdminAuditPage() {
 
       <section className="ad-events-card" aria-label={t('audit.title')}>
         <div className="ad-events-head">
-          <h2 className="ad-events-title">{t('audit.heading', { count: events.length })}</h2>
+          <h2 className="ad-events-title">
+            {t('audit.headingPage', { count: events.length, page: pageIndex + 1 })}
+          </h2>
           <span className="ad-muted">{t('audit.order')}</span>
         </div>
 
@@ -282,6 +426,7 @@ export default function AdminAuditPage() {
           {!auditQuery.isPending && !auditQuery.isError
             ? events.map((item) => {
                 const isOpen = openId === item.id
+                const rows = detailRows(item, studyTitles)
                 const labelKey = actionLabels.get(item.action)
                 return (
                   <div key={item.id} className={isOpen ? 'ad-event is-open' : 'ad-event'}>
@@ -316,22 +461,23 @@ export default function AdminAuditPage() {
                         </div>
 
                         <span className="ad-event-target">
-                          {item.target
-                            ? isUuid(item.target)
-                              ? shortId(item.target)
-                              : item.target
-                            : '—'}
+                          {targetLabel(item, studyTitles)}
                         </span>
-                        <span className="ad-event-detail">{detailSummary(item)}</span>
+                        <span className="ad-event-detail">
+                          {rows
+                            .slice(0, 2)
+                            .map((row) => `${row.label}: ${row.value}`)
+                            .join(' · ') || t('audit.detailsEmpty')}
+                        </span>
                       </div>
                     </button>
 
-                    {isOpen && item.details ? (
+                    {isOpen && rows.length > 0 ? (
                       <div className="ad-event-fields">
-                        {Object.entries(item.details).map(([key, value]) => (
-                          <div key={key} className="ad-event-field">
-                            <span className="ad-event-field-key">{key}</span>
-                            <span className="ad-event-field-value">{renderValue(value)}</span>
+                        {rows.map((row) => (
+                          <div key={row.label} className="ad-event-field">
+                            <span className="ad-event-field-key">{row.label}</span>
+                            <span className="ad-event-field-value">{row.value}</span>
                           </div>
                         ))}
                       </div>

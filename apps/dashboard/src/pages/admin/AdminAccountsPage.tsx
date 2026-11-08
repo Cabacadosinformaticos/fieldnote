@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AdminApiError,
   useAccounts,
@@ -17,7 +17,6 @@ import {
   formatDateTime,
   formatDay,
   formatHourMinute,
-  shortId,
 } from '../../components/admin/format'
 import {
   ClockIcon,
@@ -87,6 +86,7 @@ function accountErrorText(error: unknown): string {
 
 export default function AdminAccountsPage({ newAccountOpen = false }: { newAccountOpen?: boolean }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const accountsQuery = useAccounts()
   const createAccount = useCreateAccount()
@@ -96,11 +96,19 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
   const sendLink = useSendAccountLink()
 
   const [createOpen, setCreateOpen] = useState(newAccountOpen)
-  const [created, setCreated] = useState<CreatedAccount | null>(null)
+  const [created, setCreated] = useState<CreatedAccount | null>(() => {
+    const state = location.state as { createdAccount?: CreatedAccount } | null
+    return state?.createdAccount ?? null
+  })
   const [editing, setEditing] = useState<AdminAccount | null>(null)
   const [filter, setFilter] = useState<FilterKey>('all')
   const [query, setQuery] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState(() => {
+    const state = location.state as { createdAccount?: CreatedAccount } | null
+    return state?.createdAccount?.mail_sent
+      ? t('acct.createdMailed', { email: state.createdAccount.email })
+      : ''
+  })
   const [actionError, setActionError] = useState('')
 
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
@@ -138,13 +146,8 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
       onSuccess: (account) => {
         setCreateOpen(false)
         setActionError('')
-        if (account.mail_sent) {
-          setNotice(t('acct.createdMailed', { email: account.email }))
-          setCreated(null)
-          return
-        }
-        setNotice('')
-        setCreated(account)
+        // Carry the result back to the list, which mounts a fresh page at /admin/contas.
+        navigate('/admin/contas', { replace: true, state: { createdAccount: account } })
       },
     })
   }
@@ -339,7 +342,7 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
                         {account.email}
                       </span>
                       <span className="ad-account-email">
-                        {formatDateTime(account.created_at)} · {shortId(account.id)}
+                        {formatDateTime(account.created_at)}
                       </span>
                     </div>
 
@@ -470,7 +473,9 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
             : null}
 
           {!accountsQuery.isPending && !accountsQuery.isError && visibleAccounts.length === 0 ? (
-            <div className="ad-empty">{t('acct.empty')}</div>
+            <div className="ad-empty">
+              {query.trim() ? t('acct.emptySearch') : t('acct.empty')}
+            </div>
           ) : null}
         </div>
 
