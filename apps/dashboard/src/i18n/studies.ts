@@ -2,6 +2,7 @@ const pt = {
   'common.day': 'Dia',
   'common.of': 'de',
   'common.activeParticipantCount': '{count} participantes ativos',
+  'common.activeParticipantCountOne': '1 participante ativo',
   'common.none': 'Nenhum',
 
   'status.ongoing': 'Em curso',
@@ -20,7 +21,7 @@ const pt = {
   'list.newStudy': 'Novo estudo',
   'list.filter.label': 'Filtrar por estado',
   'list.filter.all': 'Todos',
-  'list.metric.participants': 'Participantes',
+  'list.metric.participants': 'Participantes ativos',
   'list.metric.entries': 'Registos',
   'list.metric.adherence': 'Adesão hoje',
   'list.metric.adherenceFinal': 'Adesão final',
@@ -34,6 +35,7 @@ const pt = {
   'list.viewResults': 'Ver resultados',
   'list.exportData': 'Exportar dados',
   'list.empty': 'Não há estudos com este estado.',
+  'list.emptyAll': 'Ainda não há estudos.',
 
   'new.breadcrumb': 'Novo estudo',
   'new.title': 'Novo estudo',
@@ -78,7 +80,7 @@ const pt = {
   'new.counter.increase': 'Aumentar',
   'new.suggestion.lead': 'Valor sugerido: calculado quando houver participantes.',
   'new.suggestion.body':
-    'O Fieldnote usa o número de participantes e as horas que cada um indicar. Até lá fica o valor por omissão, 2. Por exemplo, com 20 participantes e as horas previstas, a sugestão seria 2.',
+    'O Fieldnote usa o número de participantes e as horas que cada um indicar. Sem participantes, a sugestão usa o máximo por omissão.',
   'new.consent.pt': 'Português',
   'new.consent.required': 'Obrigatório',
   'new.consent.emptyTitle': 'Ainda sem texto',
@@ -215,7 +217,7 @@ const pt = {
   'overview.feed.viewAll': 'Ver todos os registos',
   'overview.hours.title': 'Pedidos enviados ao longo do dia',
   'overview.hours.subtitle':
-    'Por hora, de 08:00 às 22:00 (hora de Lisboa). {sent} já enviados + {pending} ainda por enviar = {planned} planeados.',
+    'Por hora, de 08:00 às 22:00 (hora local do estudo). {sent} já enviados + {pending} ainda por enviar = {planned} planeados.',
   'overview.hours.limit': 'Limite: {limit} por hora',
   'overview.hours.aria': 'Pedidos por hora. Enviados: {sent}. Ainda por enviar: {planned}',
   'overview.hours.sent': 'Enviados ({count})',
@@ -244,7 +246,7 @@ const pt = {
 
   'plan.title': 'Plano',
   'plan.subtitle':
-    'O que o planeamento decidiu para cada participante. O plano é calculado todas as noites, às 03:00, para o dia seguinte.',
+    'O que o planeamento decidiu para cada participante. O plano é calculado todas as noites para o dia seguinte.',
   'plan.previousDay': 'Dia anterior',
   'plan.nextDay': 'Dia seguinte',
   'plan.chooseDay': 'Escolher o dia',
@@ -254,26 +256,32 @@ const pt = {
   'plan.summary.tomorrow': 'Plano de amanhã',
   'plan.summary.date': 'Plano de {date}',
   'plan.summary.complete': 'Pesquisa completa',
+  'plan.summary.interrupted': 'Pesquisa interrompida',
   'plan.summary.styleLine':
     'Estilo do estudo: {style} · máximo de {maxDay} pedidos por participante e dia · máximo de {maxSlot} por intervalo de 15 minutos',
   'plan.summary.planned': 'Pedidos planeados',
   'plan.summary.plannedOf': 'de {expected}',
-  'plan.summary.plannedNote': 'Até {participants} participantes ativos × {maxDay} pedidos',
-  'plan.summary.plannedNoteOne': 'Até 1 participante ativo × {maxDay} pedidos',
+  'plan.summary.plannedNote':
+    '{participants} participantes ativos × {perParticipant} pedidos = {expected}',
+  'plan.summary.plannedNoteOne': '1 participante ativo × {perParticipant} pedidos = {expected}',
+  'plan.summary.plannedNoteUneven': '{participants} participantes ativos · {expected} pedidos',
   'plan.summary.unplanned': 'Por planear',
   'plan.summary.unplannedNote': 'Sem lugar que cumpra as regras',
-  'plan.summary.participants': 'Participantes ativos',
-  'plan.summary.participantsNote': 'Com horas indicadas neste dia: {count}',
+  'plan.summary.participantsNote': 'Com horas indicadas neste dia: {count} de {total}',
   'plan.summary.calculated': 'Calculado às',
   'plan.summary.duration': 'Demorou {duration}',
+  'plan.summary.durationOne': 'Demorou 1 segundo',
+  'plan.summary.noRun': 'Ainda não há um cálculo registado para este dia.',
   'plan.summary.maxInterval': 'Máximo num intervalo',
   'plan.summary.maxIntervalOf': 'de {limit}',
   'plan.summary.maxIntervalOver':
     'Acima do limite atual de {limit} por intervalo; os envios deste dia são anteriores a esta regra.',
-  'plan.summary.maxIntervalNote': 'Contra {count} se todos recebessem à mesma hora',
   'plan.summary.explanationLead': 'O que quer dizer pesquisa completa:',
   'plan.summary.explanation':
-    'o planeamento analisou todas as combinações possíveis antes do limite de 10 segundos. Com as regras deste estudo não existe nenhum plano com mais de {planned} pedidos. Se o tempo acabasse antes, o plano seria o melhor encontrado até então e ficaria marcado como interrompido.',
+    'o planeamento analisou todas as combinações possíveis. Com as regras deste estudo não existe nenhum plano com mais de {planned} pedidos. Se tivesse sido interrompido antes, o plano seria o melhor encontrado até então e ficaria marcado como interrompido.',
+  'plan.summary.interruptedLead': 'O que quer dizer pesquisa interrompida:',
+  'plan.summary.interruptedExplanation':
+    'o planeamento parou antes de analisar todas as combinações, por limite de tempo ou de pesquisa. O plano é o melhor encontrado até então; pode existir um plano com mais pedidos.',
   'plan.summary.intervalOk': 'Intervalo mínimo de {minutes} min respeitado em todos os participantes',
   'plan.summary.dailyOk': 'Nenhum participante acima de {maxDay} pedidos por dia',
   'plan.summary.slotOk': 'Nenhum intervalo acima de {maxSlot} pedidos',
@@ -283,7 +291,7 @@ const pt = {
     'Cada pedido só pode cair em intervalos de 15 minutos dentro das horas indicadas pelo participante e da janela da atividade.',
   'plan.how.step2.title': 'Regras que nunca se quebram',
   'plan.how.step2.body':
-    'Pelo menos 120 minutos entre pedidos do mesmo participante, no máximo {maxDay} por participante e dia e no máximo {maxSlot} por intervalo de 15 minutos em todo o estudo.',
+    'O intervalo mínimo definido em cada atividade entre pedidos do mesmo participante, no máximo {maxDay} por participante e dia e no máximo {maxSlot} por intervalo de 15 minutos em todo o estudo.',
   'plan.how.step3.title': 'Preferência do estudo',
   'plan.how.step3.body':
     'Entre os planos válidos, o estilo {style} decide a distribuição das horas ao longo do dia e evita repetir o horário de ontem.',
@@ -309,7 +317,7 @@ const pt = {
   'plan.reasons.interval': 'Não cabe com o intervalo mínimo entre pedidos',
   'plan.reasons.dailyMax': 'Atingido o máximo de pedidos por dia',
   'plan.reasons.slotFull': 'Intervalo de 15 minutos já cheio',
-  'plan.reasons.timeout': 'O planeamento parou ao fim de 10 s sem lugar para este pedido',
+  'plan.reasons.timeout': 'O planeamento parou antes de encontrar lugar para este pedido',
   'plan.reason.short.interval': 'Intervalo mínimo',
   'plan.reason.short.slotFull': 'Intervalo cheio',
   'plan.reason.short.dailyMax': 'Máximo diário',
@@ -344,6 +352,7 @@ const pt = {
   'plan.schedule.status.expired': 'Expirado',
   'plan.schedule.status.planned': 'Planeado, ainda não enviado',
   'plan.schedule.status.unplanned': 'Por planear',
+  'plan.schedule.availability': 'Horas indicadas pelo participante',
   'plan.schedule.outsideWindow': 'Fora das horas indicadas',
   'plan.schedule.showing': 'A mostrar {shown} de {total} participantes.',
   'plan.schedule.none': 'Nenhum',

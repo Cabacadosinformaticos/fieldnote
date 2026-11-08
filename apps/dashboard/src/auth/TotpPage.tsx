@@ -80,7 +80,7 @@ export default function TotpPage() {
     setSubmitting(true)
     try {
       await signInTotp(digits.join(''))
-      navigate('/estudos', { replace: true })
+      navigate('/admin/contas', { replace: true })
     } catch (caught) {
       if (caught instanceof AuthError && caught.code === 'totp_session_missing') {
         navigate('/entrar', { replace: true })
@@ -105,7 +105,7 @@ export default function TotpPage() {
   }
 
   if (!pendingEmail) {
-    return <Navigate to={status === 'authenticated' ? '/estudos' : '/entrar'} replace />
+    return <Navigate to={status === 'authenticated' ? '/admin/contas' : '/entrar'} replace />
   }
 
   return (

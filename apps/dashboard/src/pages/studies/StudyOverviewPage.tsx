@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
 import { CheckIcon, ExportIcon } from '../../components/icons'
 import EntryThumb from '../../components/studies/EntryThumb'
 import StudyStatusPill from '../../components/studies/StudyStatusPill'
@@ -34,7 +35,11 @@ import {
   type OverviewAlert,
   type StudyPlan,
 } from '../../api/studies'
-import { participantStatusMeta, useParticipants } from '../../api/participants'
+import {
+  participantStatusMeta,
+  participantsKeys,
+  useParticipants,
+} from '../../api/participants'
 import { useActivities, useStudyLiveRefresh, type EntryType } from '../../api/entries'
 import {
   promptCell,
@@ -104,10 +109,16 @@ function percentValue(answered: number, sent: number): number {
   return sent === 0 ? 0 : Math.round((answered * 100) / sent)
 }
 
-function planTotals(plan: StudyPlan | undefined): { answered: number; sent: number } {
+function planTotals(
+  plan: StudyPlan | undefined,
+  activeIds: Set<string>,
+): { answered: number; sent: number } {
   let answered = 0
   let sent = 0
   for (const prompt of plan?.prompts ?? []) {
+    if (!activeIds.has(prompt.participant_id)) {
+      continue
+    }
     if (prompt.status === 'planned' || prompt.status === 'unplanned') {
       continue
     }
@@ -169,6 +180,8 @@ function alertDetail(
 
 export default function StudyOverviewPage() {
   const { studyId = '' } = useParams<{ studyId: string }>()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const studyQuery = useStudy(studyId)
   const overviewQuery = useStudyOverview(studyId)
   const participantsQuery = useParticipants(studyId)
@@ -184,7 +197,8 @@ export default function StudyOverviewPage() {
   const todayPlan = todayPlanQuery.data
   const days = useOverviewDays(studyId, study, overview?.date)
   const breakdowns = useEntryBreakdowns(studyId, activities)
-  useStudyLiveRefresh(studyId, [studyKeys.all])
+  // A new participant changes the matrix as well as the counts; both queries must refresh.
+  useStudyLiveRefresh(studyId, [studyKeys.all, participantsKeys.list(studyId)])
 
   const timezone = overview?.timezone ?? study?.timezone ?? 'Europe/Lisbon'
   const daysLoading = days.some((day) => day.isLoading)
@@ -261,9 +275,15 @@ export default function StudyOverviewPage() {
     todayPlan?.prompts.filter((prompt) => prompt.status === 'unplanned').length ?? 0
   const expectedToday = plannedToday + unplannedToday
 
+  // The trend and the matrix total row count the same people: active participants only.
+  const activeIds = new Set(
+    (participantsQuery.data ?? [])
+      .filter((participant) => participant.status === 'active')
+      .map((participant) => participant.id),
+  )
   const trendDays = days.filter((item) => item.plan !== undefined).slice(-4)
   const trendValues = trendDays.map((item) => {
-    const totals = planTotals(item.plan)
+    const totals = planTotals(item.plan, activeIds)
     return {
       date: item.date,
       label:
@@ -294,9 +314,6 @@ export default function StudyOverviewPage() {
         : t('overview.activeNoteDeclinedMany', { declined: declinedParticipants })
   const activeNote =
     [inviteNote, declinedNote].filter(Boolean).join(' e ') || t('overview.activeNoteNone')
-  const activeIds = new Set(
-    participants.filter((participant) => participant.status === 'active').map((p) => p.id),
-  )
   const matrixRows = participants
     .map((participant) => {
       const cells = days.map((item) =>
@@ -464,9 +481,12 @@ export default function StudyOverviewPage() {
             ) : null}
             <span>{t('overview.range', {
               range: formatDateRange(study.starts_on, study.ends_on),
-              participants: t('common.activeParticipantCount', {
-                count: overview.participants.active,
-              }),
+              participants:
+                overview.participants.active === 1
+                  ? t('common.activeParticipantCountOne')
+                  : t('common.activeParticipantCount', {
+                      count: overview.participants.active,
+                    }),
             })}</span>
             <span>{dateLabel}</span>
             {periodEnded ? (
@@ -479,27 +499,29 @@ export default function StudyOverviewPage() {
           </div>
         </div>
 
-        <div className="st-header-actions">
-          <Link className="st-btn st-btn-primary" to={`/estudos/${study.id}/registos`}>
-            <FileTextIcon />
-            {t('overview.viewEntries')}
-          </Link>
-          <Link className="st-btn st-btn-ghost" to={`/estudos/${study.id}/exportar`}>
-            <ExportIcon width={18} height={18} />
-            {t('overview.export')}
-          </Link>
-          {canClose ? (
-            <button
-              type="button"
-              className="st-btn st-btn-danger"
-              aria-haspopup="dialog"
-              onClick={() => setDialogOpen(true)}
-            >
-              <StopIcon />
-              {t('overview.endStudy')}
-            </button>
-          ) : null}
-        </div>
+        {isAdmin ? null : (
+          <div className="st-header-actions">
+            <Link className="st-btn st-btn-primary" to={`/estudos/${study.id}/registos`}>
+              <FileTextIcon />
+              {t('overview.viewEntries')}
+            </Link>
+            <Link className="st-btn st-btn-ghost" to={`/estudos/${study.id}/exportar`}>
+              <ExportIcon width={18} height={18} />
+              {t('overview.export')}
+            </Link>
+            {canClose ? (
+              <button
+                type="button"
+                className="st-btn st-btn-danger"
+                aria-haspopup="dialog"
+                onClick={() => setDialogOpen(true)}
+              >
+                <StopIcon />
+                {t('overview.endStudy')}
+              </button>
+            ) : null}
+          </div>
+        )}
       </header>
 
       {status === 'finished' ? (

@@ -33,9 +33,9 @@ type NavItem = {
 const adminNav: NavItem[] = [
   { key: 'nav.admin.accounts', to: '/admin/contas', icon: ParticipantsIcon },
   { key: 'nav.admin.studies', to: '/admin/estudos', icon: FolderIcon },
-  { key: 'nav.admin.pool', to: '/admin/bolsa-de-voluntarios', icon: PoolIcon },
   { key: 'nav.admin.audit', to: '/admin/auditoria', icon: ShieldCheckIcon },
   { key: 'nav.admin.erasure', to: '/admin/pedidos-de-apagamento', icon: ErasureIcon },
+  { key: 'nav.admin.pool', to: '/admin/bolsa-de-voluntarios', icon: PoolIcon },
 ]
 
 const statusKeys = {
@@ -76,6 +76,14 @@ export default function AppLayout() {
   }, [switcherOpen])
 
   const isAdmin = user?.role === 'admin'
+  const inStudy = Boolean(studyId)
+
+  useEffect(() => {
+    if (isAdmin && !inStudy && (location.pathname === '/estudos' || location.pathname === '/estudos/novo')) {
+      navigate('/admin/contas', { replace: true })
+    }
+  }, [isAdmin, inStudy, location.pathname, navigate])
+
   const studiesQuery = useStudies()
   const erasuresQuery = useErasures(isAdmin)
   const studies = studiesQuery.data ?? []
@@ -96,7 +104,8 @@ export default function AppLayout() {
       ]
     : []
 
-  const navItems = isAdmin ? adminNav : researcherNav
+  const navItems = inStudy ? researcherNav : isAdmin ? adminNav : []
+  const isAdminArea = isAdmin && !inStudy
   const currentItem = navItems.find(
     (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
   )
@@ -195,9 +204,11 @@ export default function AppLayout() {
           {navItems.length > 0 ? (
             <nav
               className="sidebar-nav"
-              aria-label={isAdmin ? t('nav.administration') : t('nav.studySections')}
+              aria-label={inStudy ? t('nav.studySections') : t('nav.administration')}
             >
-              {isAdmin ? <span className="sidebar-nav-label">{t('nav.administration')}</span> : null}
+              {isAdminArea ? (
+                <span className="sidebar-nav-label">{t('nav.administration')}</span>
+              ) : null}
               {navItems.map((item) => {
                 const Icon = item.icon
                 const active = item.to === currentItem?.to
@@ -210,13 +221,13 @@ export default function AppLayout() {
                   <Link
                     key={item.to}
                     to={item.to}
-                    className={isAdmin ? 'nav-link nav-link-admin' : 'nav-link'}
+                    className={isAdminArea ? 'nav-link nav-link-admin' : 'nav-link'}
                     aria-current={active ? 'page' : undefined}
                   >
                     <Icon
-                      width={isAdmin ? 18 : 20}
-                      height={isAdmin ? 18 : 20}
-                      strokeWidth={isAdmin ? 2 : 1.9}
+                      width={isAdminArea ? 18 : 20}
+                      height={isAdminArea ? 18 : 20}
+                      strokeWidth={isAdminArea ? 2 : 1.9}
                     />
                     <span className="nav-link-text">{t(item.key)}</span>
                     {badge !== null ? <span className="nav-badge">{badge}</span> : null}
@@ -272,7 +283,7 @@ export default function AppLayout() {
                 <ChevronRightIcon width={14} height={14} />
                 <span className="breadcrumb-current">{t('nav.password')}</span>
               </>
-            ) : isAdmin ? (
+            ) : isAdminArea ? (
               <>
                 <span>{t('nav.administration')}</span>
                 <ChevronRightIcon width={14} height={14} />
@@ -282,6 +293,24 @@ export default function AppLayout() {
               </>
             ) : isStudiesIndex ? (
               <span className="breadcrumb-current">{t('breadcrumb.studies')}</span>
+            ) : inStudy && isAdmin ? (
+              <>
+                <Link className="breadcrumb-link" to="/admin/contas">
+                  {t('nav.administration')}
+                </Link>
+                <ChevronRightIcon width={14} height={14} />
+                <Link className="breadcrumb-link" to="/admin/estudos">
+                  {t('nav.admin.studies')}
+                </Link>
+                <ChevronRightIcon width={14} height={14} />
+                <Link className="breadcrumb-link" to={`/estudos/${studyId}/visao-geral`}>
+                  {studyTitle}
+                </Link>
+                <ChevronRightIcon width={14} height={14} />
+                <span className="breadcrumb-current">
+                  {currentItem ? t(currentItem.key) : null}
+                </span>
+              </>
             ) : studyId ? (
               <>
                 <Link className="breadcrumb-link" to="/estudos">

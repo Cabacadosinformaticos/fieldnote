@@ -91,8 +91,14 @@ export const pt = {
   'reset.heroTitle': 'Defina uma nova palavra-passe para voltar ao seu estudo.',
   'reset.heroBody':
     'A ligação que recebeu por email serve para uma única alteração. Depois de guardar, todas as sessões abertas são terminadas.',
+  'reset.firstHeroTitle': 'Escolha a sua primeira palavra-passe para entrar no Fieldnote.',
+  'reset.firstHeroBody':
+    'A ligação que recebeu por email serve para definir a palavra-passe da sua conta pela primeira vez.',
   'reset.title': 'Nova palavra-passe',
   'reset.subtitle': 'Escolha uma palavra-passe com pelo menos 12 caracteres.',
+  'reset.firstTitle': 'Primeira palavra-passe',
+  'reset.firstSubtitle':
+    'Escolha a palavra-passe que vai usar para entrar. Pelo menos 12 caracteres.',
   'reset.newPassword': 'Nova palavra-passe',
   'reset.repeatPassword': 'Repetir palavra-passe',
   'reset.showPassword': 'Mostrar palavra-passe',

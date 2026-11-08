@@ -182,7 +182,9 @@ export default function StudiesListPage() {
           <StudyCard study={study} key={study.id} />
         ))}
         {!studiesQuery.isLoading && !studiesQuery.error && visible.length === 0 ? (
-          <p className="st-empty">{t('list.empty')}</p>
+          <p className="st-empty">
+            {t(filter === 'all' && studies.length === 0 ? 'list.emptyAll' : 'list.empty')}
+          </p>
         ) : null}
       </div>
     </div>
