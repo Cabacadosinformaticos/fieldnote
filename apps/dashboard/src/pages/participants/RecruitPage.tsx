@@ -197,7 +197,7 @@ export default function RecruitPage() {
             <div className="pts-chip-group">
               <div className="pts-chip-head">
                 <span className="pts-label">{t('recruit.county')}</span>
-                <small>{t('recruit.selectOne')}</small>
+                <small>{t('recruit.countyHint')}</small>
               </div>
               <div className="pts-chips">
                 {counties.map((item) => (
@@ -227,7 +227,6 @@ export default function RecruitPage() {
             <div className="pts-chip-group">
               <div className="pts-chip-head">
                 <span className="pts-label">{t('recruit.situation')}</span>
-                <small>{t('recruit.selectOne')}</small>
               </div>
               <div className="pts-chips">
                 {situations.map((item) => (
@@ -249,7 +248,6 @@ export default function RecruitPage() {
             <div className="pts-chip-group">
               <div className="pts-chip-head">
                 <span className="pts-label">{t('recruit.age')}</span>
-                <small>{t('recruit.selectOne')}</small>
               </div>
               <div className="pts-chips">
                 {ages.map((item) => (
@@ -410,7 +408,7 @@ export default function RecruitPage() {
                     ? studyEnded
                       ? t('recruit.aboveMinimumEnded')
                       : t('recruit.aboveMinimum')
-                    : t('recruit.belowMinimum')}
+                    : t('recruit.belowMinimumShort')}
                 </span>
               </div>
             )}

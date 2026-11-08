@@ -92,7 +92,8 @@ function previewPrompt(entry: EntryOut): string {
   if (isFree(entry)) {
     return t('list.free')
   }
-  return entry.prompt_id ? shortId(entry.prompt_id) : '–'
+  // The entry carries no planned prompt time, only an internal id; leave the cell empty.
+  return '–'
 }
 
 export default function ExportPage() {
@@ -392,7 +393,7 @@ export default function ExportPage() {
                           ))
                         )}
                       </td>
-                      <td className="en-td en-history-meta">ZIP</td>
+                      <td className="en-td en-history-meta">{t('export.format.zip')}</td>
                     </tr>
                   ))
                 )}
@@ -410,11 +411,11 @@ export default function ExportPage() {
             </div>
             <div>
               <span>{t('export.summary.format')}</span>
-              <b>ZIP</b>
+              <b>{t('export.format.zip')}</b>
             </div>
             <div>
               <span>{t('export.summary.files')}</span>
-              <b>2</b>
+              <b>3</b>
             </div>
             <div>
               <span>{t('export.summary.options')}</span>

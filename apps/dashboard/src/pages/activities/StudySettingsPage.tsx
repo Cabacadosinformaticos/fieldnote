@@ -25,6 +25,7 @@ import {
   useStudy,
   useStudyConsent,
   useStudyMembers,
+  useStudyOverview,
   useStudyQuestions,
   useStudyRole,
   useUpdateQuestion,
@@ -121,6 +122,7 @@ export default function StudySettingsPage() {
   const membersQuery = useStudyMembers(studyId)
   const questionsQuery = useStudyQuestions(studyId)
   const consentQuery = useStudyConsent(studyId)
+  const overviewQuery = useStudyOverview(studyId)
 
   const updateStudy = useUpdateStudy(studyId)
   const createQuestion = useCreateQuestion(studyId)
@@ -139,6 +141,7 @@ export default function StudySettingsPage() {
   const closed = status === 'finished'
   const canManage = access.canManage && !closed
   const canDesign = access.canDesign && !closed
+  const activeParticipants = overviewQuery.data?.participants.active
 
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saved, setSaved] = useState(false)
@@ -551,6 +554,19 @@ export default function StudySettingsPage() {
                   onChange={(event) => patch({ maxSlot: event.target.value })}
                 />
                 <span className="ac-sub">{t('settings.plan.maxPerWindowHint')}</span>
+                {activeParticipants !== undefined ? (
+                  <span className="ac-sub">
+                    {t(
+                      activeParticipants === 1
+                        ? 'settings.plan.suggestedOne'
+                        : 'settings.plan.suggested',
+                      {
+                        suggested: study?.max_prompts_per_slot ?? draft.maxSlot,
+                        count: activeParticipants,
+                      },
+                    )}
+                  </span>
+                ) : null}
               </div>
             </div>
           </section>
@@ -730,6 +746,12 @@ export default function StudySettingsPage() {
                     pillKey: 'settings.rules.later',
                     titleKey: 'settings.rules.plan',
                     hintKey: 'settings.rules.planHint',
+                  },
+                  {
+                    pill: 'pr',
+                    pillKey: 'settings.rules.later',
+                    titleKey: 'settings.rules.consent',
+                    hintKey: 'settings.rules.consentHint',
                   },
                   {
                     pill: 'pr',
