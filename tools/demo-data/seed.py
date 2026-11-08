@@ -1714,8 +1714,34 @@ def _write_history(connection: psycopg.Connection, seed: int) -> None:
         (context.participants, start_bound, end_bound),
     ).fetchone()["count"]
 
+    # Entries were posted now but recorded on past days, so every one would look late. Spread the
+    # arrival around the recording time, deterministically, and keep about one in ten genuinely
+    # late (more than the 15 minutes the API allows).
+    connection.execute(
+        """
+        UPDATE entry
+        SET received_at = LEAST(
+            recorded_at + make_interval(mins => CASE
+                WHEN mod(abs(hashtext(id::text || %s)), 10) = 0
+                THEN 16 + mod(abs(hashtext(id::text || %s)), 45)
+                ELSE 1 + mod(abs(hashtext(id::text || %s)), 4)
+            END),
+            now()
+        )
+        WHERE participant_id = ANY(%s)
+        """,
+        (str(seed), str(seed), str(seed), context.participants),
+    )
+    late = connection.execute(
+        "SELECT count(*) AS count FROM entry "
+        "WHERE participant_id = ANY(%s) "
+        "AND received_at > recorded_at + interval '15 minutes'",
+        (context.participants,),
+    ).fetchone()["count"]
+
     days = (context.last_day - context.first_day).days + 1
     print(f"History step: {days} past days, {len(context.participants)} participants")
+    print(f"  arrival times spread around the recording time ({late} genuinely late)")
     print(
         f"  prompts inserted: {inserted_answered + inserted_expired + inserted_unplanned} "
         f"({inserted_answered} answered, {inserted_expired} expired, "
