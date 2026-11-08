@@ -181,7 +181,7 @@ const pt = {
   'export.format.csv': 'CSV',
   'export.format.zip': 'ZIP com CSV',
   'export.format.note':
-    'Um ZIP com entries.csv (uma linha por registo) e study_answers.csv. Horas no fuso do estudo.',
+    'Um ZIP com entries.csv (uma linha por registo), study_answers.csv e um README. Horas no fuso do estudo.',
   'export.column.participant': 'Participante',
   'export.column.activity': 'Atividade',
   'export.column.prompt': 'Pedido',
@@ -208,7 +208,7 @@ const pt = {
   'export.option.on': 'Ligado',
   'export.option.off': 'Desligado',
   'export.option.switchAria': '{name}: {state}',
-  'export.previous.title': 'Exportações anteriores',
+  'export.previous.title': 'Exportações desta sessão',
   'export.previous.sub':
     'Todas as exportações ficam no registo de auditoria, com as opções escolhidas.',
   'export.previous.who': 'Quem',

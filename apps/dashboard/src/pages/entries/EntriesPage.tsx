@@ -220,9 +220,17 @@ export default function EntriesPage() {
     })),
   ]
 
+  // Only the types the study's activities record: a study without choices has no choice chip.
+  const studyKinds = new Set(
+    (activitiesQuery.data ?? []).flatMap((activity) => activity.entry_types),
+  )
+  const visibleKinds = activitiesQuery.data
+    ? (Object.keys(entryKindMeta) as EntryType[]).filter((kind) => studyKinds.has(kind))
+    : (Object.keys(entryKindMeta) as EntryType[])
+
   const kindOptions = [
     { value: 'all', label: t('list.allTypes') },
-    ...(Object.keys(entryKindMeta) as EntryType[]).map((kind) => ({
+    ...visibleKinds.map((kind) => ({
       value: kind,
       label: t(entryKindMeta[kind].labelKey),
     })),
@@ -238,13 +246,11 @@ export default function EntriesPage() {
     label: option.label,
   }))
 
-  const kindCounts = items.reduce<Record<EntryType, number>>(
-    (counts, entry) => {
-      counts[entry.entry_type] += 1
-      return counts
-    },
-    { photo: 0, text: 0, video: 0, audio: 0, scale: 0, choice: 0 },
-  )
+  // The API counts the whole filtered study, not the rows on this page.
+  const kindTotals = entriesQuery.data?.type_totals ?? {}
+  const kindCounts = Object.fromEntries(
+    visibleKinds.map((kind) => [kind, kindTotals[kind] ?? 0]),
+  ) as Record<EntryType, number>
 
   const tagCounts = (tagsQuery.data ?? [])
     .map((tag) => ({
@@ -420,7 +426,7 @@ export default function EntriesPage() {
                   })}
             </span>
             <span className="en-kind-counts">
-              {(Object.keys(kindCounts) as EntryType[]).map((kind) => (
+              {visibleKinds.map((kind) => (
                 <span key={kind}>
                   {t(kindCountKeys[kind])} {kindCounts[kind]}
                 </span>

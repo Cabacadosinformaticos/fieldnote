@@ -245,6 +245,11 @@ export default function EntriesTimelinePage() {
   })
 
   const activities = activitiesQuery.data ?? []
+  // Only the types the study's activities record; the legend follows the same list.
+  const studyKinds = new Set(activities.flatMap((activity) => activity.entry_types))
+  const visibleKinds = activitiesQuery.data
+    ? (Object.keys(entryKindMeta) as EntryType[]).filter((kind) => studyKinds.has(kind))
+    : (Object.keys(entryKindMeta) as EntryType[])
   const tags = tagsQuery.data ?? []
   const activityById = new Map(activities.map((activity) => [activity.id, activity.title]))
   const tagById = new Map(tags.map((tag) => [tag.id, tag.name]))
@@ -474,7 +479,7 @@ export default function EntriesTimelinePage() {
 
   const kindOptions = [
     { value: 'all', label: t('list.allTypes') },
-    ...(Object.keys(entryKindMeta) as EntryType[]).map((kind) => ({
+    ...visibleKinds.map((kind) => ({
       value: kind,
       label: t(entryKindMeta[kind].labelKey),
     })),
@@ -856,7 +861,7 @@ export default function EntriesTimelinePage() {
 
       <section className="card en-timeline-board" aria-label={t('list.viewTimeline')}>
         <div className="en-legend" aria-label={t('timeline.legend')}>
-          {(Object.keys(entryKindMeta) as EntryType[]).map((kind) => (
+          {visibleKinds.map((kind) => (
             <span key={kind} className="en-legend-item">
               <span className="en-legend-icon" style={{ background: entryKindMeta[kind].color }}>
                 <EntryTypeIcon kind={kind} width={12} height={12} />
