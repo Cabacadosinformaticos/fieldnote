@@ -609,14 +609,19 @@ export interface DayStat {
 }
 
 export function dayStat(day: AdherenceDay): DayStat {
+  // A cell groups the prompts that share an occurrence, which in a day with several
+  // once-a-day activities means all of them. Count the prompts, as the overview matrix and the
+  // participant page do, so every view shows the same requests.
   let answered = 0
   let sent = 0
   for (const cell of day.cells) {
-    if (cell.state === 'answered') {
-      answered += 1
-      sent += 1
-    } else if (cell.state === 'expired' || cell.state === 'sent_pending') {
-      sent += 1
+    for (const prompt of cell.prompts ?? []) {
+      if (prompt.status === 'answered') {
+        answered += 1
+        sent += 1
+      } else if (prompt.status === 'sent' || prompt.status === 'expired') {
+        sent += 1
+      }
     }
   }
   return { answered, sent }

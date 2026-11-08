@@ -12,7 +12,7 @@ import {
   type ParticipantOut,
 } from '../../api/participants'
 import { errorKey, t } from '../../i18n/participants'
-import { availabilityRanges, formatDate, formatDateTime } from './format'
+import { availabilityGroups, formatDate, formatDateTime } from './format'
 import { EllipsisIcon, LockIcon, TicketIcon, UserMinusIcon } from './icons'
 import PersonalCodeModal from './PersonalCodeModal'
 
@@ -69,8 +69,17 @@ function availabilityText(item: ParticipantOut): string {
   if (summary.any_time) {
     return t('table.anyTime')
   }
-  const ranges = availabilityRanges(summary)
-  return ranges.length > 0 ? ranges.join(', ') : t('table.dash')
+  // The same interval can apply only to weekends; without the days the hours look wider than
+  // they are and the plan's "outside the participant's hours" reason seems wrong.
+  const groups = availabilityGroups(summary)
+  const parts: string[] = []
+  if (groups.weekdays.length > 0) {
+    parts.push(`${t('detail.weekdays')} ${groups.weekdays.join(', ')}`)
+  }
+  if (groups.weekend.length > 0) {
+    parts.push(`${t('detail.weekend')} ${groups.weekend.join(', ')}`)
+  }
+  return parts.length > 0 ? parts.join(' · ') : t('table.dash')
 }
 
 function lastEntryText(value: string | null | undefined, today: string, timeZone: string): string {

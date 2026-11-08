@@ -203,7 +203,11 @@ export default function ParticipantsPage() {
                   <i className="pts-key is-expired" /> {t('list.legendBelow')}
                 </span>
               </div>
-              <p className="pts-list-summary">{t('list.footerCount', { count: list?.length ?? 0 })}</p>
+              <p className="pts-list-summary">
+                {list?.length === 1
+                  ? t('list.footerCountOne')
+                  : t('list.footerCount', { count: list?.length ?? 0 })}
+              </p>
             </div>
           </>
         )}

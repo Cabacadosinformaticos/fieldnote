@@ -85,6 +85,7 @@ export const pt = {
   'list.empty': 'Nenhum participante corresponde a este filtro.',
   'list.emptyAll': 'Ainda não há participantes neste estudo.',
   'list.footerCount': '{count} participantes neste estudo.',
+  'list.footerCountOne': '1 participante neste estudo.',
   'list.loading': 'A carregar participantes…',
   'list.error': 'Não foi possível carregar os participantes.',
   'list.retry': 'Tentar de novo',
@@ -470,6 +471,7 @@ export const pt = {
   'recruit.aboveMinimumEnded': 'O estudo já terminou: não há novos convites.',
   'recruit.belowMinimum':
     'Um grupo com menos de 5 pessoas aparece como "menos de 5" e não se pode convidar, para ninguém ser identificado pelos critérios.',
+  'recruit.belowMinimumShort': 'Abaixo do mínimo: não é possível enviar.',
   'recruit.send': 'Enviar convites',
   'recruit.sendBullet1': 'Cada convite vale 7 dias. Depois expira.',
   'recruit.sendBullet2': 'Pode enviar já, antes de o estudo começar a {date}.',
