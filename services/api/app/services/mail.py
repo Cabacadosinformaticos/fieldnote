@@ -85,5 +85,6 @@ def send_account_link(to: str, token: str) -> None:
     _send(
         to,
         ACCOUNT_LINK_SUBJECT,
-        ACCOUNT_LINK_BODY.format(link=password_reset_link(token)),
+        # The flag only changes the wording of the page: the token is what authorises the change.
+        ACCOUNT_LINK_BODY.format(link=f"{password_reset_link(token)}&primeira=1"),
     )

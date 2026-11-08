@@ -28,10 +28,14 @@ function resetErrorMessage(error: unknown): string {
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
-  const [token] = useState(() => {
+  const [link] = useState(() => {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-    return params.get('token') ?? ''
+    return {
+      token: params.get('token') ?? '',
+      firstPassword: params.get('primeira') === '1',
+    }
   })
+  const token = link.token
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -81,8 +85,12 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="signin-hero-body">
-          <h2 className="signin-hero-title">{t('reset.heroTitle')}</h2>
-          <p className="signin-hero-text">{t('reset.heroBody')}</p>
+          <h2 className="signin-hero-title">
+            {t(link.firstPassword ? 'reset.firstHeroTitle' : 'reset.heroTitle')}
+          </h2>
+          <p className="signin-hero-text">
+            {t(link.firstPassword ? 'reset.firstHeroBody' : 'reset.heroBody')}
+          </p>
           <ul className="signin-list">
             {heroBullets.map((bullet) => (
               <li key={bullet} className="signin-list-item">
@@ -100,10 +108,14 @@ export default function ResetPasswordPage() {
         <div className="signin-card">
           <div className="signin-heading">
             <h1 className="signin-title">
-              {token ? t('reset.title') : t('reset.invalidTitle')}
+              {token
+                ? t(link.firstPassword ? 'reset.firstTitle' : 'reset.title')
+                : t('reset.invalidTitle')}
             </h1>
             <span className="signin-subtitle">
-              {token ? t('reset.subtitle') : t('reset.invalidBody')}
+              {token
+                ? t(link.firstPassword ? 'reset.firstSubtitle' : 'reset.subtitle')
+                : t('reset.invalidBody')}
             </span>
           </div>
 
