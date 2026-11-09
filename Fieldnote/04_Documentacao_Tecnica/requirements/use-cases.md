@@ -429,7 +429,7 @@ Postconditions: After step 4 the data is out of reach of the team and out of the
 | Primary actor | Participant |
 | Goal | Move between the studies the participant takes part in and miss no request |
 | Preconditions | The participant has joined two or more studies on this phone. The phone holds one device token for each |
-| Trigger | The participant opens the Studies tab, taps the banner of another study, or opens a notification |
+| Trigger | The participant opens the Studies tab or opens a notification |
 | Related requirements | FR-82, FR-83, FR-84, FR-05, NFR-52 |
 
 Main success scenario:
@@ -440,7 +440,6 @@ Main success scenario:
 
 Extensions:
 
-- 1a. Another study has an open request: the Today screen shows a banner with the study, the request and the time limit, and tapping it opens the Studies tab (step 2).
 - 3a. A notification arrives for a study other than the current one: opening it switches to that study and opens the request (UC4, 4b).
 - 3b. The chosen study has an erasure scheduled: the app shows the pending state with the button to cancel (UC20) and nothing else.
 - 3c. The participant opens the hours of the chosen study: the app offers to copy the hours of another study (UC3, 1b).
