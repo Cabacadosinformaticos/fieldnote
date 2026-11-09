@@ -109,6 +109,7 @@ def _study_summary(session: Session, study: Study) -> StudySummaryOut:
         timezone=study.timezone,
         team=list(card["team"]),
         max_prompts_per_day=int(card["requests_per_day"]),
+        today_free_entry_display=study.today_free_entry_display,
     )
 
 

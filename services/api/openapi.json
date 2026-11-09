@@ -5248,6 +5248,16 @@
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "today_free_entry_display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TodayFreeEntryDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -5349,6 +5359,9 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "today_free_entry_display": {
+            "$ref": "#/components/schemas/TodayFreeEntryDisplay"
           }
         },
         "required": [
@@ -5362,6 +5375,7 @@
           "max_prompts_per_day",
           "max_prompts_per_slot",
           "schedule_style",
+          "today_free_entry_display",
           "entry_count",
           "participant_count",
           "adherence_today",
@@ -5497,6 +5511,9 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "today_free_entry_display": {
+            "$ref": "#/components/schemas/TodayFreeEntryDisplay"
           }
         },
         "required": [
@@ -5509,7 +5526,8 @@
           "timezone",
           "max_prompts_per_day",
           "max_prompts_per_slot",
-          "schedule_style"
+          "schedule_style",
+          "today_free_entry_display"
         ],
         "title": "StudyOut",
         "type": "object"
@@ -5848,6 +5866,9 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "today_free_entry_display": {
+            "$ref": "#/components/schemas/TodayFreeEntryDisplay"
           }
         },
         "required": [
@@ -5860,7 +5881,8 @@
           "ends_on",
           "timezone",
           "team",
-          "max_prompts_per_day"
+          "max_prompts_per_day",
+          "today_free_entry_display"
         ],
         "title": "StudySummaryOut",
         "type": "object"
@@ -5966,6 +5988,16 @@
               }
             ],
             "title": "Title"
+          },
+          "today_free_entry_display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TodayFreeEntryDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "StudyUpdate",
@@ -6205,6 +6237,15 @@
         ],
         "title": "TimelineResponse",
         "type": "object"
+      },
+      "TodayFreeEntryDisplay": {
+        "enum": [
+          "both",
+          "request_only",
+          "notice"
+        ],
+        "title": "TodayFreeEntryDisplay",
+        "type": "string"
       },
       "TokenResponse": {
         "properties": {

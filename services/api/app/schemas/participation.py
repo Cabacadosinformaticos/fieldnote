@@ -13,6 +13,7 @@ from app.models.enums import (
     PromptStatus,
     QuestionKind,
     StudyStatus,
+    TodayFreeEntryDisplay,
 )
 
 
@@ -89,6 +90,7 @@ class StudySummaryOut(BaseModel):
     timezone: str
     team: list[str]
     max_prompts_per_day: int
+    today_free_entry_display: TodayFreeEntryDisplay
 
 
 class ParticipantMeOut(BaseModel):

@@ -35,6 +35,7 @@ from app.models.enums import (
     QuestionKind,
     StudyRole,
     StudyStatus,
+    TodayFreeEntryDisplay,
 )
 from app.security import codes
 from app.services import account as account_service
@@ -1000,6 +1001,21 @@ def test_get_me_includes_the_description_team_and_daily_request_limit(
     assert summary["consent_text"] == "Texto de consentimento deste estudo."
     assert summary["team"] == [team_email]
     assert summary["max_prompts_per_day"] == 3
+
+
+def test_get_me_includes_what_today_shows_below_a_request(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study(title="Sleep")
+    _participant_with_token(session, make_participant, study, "display-token")
+
+    default = client.get(ME, headers=_device("display-token"))
+    assert default.json()["study"]["today_free_entry_display"] == "both"
+
+    study.today_free_entry_display = TodayFreeEntryDisplay.NOTICE
+    session.commit()
+    changed = client.get(ME, headers=_device("display-token"))
+    assert changed.json()["study"]["today_free_entry_display"] == "notice"
 
 
 def test_availability_replaces_intervals_and_supports_any_time(
