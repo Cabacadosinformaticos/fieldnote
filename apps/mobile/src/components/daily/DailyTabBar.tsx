@@ -135,7 +135,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.pill,
-    backgroundColor: 'transparent',
+    // Opaque, the colour of the bar: Android drops the rounding when a transparent view gets a colour.
+    backgroundColor: colors.surface,
   },
   iconPillActive: {
     backgroundColor: colors.primarySoft,
