@@ -104,7 +104,11 @@ export default function AppLayout() {
       ]
     : []
 
-  const navItems = inStudy ? researcherNav : isAdmin ? adminNav : []
+  // "Aqui não se alteram estudos": an administrator only follows a study, on its read-only pages.
+  const adminStudyNav = researcherNav.filter(
+    (item) => item.key === 'nav.overview' || item.key === 'nav.plan',
+  )
+  const navItems = inStudy ? (isAdmin ? adminStudyNav : researcherNav) : isAdmin ? adminNav : []
   const isAdminArea = isAdmin && !inStudy
   const currentItem = navItems.find(
     (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
