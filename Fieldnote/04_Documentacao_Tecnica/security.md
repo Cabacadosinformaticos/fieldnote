@@ -130,6 +130,11 @@ for 1 hour, at most 3 per account per hour, carried in the URL fragment so it st
 logs. The answer is the same whether or not the email has an account. Using it revokes every signed-in
 session and does not change the TOTP enrolment. Administrators do not use this flow.
 
+An administrator creating an account never writes or sees a password. The account starts with a random
+password nobody holds, and the person receives a single-use link, valid for 30 minutes, to choose one.
+A link that expired can be sent again from the list of accounts, at most 3 per account per hour. The
+actions are audited, and a mail that could not be sent is reported to the administrator.
+
 A login returns a short-lived access token valid for 15 minutes and a refresh token. The refresh token
 changes on every use and is stored as a hash in the database (`refresh_token`). Because it lives in
 the database, any API replica can revoke it, which a self-contained JWT does not allow. The access
@@ -149,8 +154,9 @@ a progressive delay and then a temporary lockout, which defends against brute fo
 credential stuffing spread over many addresses. An unknown email and a wrong password return the same
 error message, and for an unknown email the API still runs a dummy Argon2id verification, so the
 response time does not reveal which emails have an account. Time-based one-time passwords (TOTP) are
-mandatory for administrators. A password reset uses a single-use link valid for 30 minutes, sent to
-the account's email.
+mandatory for administrators. At the first sign-in the administrator receives a secret, as a QR code and
+as text, and confirms it with a first code. Until that code is confirmed, the enrolment can be repeated
+with the password, so an interrupted enrolment locks nobody out; afterwards it cannot be replaced this way.
 
 ## Participant credentials
 

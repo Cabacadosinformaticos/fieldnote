@@ -152,8 +152,8 @@ give say "proposed here" and have to be confirmed. The minimum group of 5 in the
 | ID | Requirement | Priority | Source | Verification |
 |---|---|---|---|---|
 | FR-39 | The system shall let researchers and administrators sign in with email and password and sign out. | Must | BRF; SEC: Researcher and administrator authentication | Test |
-| FR-40 | The system shall let a user reset a forgotten password through a single-use link valid for 30 minutes, sent to the account's email address. | Should | SEC: Researcher and administrator authentication | Test |
-| FR-41 | The system shall let an administrator create, edit and deactivate researcher accounts (`user_account`). | Must | BRF (manage researchers) | Test |
+| FR-40 | The system shall let a user reset a forgotten password through a single-use link valid for 1 hour, sent to the account's email address. | Should | SEC: Researcher and administrator authentication | Test |
+| FR-41 | The system shall let an administrator create, edit and deactivate researcher accounts (`user_account`). The person chooses the password through a single-use link valid for 30 minutes, sent by email. | Must | BRF (manage researchers) | Test |
 | FR-42 | The system shall let an administrator list all studies with their researchers, participants and entry counts. | Must | BRF (manage studies); R08 | Test |
 | FR-43 | The system shall let an administrator consult the audit log and filter it by actor, action and date. | Must | BRF; SEC: Audit log | Test |
 | FR-44 | The system shall let an administrator erase one participant: the identity, all entries and the answers to the study questions, with every copy of their files, in the live system. Each erasure is written to the audit log. This is the path for requests that reach the team by email or in person; erasure started by the participant in the app is FR-80. | Must | SEC: Erasure, retention and backups; R06; D3 | Test |
