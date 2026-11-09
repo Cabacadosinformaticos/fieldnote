@@ -12,6 +12,7 @@ import {
   refreshPromptCache,
 } from '@/queue/prompts';
 import { listParticipations } from '@/state/participations';
+import { focusStudyOutsideReact } from '@/state/studyFocus';
 
 type EasExtra = {
   eas?: {
@@ -159,6 +160,7 @@ async function openPrompt(promptId: string): Promise<void> {
     }
   }
 
+  focusStudyOutsideReact(activity.studyId);
   router.push({
     pathname: '/record/[activityId]',
     params: activity.promptId
