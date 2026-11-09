@@ -1714,6 +1714,26 @@ def _write_history(connection: psycopg.Connection, seed: int) -> None:
         (context.participants, start_bound, end_bound),
     ).fetchone()["count"]
 
+    # Everyone joined through the API just now; on the demo they consented when the study began.
+    connection.execute(
+        """
+        UPDATE consent
+        SET accepted_at = make_timestamptz(
+            %s, %s, %s, 9 + mod(abs(hashtext(id::text || %s)), 10),
+            mod(abs(hashtext(id::text || %s)), 60), 0, 'Europe/Lisbon'
+        )
+        WHERE participant_id = ANY(%s)
+        """,
+        (
+            context.first_day.year,
+            context.first_day.month,
+            context.first_day.day,
+            str(seed),
+            str(seed),
+            context.participants,
+        ),
+    )
+
     # Entries were posted now but recorded on past days, so every one would look late. Spread the
     # arrival around the recording time, deterministically, and keep about one in ten genuinely
     # late (more than the 15 minutes the API allows).
