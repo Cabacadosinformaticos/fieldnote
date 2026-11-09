@@ -94,7 +94,7 @@ export function FreeEntrySection({ activities, main, onOpen }: FreeEntrySectionP
   }
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, styles.cardSecondary]}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{td('today.freeTitle')}</Text>
         <Text style={styles.used}>{usedLabel(activity)}</Text>
@@ -136,6 +136,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.divider,
     backgroundColor: colors.surface,
+  },
+  // The 30 of the 70/30 share with the open request on Today.
+  cardSecondary: {
+    flexGrow: 3,
+    flexBasis: 0,
+    minHeight: 150,
+    justifyContent: 'center',
   },
   cardMain: {
     gap: 14,

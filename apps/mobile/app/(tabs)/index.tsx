@@ -345,7 +345,10 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.textMuted,
   },
+  // The open request and the free entry share the screen at about 70/30.
   requestCard: {
+    flexGrow: 7,
+    flexBasis: 0,
     minHeight: 360,
     paddingTop: spacing.xxl,
     paddingHorizontal: 22,
