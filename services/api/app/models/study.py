@@ -25,10 +25,12 @@ from app.models.enums import (
     ScheduleStyle,
     StudyRole,
     StudyStatus,
+    TodayFreeEntryDisplay,
     question_kind,
     schedule_style,
     study_role,
     study_status,
+    today_free_entry_display,
 )
 
 
@@ -46,6 +48,11 @@ class Study(Base):
     max_prompts_per_day: Mapped[int] = mapped_column(Integer)
     max_prompts_per_slot: Mapped[int] = mapped_column(Integer)
     schedule_style: Mapped[ScheduleStyle] = mapped_column(schedule_style)
+    today_free_entry_display: Mapped[TodayFreeEntryDisplay] = mapped_column(
+        today_free_entry_display,
+        server_default=sa_text("'both'"),
+        default=TodayFreeEntryDisplay.BOTH,
+    )
     device_salt: Mapped[bytes] = mapped_column(LargeBinary(32))
     consent_text: Mapped[str | None] = mapped_column(Text)
 

@@ -6,7 +6,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models.enums import QuestionKind, ScheduleStyle, StudyRole, StudyStatus
+from app.models.enums import (
+    QuestionKind,
+    ScheduleStyle,
+    StudyRole,
+    StudyStatus,
+    TodayFreeEntryDisplay,
+)
 
 
 def _required_text(value: str) -> str:
@@ -54,6 +60,7 @@ class StudyCreate(BaseModel):
     max_prompts_per_day: int = Field(ge=1)
     max_prompts_per_slot: int = Field(ge=1)
     schedule_style: ScheduleStyle
+    today_free_entry_display: TodayFreeEntryDisplay | None = None
     consent_text: str | None = None
     collaborators: list[str] = Field(default_factory=list)
 
@@ -83,6 +90,7 @@ class StudyUpdate(BaseModel):
     max_prompts_per_day: int | None = None
     max_prompts_per_slot: int | None = None
     schedule_style: ScheduleStyle | None = None
+    today_free_entry_display: TodayFreeEntryDisplay | None = None
     consent_text: str | None = None
 
 
@@ -99,6 +107,7 @@ class StudyOut(BaseModel):
     max_prompts_per_day: int
     max_prompts_per_slot: int
     schedule_style: ScheduleStyle
+    today_free_entry_display: TodayFreeEntryDisplay
     consent_text: str | None = None
 
 

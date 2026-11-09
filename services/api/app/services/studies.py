@@ -28,6 +28,7 @@ from app.models.enums import (
     PromptStatus,
     StudyRole,
     StudyStatus,
+    TodayFreeEntryDisplay,
     UserRole,
 )
 from app.schemas.studies import (
@@ -211,6 +212,7 @@ def create_study(session: Session, user: UserAccount, payload: StudyCreate) -> S
         max_prompts_per_day=payload.max_prompts_per_day,
         max_prompts_per_slot=payload.max_prompts_per_slot,
         schedule_style=payload.schedule_style,
+        today_free_entry_display=payload.today_free_entry_display or TodayFreeEntryDisplay.BOTH,
         device_salt=secrets.token_bytes(32),
         consent_text=payload.consent_text,
     )
@@ -264,6 +266,7 @@ def update_study(
         "max_prompts_per_day": study.max_prompts_per_day,
         "max_prompts_per_slot": study.max_prompts_per_slot,
         "schedule_style": study.schedule_style,
+        "today_free_entry_display": study.today_free_entry_display,
         "consent_text": study.consent_text,
     }
     changes = payload.model_dump(exclude_unset=True)
@@ -272,6 +275,9 @@ def update_study(
         validated = StudyCreate.model_validate(merged)
     except ValidationError as exc:
         raise ApiError(422, "validation_error", "Request validation failed.") from exc
+
+    if validated.today_free_entry_display is None:
+        raise ApiError(422, "validation_error", "Request validation failed.")
 
     for field in merged:
         setattr(study, field, getattr(validated, field))

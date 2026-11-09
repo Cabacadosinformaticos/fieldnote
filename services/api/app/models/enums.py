@@ -32,6 +32,12 @@ class ScheduleStyle(StrEnum):
     VARIED = "varied"
 
 
+class TodayFreeEntryDisplay(StrEnum):
+    BOTH = "both"
+    REQUEST_ONLY = "request_only"
+    NOTICE = "notice"
+
+
 class ParticipantStatus(StrEnum):
     ACTIVE = "active"
     PENDING_APPROVAL = "pending_approval"
@@ -153,6 +159,7 @@ user_role = _enum(UserRole, "user_role")
 study_role = _enum(StudyRole, "study_role")
 study_status = _enum(StudyStatus, "study_status")
 schedule_style = _enum(ScheduleStyle, "schedule_style")
+today_free_entry_display = _enum(TodayFreeEntryDisplay, "today_free_entry_display")
 participant_status = _enum(ParticipantStatus, "participant_status")
 locale = _enum(Locale, "locale")
 invite_code_kind = _enum(InviteCodeKind, "invite_code_kind")

@@ -324,6 +324,49 @@ def test_only_the_principal_investigator_updates_the_study(
     assert audit.target == str(study.id)
 
 
+def test_today_free_entry_display_defaults_to_both_and_can_change_while_running(
+    client: TestClient,
+    study: Study,
+    principal: UserAccount,
+    bearer_headers,
+) -> None:
+    url = f"{STUDIES}/{study.id}"
+    headers = bearer_headers(principal)
+
+    assert client.get(url, headers=headers).json()["today_free_entry_display"] == "both"
+
+    started = client.post(f"{url}/start", headers=headers)
+    assert started.status_code == 200
+
+    changed = client.patch(url, headers=headers, json={"today_free_entry_display": "request_only"})
+    assert changed.status_code == 200
+    assert changed.json()["today_free_entry_display"] == "request_only"
+
+    notice = client.patch(url, headers=headers, json={"today_free_entry_display": "notice"})
+    assert notice.json()["today_free_entry_display"] == "notice"
+    assert client.get(url, headers=headers).json()["today_free_entry_display"] == "notice"
+
+
+def test_today_free_entry_display_rejects_an_unknown_value_and_a_closed_study(
+    client: TestClient,
+    session: Session,
+    study: Study,
+    principal: UserAccount,
+    bearer_headers,
+) -> None:
+    url = f"{STUDIES}/{study.id}"
+    headers = bearer_headers(principal)
+
+    invalid = client.patch(url, headers=headers, json={"today_free_entry_display": "everything"})
+    assert invalid.status_code == 422
+
+    study.status = StudyStatus.CLOSED
+    session.commit()
+    closed = client.patch(url, headers=headers, json={"today_free_entry_display": "notice"})
+    assert closed.status_code == 409
+    assert closed.json()["error"]["code"] == "study_closed"
+
+
 def test_lifecycle_moves_from_draft_to_running_to_closed(
     client: TestClient,
     session: Session,
