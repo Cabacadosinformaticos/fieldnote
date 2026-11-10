@@ -219,6 +219,15 @@ const pt = {
   'settings.plan.suggestedOne':
     'Sugerido: {suggested}, para 1 participante ativo e as horas que indicou.',
   'settings.plan.invalidLimits': 'Os limites têm de ser números inteiros maiores do que zero.',
+  'settings.section.today': 'Registo livre no ecrã Hoje',
+  'settings.today.hint': 'O que o ecrã Hoje da aplicação mostra por baixo de um pedido em aberto.',
+  'settings.today.both': 'Pedido e registo livre',
+  'settings.today.bothHint': 'O pedido ocupa a maior parte do ecrã e o registo livre fica por baixo.',
+  'settings.today.requestOnly': 'Só o pedido',
+  'settings.today.requestOnlyHint': 'O registo livre só aparece depois de o participante responder.',
+  'settings.today.notice': 'Pedido e aviso',
+  'settings.today.noticeHint':
+    'O registo livre aparece em cinzento, com o aviso de que não há registos livres disponíveis.',
   'settings.section.consent': 'Texto de consentimento',
   'settings.consent.subtitle':
     'Versão {version}. Foi aceite por {count} participantes.',

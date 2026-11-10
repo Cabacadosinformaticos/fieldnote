@@ -49,6 +49,16 @@ const scheduleStyles: {
   { id: 'varied', label: 'settings.style.varied', hint: 'settings.style.variedHint' },
 ]
 
+const todayDisplays: {
+  id: Study['today_free_entry_display']
+  label: ActivitiesKey
+  hint: ActivitiesKey
+}[] = [
+  { id: 'both', label: 'settings.today.both', hint: 'settings.today.bothHint' },
+  { id: 'request_only', label: 'settings.today.requestOnly', hint: 'settings.today.requestOnlyHint' },
+  { id: 'notice', label: 'settings.today.notice', hint: 'settings.today.noticeHint' },
+]
+
 const questionTypeLabels: Record<QuestionKind, ActivitiesKey> = {
   single_choice: 'settings.questions.single',
   multiple_choice: 'settings.questions.multiple',
@@ -76,6 +86,7 @@ type Draft = {
   description: string
   endsOn: string
   scheduleStyle: Study['schedule_style']
+  todayDisplay: Study['today_free_entry_display']
   maxDay: string
   maxSlot: string
 }
@@ -164,6 +175,7 @@ export default function StudySettingsPage() {
       description: study.description ?? '',
       endsOn: study.ends_on ?? '',
       scheduleStyle: study.schedule_style,
+      todayDisplay: study.today_free_entry_display,
       maxDay: String(study.max_prompts_per_day),
       maxSlot: String(study.max_prompts_per_slot),
     })
@@ -191,6 +203,7 @@ export default function StudySettingsPage() {
         description: draft.description.trim() || null,
         ends_on: draft.endsOn || null,
         schedule_style: draft.scheduleStyle,
+        today_free_entry_display: draft.todayDisplay,
         max_prompts_per_day: maxDay,
         max_prompts_per_slot: maxSlot,
       },
@@ -567,6 +580,41 @@ export default function StudySettingsPage() {
                     )}
                   </span>
                 ) : null}
+              </div>
+            </div>
+          </section>
+
+          <section className="card ac-section" aria-label={t('settings.section.today')}>
+            <div className="ac-section-heading">
+              <h2 className="h2" id="today-display">
+                {t('settings.section.today')}
+              </h2>
+              <p className="ac-sub">{t('settings.today.hint')}</p>
+            </div>
+
+            <div className="ac-field">
+              <div
+                className="ac-segmented"
+                role="radiogroup"
+                aria-labelledby="today-display"
+              >
+                {todayDisplays.map((option) => {
+                  const selected = draft.todayDisplay === option.id
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={!canManage}
+                      className={selected ? 'ac-segment ac-segment-on' : 'ac-segment'}
+                      onClick={() => patch({ todayDisplay: option.id })}
+                    >
+                      <span className="ac-segment-label">{t(option.label)}</span>
+                      <span className="ac-segment-hint">{t(option.hint)}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </section>
