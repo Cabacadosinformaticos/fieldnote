@@ -295,7 +295,7 @@ export default function PoolInviteScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: 14,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },

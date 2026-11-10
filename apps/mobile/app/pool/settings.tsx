@@ -323,8 +323,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   content: {
-    gap: spacing.md,
-    paddingTop: spacing.xxl,
+    gap: spacing.lg,
+    paddingTop: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },

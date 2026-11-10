@@ -233,7 +233,7 @@ export default function RecoveryCodeScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.lg,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },

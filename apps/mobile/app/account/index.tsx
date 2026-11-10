@@ -544,13 +544,14 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.md,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.xs,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },
   header: {
     minHeight: 48,
     justifyContent: 'center',
+    marginBottom: -spacing.md,
   },
   intro: {
     gap: 6,

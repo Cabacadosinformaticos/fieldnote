@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     color: colors.textBody,
   },
   header: {
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingHorizontal: spacing.xl,
   },
   scrollContent: {
