@@ -3359,6 +3359,7 @@ export interface components {
             timezone: string;
             /** Title */
             title: string;
+            today_free_entry_display?: components["schemas"]["TodayFreeEntryDisplay"] | null;
         };
         /**
          * StudyListItemOut
@@ -3394,6 +3395,7 @@ export interface components {
             timezone: string;
             /** Title */
             title: string;
+            today_free_entry_display: components["schemas"]["TodayFreeEntryDisplay"];
         };
         /** StudyMemberCreate */
         StudyMemberCreate: {
@@ -3441,6 +3443,7 @@ export interface components {
             timezone: string;
             /** Title */
             title: string;
+            today_free_entry_display: components["schemas"]["TodayFreeEntryDisplay"];
         };
         /** StudyOverviewOut */
         StudyOverviewOut: {
@@ -3561,6 +3564,7 @@ export interface components {
             timezone: string;
             /** Title */
             title: string;
+            today_free_entry_display: components["schemas"]["TodayFreeEntryDisplay"];
         };
         /** StudyUpdate */
         StudyUpdate: {
@@ -3581,6 +3585,7 @@ export interface components {
             timezone?: string | null;
             /** Title */
             title?: string | null;
+            today_free_entry_display?: components["schemas"]["TodayFreeEntryDisplay"] | null;
         };
         /** TagCreate */
         TagCreate: {
@@ -3684,6 +3689,11 @@ export interface components {
              */
             zoom: "week" | "day" | "hours";
         };
+        /**
+         * TodayFreeEntryDisplay
+         * @enum {string}
+         */
+        TodayFreeEntryDisplay: "both" | "request_only" | "notice";
         /** TokenResponse */
         TokenResponse: {
             /** Access Token */

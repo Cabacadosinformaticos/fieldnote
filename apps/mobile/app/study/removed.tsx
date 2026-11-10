@@ -61,6 +61,7 @@ export default function StudyRemovedScreen() {
           consentText: data.study.consent_text,
           team: data.study.team,
           maxPromptsPerDay: data.study.max_prompts_per_day,
+          todayFreeEntryDisplay: data.study.today_free_entry_display,
           status: data.status,
           alias: data.alias,
           startsOn: data.study.starts_on,

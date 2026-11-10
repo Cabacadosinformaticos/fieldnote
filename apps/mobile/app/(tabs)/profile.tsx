@@ -25,6 +25,7 @@ import { tm } from '@/i18n/tm';
 import {
   getDeviceToken,
   listParticipations,
+  normalizeTodayFreeEntryDisplay,
   saveParticipation,
   type Participation,
 } from '@/state/participations';
@@ -142,6 +143,9 @@ export default function HoursScreen() {
                 description: me.study.description,
                 team: me.study.team,
                 maxPromptsPerDay: me.study.max_prompts_per_day,
+                todayFreeEntryDisplay: normalizeTodayFreeEntryDisplay(
+                  me.study.today_free_entry_display,
+                ),
               }
             : row,
         ),
@@ -152,6 +156,7 @@ export default function HoursScreen() {
         description: me.study.description,
         team: me.study.team,
         maxPromptsPerDay: me.study.max_prompts_per_day,
+        todayFreeEntryDisplay: me.study.today_free_entry_display,
         status: me.status,
         alias: me.alias,
         startsOn: me.study.starts_on,

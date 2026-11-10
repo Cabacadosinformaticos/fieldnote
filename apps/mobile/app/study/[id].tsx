@@ -76,6 +76,7 @@ function rowModel(me: ParticipantMe): ParticipationInput {
     consentText: me.study.consent_text,
     team: me.study.team,
     maxPromptsPerDay: me.study.max_prompts_per_day,
+    todayFreeEntryDisplay: me.study.today_free_entry_display,
     status: me.status,
     alias: me.alias,
     startsOn: me.study.starts_on,

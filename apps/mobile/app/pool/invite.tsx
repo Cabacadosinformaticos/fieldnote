@@ -98,6 +98,7 @@ export default function PoolInviteScreen() {
       description: study.description,
       team: study.team,
       maxPromptsPerDay: study.max_prompts_per_day,
+      todayFreeEntryDisplay: study.today_free_entry_display,
       status: data.participant.status,
       alias: data.participant.alias,
       startsOn: study.starts_on,

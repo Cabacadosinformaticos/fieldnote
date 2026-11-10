@@ -135,6 +135,7 @@ function participationInput(
     consentText: study.consent_text,
     team: study.team,
     maxPromptsPerDay: study.max_prompts_per_day,
+    todayFreeEntryDisplay: study.today_free_entry_display,
     status: item.status,
     alias: item.alias,
     startsOn: study.starts_on,

@@ -5,6 +5,15 @@ import type { components } from '@/api/schema';
 
 export type ParticipationStatus = components['schemas']['ParticipantStatus'];
 
+export type TodayFreeEntryDisplay = 'both' | 'request_only' | 'notice';
+
+/** A missing or unknown value is the default, so an older cache or API keeps both cards. */
+export function normalizeTodayFreeEntryDisplay(
+  value: string | null | undefined,
+): TodayFreeEntryDisplay {
+  return value === 'request_only' || value === 'notice' ? value : 'both';
+}
+
 export type Participation = {
   studyId: string;
   title: string;
@@ -12,6 +21,7 @@ export type Participation = {
   consentText: string | null;
   team: string[];
   maxPromptsPerDay: number | null;
+  todayFreeEntryDisplay: TodayFreeEntryDisplay;
   status: ParticipationStatus;
   alias: string | null;
   startsOn: string | null;
@@ -23,12 +33,18 @@ export type Participation = {
 /** Older callers keep the fields they do not know; the stored value is preserved. */
 export type ParticipationInput = Omit<
   Participation,
-  'updatedAt' | 'description' | 'consentText' | 'team' | 'maxPromptsPerDay'
+    | 'updatedAt'
+  | 'description'
+  | 'consentText'
+  | 'team'
+  | 'maxPromptsPerDay'
+  | 'todayFreeEntryDisplay'
 > & {
   description?: string | null;
   consentText?: string | null;
   team?: string[] | null;
   maxPromptsPerDay?: number | null;
+  todayFreeEntryDisplay?: string | null;
 };
 
 const DATABASE_NAME = 'fieldnote-participations.db';
@@ -44,6 +60,7 @@ const CREATE_TABLE = `
     consent_text TEXT,
     team TEXT,
     max_prompts_per_day INTEGER,
+    today_free_entry_display TEXT,
     status TEXT NOT NULL,
     alias TEXT,
     starts_on TEXT,
@@ -58,6 +75,7 @@ const ADDED_COLUMNS: { name: string; definition: string }[] = [
   { name: 'consent_text', definition: 'TEXT' },
   { name: 'team', definition: 'TEXT' },
   { name: 'max_prompts_per_day', definition: 'INTEGER' },
+  { name: 'today_free_entry_display', definition: 'TEXT' },
 ];
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -97,6 +115,7 @@ type ParticipationRow = {
   consent_text: string | null;
   team: string | null;
   max_prompts_per_day: number | null;
+  today_free_entry_display: string | null;
   status: ParticipationStatus;
   alias: string | null;
   starts_on: string | null;
@@ -128,6 +147,9 @@ function toParticipation(row: ParticipationRow): Participation {
     consentText: row.consent_text,
     team: parseTeam(row.team),
     maxPromptsPerDay: row.max_prompts_per_day,
+    todayFreeEntryDisplay: normalizeTodayFreeEntryDisplay(
+      row.today_free_entry_display,
+    ),
     status: row.status,
     alias: row.alias,
     startsOn: row.starts_on,
@@ -153,9 +175,9 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
   const db = await database();
   await db.runAsync(
     `INSERT INTO participations
-       (study_id, title, description, consent_text, team, max_prompts_per_day, status, alias,
-        starts_on, ends_on, timezone, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (study_id, title, description, consent_text, team, max_prompts_per_day,
+        today_free_entry_display, status, alias, starts_on, ends_on, timezone, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(study_id) DO UPDATE SET
        title = excluded.title,
        description = COALESCE(excluded.description, participations.description),
@@ -164,6 +186,10 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
        max_prompts_per_day = COALESCE(
          excluded.max_prompts_per_day,
          participations.max_prompts_per_day
+       ),
+       today_free_entry_display = COALESCE(
+         excluded.today_free_entry_display,
+         participations.today_free_entry_display
        ),
        status = excluded.status,
        alias = excluded.alias,
@@ -178,6 +204,7 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
       input.consentText ?? null,
       input.team ? JSON.stringify(input.team) : null,
       input.maxPromptsPerDay ?? null,
+      input.todayFreeEntryDisplay ?? null,
       input.status,
       input.alias,
       input.startsOn,
