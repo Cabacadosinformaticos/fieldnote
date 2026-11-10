@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
+import { LogoMark } from '@/components/LogoMark';
 import { Screen } from '@/components/Screen';
 import { accountHref } from '@/components/account/navigation';
 import { t } from '@/i18n/pt';
@@ -111,17 +112,6 @@ function WelcomeScreen() {
   );
 }
 
-function LogoMark() {
-  return (
-    <View style={styles.logo}>
-      <View style={styles.logoSpine} />
-      <View style={[styles.logoLine, styles.logoLineTop]} />
-      <View style={[styles.logoLine, styles.logoLineBottom]} />
-      <View style={styles.logoPin} />
-    </View>
-  );
-}
-
 function QrMini() {
   return (
     <View style={styles.qrMini}>
@@ -136,7 +126,7 @@ function QrMini() {
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
     gap: spacing.xxl,
   },
@@ -157,46 +147,6 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     letterSpacing: -0.4,
     color: colors.text,
-  },
-  logo: {
-    width: 30,
-    height: 34,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
-    overflow: 'hidden',
-  },
-  logoSpine: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 6,
-    backgroundColor: colors.primaryDark,
-  },
-  logoLine: {
-    position: 'absolute',
-    left: 11,
-    height: 2.5,
-    borderRadius: 2,
-    backgroundColor: colors.white,
-    opacity: 0.85,
-  },
-  logoLineTop: {
-    top: 10,
-    width: 15,
-  },
-  logoLineBottom: {
-    top: 17,
-    width: 11,
-  },
-  logoPin: {
-    position: 'absolute',
-    right: 3,
-    bottom: 3,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: colors.accent,
   },
   intro: {
     gap: 10,

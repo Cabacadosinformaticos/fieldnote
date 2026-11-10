@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
+import { LogoMark } from '@/components/LogoMark';
 import { Screen } from '@/components/Screen';
 import { InfoRow } from '@/components/more/InfoRow';
 import { StepProgress } from '@/components/join/StepProgress';
@@ -69,7 +70,7 @@ export default function NotificationsScreen() {
           ]}
         >
           <View style={styles.notificationIcon}>
-            <Ionicons name="leaf" size={18} color={colors.white} />
+            <LogoMark scale={0.5} />
           </View>
           <View style={styles.notificationText}>
             <Text style={styles.notificationMeta}>
@@ -124,7 +125,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.lg,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },

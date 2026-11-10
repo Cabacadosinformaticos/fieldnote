@@ -133,6 +133,7 @@ export default function InvitationScreen() {
   }, [attempt, code, lookup, setLookup]);
 
   const study = lookup?.study;
+  const poster = lookup?.code_kind === 'study';
 
   const details: { icon: IoniconName; label: string; value: string }[] =
     study && lookup
@@ -185,7 +186,7 @@ export default function InvitationScreen() {
   };
 
   return (
-    <Screen contentStyle={styles.content}>
+    <Screen contentStyle={[styles.content, poster ? styles.contentPoster : styles.contentCode]}>
       <StatusBar style="dark" />
 
       <View style={styles.header}>
@@ -318,6 +319,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
     gap: spacing.lg,
+  },
+  contentCode: {
+    paddingBottom: 12,
+  },
+  contentPoster: {
+    gap: 12,
+    paddingBottom: 24,
   },
   header: {
     height: 48,

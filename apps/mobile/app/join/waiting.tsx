@@ -227,7 +227,7 @@ export default function WaitingScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: 20,
-    paddingTop: spacing.xxl,
+    paddingTop: 40,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },

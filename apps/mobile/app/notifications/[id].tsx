@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LogoMark } from '@/components/LogoMark';
 import { Screen } from '@/components/Screen';
 import { tm } from '@/i18n/tm';
 import { fonts, radii, spacing } from '@/theme';
@@ -12,12 +12,15 @@ export default function LockScreenNotificationScreen() {
     <Screen
       backgroundColor="#131A2A"
       contentStyle={styles.content}
+      edges={['top']}
       scroll={false}
     >
       <StatusBar style="light" />
 
       <View pointerEvents="none" style={styles.glowOne} />
       <View pointerEvents="none" style={styles.glowTwo} />
+
+      <View pointerEvents="none" style={styles.bottomBand} />
 
       <Pressable
         accessibilityLabel={tm('notifications.lockLabel')}
@@ -27,7 +30,7 @@ export default function LockScreenNotificationScreen() {
       >
         <View style={styles.metaRow}>
           <View style={styles.appIcon}>
-            <Ionicons name="leaf" size={12} color="#FFFFFF" />
+            <LogoMark scale={11 / 30} />
           </View>
           <Text style={styles.meta}>{tm('notifications.sampleBrand')}</Text>
           <Text style={styles.meta}>·</Text>
@@ -42,7 +45,7 @@ export default function LockScreenNotificationScreen() {
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    paddingTop: 120,
+    paddingTop: 88,
     paddingHorizontal: spacing.lg,
     backgroundColor: '#131A2A',
   },
@@ -64,8 +67,16 @@ const styles = StyleSheet.create({
     borderRadius: 146,
     backgroundColor: '#1A3330',
   },
+  bottomBand: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 170,
+    backgroundColor: '#14241F',
+  },
   card: {
-    gap: spacing.sm,
+    gap: 10,
     minHeight: 88,
     borderRadius: radii.hero,
     paddingVertical: spacing.lg,

@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
-    gap: spacing.lg,
+    gap: 20,
   },
   backgroundDeep: {
     position: 'absolute',

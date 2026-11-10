@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 2,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   studyLine: {
     fontFamily: fonts.regular,

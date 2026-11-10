@@ -349,13 +349,14 @@ export default function StudiesScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: 10,
-    paddingTop: spacing.sm,
+    paddingTop: 0,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },
   header: {
     gap: 1,
-    paddingVertical: spacing.sm,
+    paddingTop: 8,
+    paddingBottom: 2,
   },
   title: {
     fontFamily: fonts.extrabold,
