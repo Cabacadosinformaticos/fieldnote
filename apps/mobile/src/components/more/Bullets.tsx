@@ -4,15 +4,17 @@ import { colors, fonts } from '@/theme';
 
 type BulletsProps = {
   items: string[];
+  /** 14/19 text with a 4 gap, as the app settings mockup draws it. */
+  compact?: boolean;
 };
 
-export function Bullets({ items }: BulletsProps) {
+export function Bullets({ items, compact = false }: BulletsProps) {
   return (
-    <View style={styles.list}>
+    <View style={[styles.list, compact && styles.listCompact]}>
       {items.map((item) => (
         <View key={item} style={styles.row}>
-          <Text style={styles.bullet}>•</Text>
-          <Text style={styles.text}>{item}</Text>
+          <Text style={[styles.bullet, compact && styles.compactText]}>•</Text>
+          <Text style={[styles.text, compact && styles.compactText]}>{item}</Text>
         </View>
       ))}
     </View>
@@ -22,6 +24,13 @@ export function Bullets({ items }: BulletsProps) {
 const styles = StyleSheet.create({
   list: {
     gap: 6,
+  },
+  listCompact: {
+    gap: 4,
+  },
+  compactText: {
+    fontSize: 14,
+    lineHeight: 19,
   },
   row: {
     flexDirection: 'row',

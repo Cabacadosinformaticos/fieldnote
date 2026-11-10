@@ -183,11 +183,10 @@ export default function EraseScheduledScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{tm('scheduled.whatTitle')}</Text>
         <InfoRow
           body={tm('scheduled.whatB1')}
           icon="eye-off-outline"
-          title={tm('scheduled.what1Title')}
+          plain
         />
         <InfoRow
           body={tm('scheduled.whatB2', {
@@ -195,17 +194,17 @@ export default function EraseScheduledScreen() {
             time: timeLabel,
           })}
           icon="calendar-outline"
-          title={tm('scheduled.what2Title')}
+          plain
         />
         <InfoRow
           body={tm('scheduled.whatB3')}
           icon="cube-outline"
-          title={tm('scheduled.what3Title')}
+          plain
         />
         <InfoRow
           body={tm('scheduled.whatB4')}
           icon="cloud-upload-outline"
-          title={tm('scheduled.what4Title')}
+          plain
         />
       </View>
 
@@ -288,18 +287,12 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   card: {
-    gap: spacing.lg,
+    gap: 12,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.divider,
     padding: spacing.lg,
     backgroundColor: colors.surface,
-  },
-  cardTitle: {
-    fontFamily: fonts.extrabold,
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.text,
   },
   error: {
     fontFamily: fonts.regular,

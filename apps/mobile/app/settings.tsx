@@ -257,6 +257,7 @@ export default function SettingsScreen() {
           {tm('settings.myData')}
         </Text>
         <Bullets
+          compact
           items={[
             count === 1
               ? tm('settings.eraseB1One')
@@ -325,7 +326,8 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 2,
-    paddingBottom: spacing.sm,
+    paddingBottom: 0,
+    marginBottom: -spacing.sm,
   },
   title: {
     fontFamily: fonts.extrabold,

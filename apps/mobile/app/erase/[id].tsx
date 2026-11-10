@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 2,
-    paddingBottom: spacing.xs,
+    paddingBottom: 0,
   },
   title: {
     fontFamily: fonts.extrabold,
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   card: {
-    gap: spacing.lg,
+    gap: 10,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.divider,

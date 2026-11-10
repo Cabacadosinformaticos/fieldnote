@@ -11,20 +11,32 @@ type InfoRowProps = {
   title?: string;
   body: string;
   tone?: 'default' | 'danger';
+  /** A bare 20 dp icon instead of the tile, as the pending erasure mockup draws it. */
+  plain?: boolean;
 };
 
-export function InfoRow({ icon, title, body, tone = 'default' }: InfoRowProps) {
+export function InfoRow({
+  icon,
+  title,
+  body,
+  tone = 'default',
+  plain = false,
+}: InfoRowProps) {
   const danger = tone === 'danger';
 
   return (
-    <View style={styles.row}>
-      <View style={[styles.tile, danger && styles.tileDanger]}>
-        <Ionicons
-          name={icon}
-          size={18}
-          color={danger ? '#9B1C1C' : colors.primaryDark}
-        />
-      </View>
+    <View style={[styles.row, plain && styles.rowPlain]}>
+      {plain ? (
+        <Ionicons name={icon} size={20} color={colors.textMuted} />
+      ) : (
+        <View style={[styles.tile, danger && styles.tileDanger]}>
+          <Ionicons
+            name={icon}
+            size={18}
+            color={danger ? '#9B1C1C' : colors.primaryDark}
+          />
+        </View>
+      )}
       <View style={styles.text}>
         {title ? <Text style={styles.title}>{title}</Text> : null}
         <Text style={[styles.body, !title && styles.bodyStandalone]}>
@@ -40,6 +52,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
+  },
+  rowPlain: {
+    gap: 12,
   },
   tile: {
     width: 36,
