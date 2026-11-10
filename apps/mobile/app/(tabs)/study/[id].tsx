@@ -85,8 +85,13 @@ function rowModel(me: ParticipantMe): ParticipationInput {
   };
 }
 
-export default function StudyDetailsScreen() {
+// The tab screen stays mounted between studies, so the key drops the previous study's state.
+export default function StudyDetailsRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  return <StudyDetailsScreen id={id} key={id} />;
+}
+
+function StudyDetailsScreen({ id }: { id: string | undefined }) {
   const [me, setMe] = useState<ParticipantMe | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -195,7 +200,7 @@ export default function StudyDetailsScreen() {
 
   if (loading) {
     return (
-      <Screen contentStyle={styles.loadingContent}>
+      <Screen contentStyle={styles.loadingContent} edges={['top']}>
         <StatusBar style="dark" />
         <ActivityIndicator color={colors.primary} size="large" />
         <Text style={styles.loadingText}>{tm('study.loading')}</Text>
@@ -205,7 +210,7 @@ export default function StudyDetailsScreen() {
 
   if (!me) {
     return (
-      <Screen contentStyle={styles.content}>
+      <Screen contentStyle={styles.content} edges={['top']}>
         <StatusBar style="dark" />
         <View style={styles.header}>
           <BackLink label={tm('study.back')} onPress={() => router.back()} />
@@ -229,7 +234,7 @@ export default function StudyDetailsScreen() {
     me.status !== 'erasure_scheduled';
 
   return (
-    <Screen contentStyle={styles.content}>
+    <Screen contentStyle={styles.content} edges={['top']}>
       <StatusBar style="dark" />
 
       <View style={styles.header}>
@@ -253,13 +258,11 @@ export default function StudyDetailsScreen() {
         ) : null}
       </View>
 
-      <View style={styles.teamSection}>
+      <View style={styles.teamCard}>
         <Text style={styles.sectionLabel}>{tm('study.team')}</Text>
-        <View style={styles.teamCard}>
-          <Text style={styles.teamValue}>
-            {formatTeam(me.study.team)}
-          </Text>
-        </View>
+        <Text style={styles.teamValue}>
+          {formatTeam(me.study.team)}
+        </Text>
       </View>
 
       <Pressable
@@ -425,7 +428,8 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 2,
-    paddingBottom: spacing.xs,
+    paddingBottom: 0,
+    marginBottom: -spacing.xs,
   },
   title: {
     fontFamily: fonts.extrabold,
@@ -468,11 +472,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.textBody,
   },
-  teamSection: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
   teamCard: {
+    gap: 4,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.divider,

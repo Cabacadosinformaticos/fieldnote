@@ -71,7 +71,10 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
           return null;
         }
 
-        const focused = state.index === index;
+        // Study details are a hidden tab: they keep Studies marked as the active one.
+        const focused =
+          state.index === index ||
+          (route.name === 'studies' && state.routes[state.index]?.name === 'study/[id]');
         const showBadge = route.name === 'studies' && otherPrompts > 0;
         const label = showBadge
           ? `${presentation.label}, ${
