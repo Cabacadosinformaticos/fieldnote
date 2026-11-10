@@ -1,6 +1,6 @@
 import { deviceClientForStudy } from '@/api/client';
 import type { Participation } from '@/state/participations';
-import { listParticipations } from '@/state/participations';
+import { listParticipations, setTodayFreeEntryDisplay } from '@/state/participations';
 
 import { listAnsweredPromptIds } from './outbox';
 import {
@@ -242,6 +242,19 @@ async function fetchForParticipation(
     ok = false;
   }
 
+  // The team can change what Today shows at any time; offline, the last known choice stays.
+  try {
+    const { data } = await client.GET('/api/v1/participation/me');
+    if (data) {
+      await setTodayFreeEntryDisplay(
+        participation.studyId,
+        data.study.today_free_entry_display,
+      );
+    }
+  } catch {
+    // Not a reason to report the phone as offline: the requests above already say so.
+  }
+
   return { ok, activities, freeActivities };
 }
 
@@ -305,7 +318,7 @@ export async function loadTodayPrompts(): Promise<TodayPrompts> {
   return {
     activities,
     freeActivities: [...freeActivities.values()],
-    participations,
+    participations: await listParticipations(),
     offline,
   };
 }

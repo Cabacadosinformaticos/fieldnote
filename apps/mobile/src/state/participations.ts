@@ -215,6 +215,17 @@ export async function saveParticipation(input: ParticipationInput): Promise<void
   );
 }
 
+export async function setTodayFreeEntryDisplay(
+  studyId: string,
+  display: TodayFreeEntryDisplay,
+): Promise<void> {
+  const db = await database();
+  await db.runAsync(
+    'UPDATE participations SET today_free_entry_display = ? WHERE study_id = ?',
+    [display, studyId],
+  );
+}
+
 export async function updateParticipationStatus(
   studyId: string,
   status: ParticipationStatus,
