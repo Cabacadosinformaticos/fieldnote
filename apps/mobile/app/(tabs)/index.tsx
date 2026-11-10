@@ -112,6 +112,9 @@ export default function TodayScreen() {
   const primary = activities.find(
     (activity) => activity.studyId === primaryParticipation?.studyId,
   );
+  // The researcher chooses what Today shows below an open request.
+  const todayFreeEntryDisplay =
+    primaryParticipation?.todayFreeEntryDisplay ?? 'both';
   const visibleFreeActivities = primaryParticipation
     ? freeActivities.filter(
         (activity) => activity.studyId === primaryParticipation.studyId,
@@ -280,7 +283,23 @@ export default function TodayScreen() {
         </View>
       ) : null}
 
-      {!loading && primary && visibleFreeActivities.length > 0 ? (
+      {!loading &&
+      primary &&
+      todayFreeEntryDisplay !== 'request_only' &&
+      (todayFreeEntryDisplay === 'notice' ||
+        visibleFreeActivities.length === 0) ? (
+        <FreeEntrySection
+          activities={[]}
+          main={false}
+          unavailable
+          onOpen={openFreeEntry}
+        />
+      ) : null}
+
+      {!loading &&
+      primary &&
+      todayFreeEntryDisplay === 'both' &&
+      visibleFreeActivities.length > 0 ? (
         <FreeEntrySection
           activities={visibleFreeActivities}
           main={false}

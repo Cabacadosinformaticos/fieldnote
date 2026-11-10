@@ -47,6 +47,8 @@ const daily = {
   'today.freeTitle': 'Registo livre',
   'today.freeBody':
     'Quer registar um momento, um sítio ou algo que lhe chamou a atenção? Pode fazê-lo a qualquer hora, sem esperar por um pedido.',
+  'today.freeShort': 'Registe um momento a qualquer hora.',
+  'today.freeUnavailable': 'Não há registos livres disponíveis.',
   'today.freeUsed': '{used} de {max} usados hoje',
   'today.freeNoLimit': 'Sem limite diário',
   'today.freeAction': 'Novo registo livre',

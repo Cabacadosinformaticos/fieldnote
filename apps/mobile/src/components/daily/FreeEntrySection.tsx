@@ -8,6 +8,8 @@ import { colors, fonts, radii, spacing } from '@/theme';
 type FreeEntrySectionProps = {
   activities: FreeEntryActivity[];
   main: boolean;
+  /** The secondary card without an activity: the study offers no free entry on Today. */
+  unavailable?: boolean;
   onOpen: (activity: FreeEntryActivity) => void;
 };
 
@@ -42,7 +44,36 @@ function usedLabel(activity: FreeEntryActivity): string {
   });
 }
 
-export function FreeEntrySection({ activities, main, onOpen }: FreeEntrySectionProps) {
+export function FreeEntrySection({
+  activities,
+  main,
+  unavailable = false,
+  onOpen,
+}: FreeEntrySectionProps) {
+  if (unavailable && !main) {
+    return (
+      <View style={[styles.card, styles.cardSecondary]}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>{td('today.freeTitle')}</Text>
+        </View>
+        <Text style={styles.short}>{td('today.freeUnavailable')}</Text>
+        <View style={styles.spacer} />
+        <Pressable
+          accessibilityLabel={td('today.freeAction')}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: true }}
+          disabled
+          style={[styles.action, styles.actionDisabled]}
+        >
+          <Ionicons name="add" size={20} color={colors.disabledText} />
+          <Text style={[styles.actionLabel, styles.actionLabelDisabled]}>
+            {td('today.freeAction')}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   const activity =
     activities.find((item) => !availabilityOf(item).disabled) ?? activities[0];
 
@@ -99,6 +130,8 @@ export function FreeEntrySection({ activities, main, onOpen }: FreeEntrySectionP
         <Text style={styles.title}>{td('today.freeTitle')}</Text>
         <Text style={styles.used}>{usedLabel(activity)}</Text>
       </View>
+      <Text style={styles.short}>{td('today.freeShort')}</Text>
+      <View style={styles.spacer} />
       <Pressable
         accessibilityLabel={`${td('today.freeAction')}: ${activity.title}`}
         accessibilityRole="button"
@@ -141,8 +174,7 @@ const styles = StyleSheet.create({
   cardSecondary: {
     flexGrow: 3,
     flexBasis: 0,
-    minHeight: 150,
-    justifyContent: 'center',
+    minHeight: 190,
   },
   cardMain: {
     gap: 14,
@@ -188,6 +220,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     color: colors.textMuted,
+  },
+  short: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 19,
+    color: colors.textBody,
   },
   usedMain: {
     fontFamily: fonts.bold,
