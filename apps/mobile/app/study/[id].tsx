@@ -14,6 +14,7 @@ import {
 import { deviceClient, type components } from '@/api/client';
 import { apiErrorMessage, networkErrorMessage } from '@/api/errors';
 import { Screen } from '@/components/Screen';
+import { StudyDetailsTabBar } from '@/components/daily/DailyTabBar';
 import { BackLink } from '@/components/more/BackLink';
 import { Bullets } from '@/components/more/Bullets';
 import { SettingsRow } from '@/components/more/SettingsRow';
@@ -85,10 +86,14 @@ function rowModel(me: ParticipantMe): ParticipationInput {
   };
 }
 
-// The tab screen stays mounted between studies, so the key drops the previous study's state.
 export default function StudyDetailsRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  return <StudyDetailsScreen id={id} key={id} />;
+  return (
+    <View style={styles.root}>
+      <StudyDetailsScreen id={id} />
+      <StudyDetailsTabBar />
+    </View>
+  );
 }
 
 function StudyDetailsScreen({ id }: { id: string | undefined }) {
@@ -409,6 +414,9 @@ function StudyDetailsScreen({ id }: { id: string | undefined }) {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   content: {
     gap: spacing.md,
     paddingTop: spacing.xs,

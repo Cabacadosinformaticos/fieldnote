@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { BottomTabBarProps } from 'expo-router/js-tabs';
+import { router } from 'expo-router';
 import { type ComponentProps, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { tm } from '@/i18n/tm';
 import { td } from '@/i18n/td';
@@ -25,7 +26,13 @@ const tabPresentation: Record<
   },
 };
 
-export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps) {
+type DailyTabBarProps = {
+  state: { index: number; routes: { key: string; name: string }[] };
+  insets: { bottom: number };
+  navigateToTab: (key: string) => void;
+};
+
+export function DailyTabBar({ state, insets, navigateToTab }: DailyTabBarProps) {
   const { focusedStudyId } = useStudyFocus();
   const [otherPrompts, setOtherPrompts] = useState(0);
 
@@ -71,10 +78,7 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
           return null;
         }
 
-        // Study details are a hidden tab: they keep Studies marked as the active one.
-        const focused =
-          state.index === index ||
-          (route.name === 'studies' && state.routes[state.index]?.name === 'study/[id]');
+        const focused = state.index === index;
         const showBadge = route.name === 'studies' && otherPrompts > 0;
         const label = showBadge
           ? `${presentation.label}, ${
@@ -112,6 +116,35 @@ export function DailyTabBar({ state, insets, navigateToTab }: BottomTabBarProps)
         );
       })}
     </View>
+  );
+}
+
+const studyDetailsRoutes = [
+  { key: 'index', name: 'index' },
+  { key: 'entries', name: 'entries' },
+  { key: 'profile', name: 'profile' },
+  { key: 'studies', name: 'studies' },
+];
+
+const studyDetailsHrefs = {
+  index: '/(tabs)',
+  entries: '/(tabs)/entries',
+  profile: '/(tabs)/profile',
+  studies: '/(tabs)/studies',
+} as const;
+
+// Study details open above the tabs, and the mockup keeps the bar there with Studies active.
+export function StudyDetailsTabBar() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <DailyTabBar
+      insets={insets}
+      navigateToTab={(key) =>
+        router.dismissTo(studyDetailsHrefs[key as keyof typeof studyDetailsHrefs])
+      }
+      state={{ index: 3, routes: studyDetailsRoutes }}
+    />
   );
 }
 
