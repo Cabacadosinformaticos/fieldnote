@@ -523,3 +523,40 @@ def test_job_audits_a_due_request_whose_participant_row_is_gone(
         is None
     )
     assert run_once(session) == 0
+
+
+def test_the_job_deletes_accounts_left_unconfirmed_for_24_hours(session: Session) -> None:
+    now = datetime.now(UTC)
+    old_unconfirmed = ParticipantAccount(
+        recovery_lookup="old", created_at=now - timedelta(hours=25), confirmed_at=None
+    )
+    recent_unconfirmed = ParticipantAccount(
+        recovery_lookup="recent", created_at=now - timedelta(hours=23), confirmed_at=None
+    )
+    old_confirmed = ParticipantAccount(
+        recovery_lookup="confirmed",
+        created_at=now - timedelta(days=30),
+        confirmed_at=now - timedelta(days=29),
+    )
+    session.add_all([old_unconfirmed, recent_unconfirmed, old_confirmed])
+    session.commit()
+    kept = {recent_unconfirmed.id, old_confirmed.id}
+
+    assert run_once(session, now=now) == 0
+
+    session.expire_all()
+    assert set(session.scalars(select(ParticipantAccount.id))) == kept
+    row = session.scalar(select(AuditLog).where(AuditLog.action == "unconfirmed_accounts_deleted"))
+    assert row is not None
+    assert row.actor_type == AuditActorType.SYSTEM
+    assert row.details == {"count": 1}
+
+    assert run_once(session, now=now) == 0
+    assert (
+        len(
+            session.scalars(
+                select(AuditLog).where(AuditLog.action == "unconfirmed_accounts_deleted")
+            ).all()
+        )
+        == 1
+    )

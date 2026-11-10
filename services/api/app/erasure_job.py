@@ -7,20 +7,24 @@ a batch lock that the per-participant commits would release. Several replicas ma
 the same time: each row is processed by one of them, and a row that disappears before its turn is
 already erased.
 
+The same run also deletes participant accounts that were never confirmed within 24 hours of
+creation (data-model.md, ``participant_account``): a recovery code that the person never ticked as
+saved cannot be used, so the half-created account is dropped. Only a count is written to the log.
+
 The database rows are deleted before the objects, so a storage failure is retried from the
 ``erasure_file_deletion`` row left behind, not from the participant (which no longer exists).
 """
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import DateTime, cast, select
+from sqlalchemy import DateTime, cast, delete, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import AuditLog, ErasureFileDeletion, Participant
+from app.models import AuditLog, ErasureFileDeletion, Participant, ParticipantAccount
 from app.models.enums import ParticipantStatus
 from app.security.audit import record
 from app.services import erasure, storage
@@ -28,6 +32,7 @@ from app.services import erasure, storage
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 100
+UNCONFIRMED_ACCOUNT_LIFETIME = timedelta(hours=24)
 
 
 def _due_participants(
@@ -123,6 +128,26 @@ def _audit_missing_requests(session: Session, now: datetime) -> int:
     return written
 
 
+def delete_unconfirmed_accounts(session: Session, now: datetime) -> int:
+    """Delete accounts still unconfirmed 24 hours after they were created."""
+    result = session.execute(
+        delete(ParticipantAccount).where(
+            ParticipantAccount.confirmed_at.is_(None),
+            ParticipantAccount.created_at <= now - UNCONFIRMED_ACCOUNT_LIFETIME,
+        )
+    )
+    deleted = result.rowcount or 0
+    if deleted:
+        record(
+            session,
+            None,
+            "unconfirmed_accounts_deleted",
+            details={"count": deleted},
+        )
+    session.commit()
+    return deleted
+
+
 def run_once(
     session: Session,
     *,
@@ -147,7 +172,9 @@ def run_once(
                 continue
             if result is not None:
                 handled += 1
-    return handled + _audit_missing_requests(session, moment)
+    handled += _audit_missing_requests(session, moment)
+    delete_unconfirmed_accounts(session, moment)
+    return handled
 
 
 def main() -> int:
