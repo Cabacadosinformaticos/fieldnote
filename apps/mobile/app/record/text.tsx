@@ -121,6 +121,7 @@ export default function TextRecordScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Button
           disabled={!answer.trim() || saving}
+          labelSize={17}
           label={saving ? td('record.saving') : td('record.save')}
           onPress={() => {
             void save();

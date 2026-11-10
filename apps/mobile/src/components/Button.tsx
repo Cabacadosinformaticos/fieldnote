@@ -18,6 +18,8 @@ type ButtonProps = {
   onDark?: boolean;
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** Font size of the primary label; the record screens use 17. */
+  labelSize?: number;
 };
 
 export function Button({
@@ -28,6 +30,7 @@ export function Button({
   onDark = false,
   icon,
   style,
+  labelSize,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
 
@@ -51,6 +54,7 @@ export function Button({
         numberOfLines={1}
         style={[
           isPrimary ? styles.primaryLabel : styles.secondaryLabel,
+          isPrimary && labelSize ? { fontSize: labelSize } : null,
           !isPrimary && onDark && styles.secondaryLabelOnDark,
           disabled && styles.disabledLabel,
         ]}

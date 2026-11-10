@@ -275,6 +275,7 @@ export default function PhotoRecordScreen() {
       <View style={styles.footer}>
         <Button
           disabled={!photo || saving}
+          labelSize={17}
           label={saving ? td('record.saving') : td('record.save')}
           onPress={() => {
             void save();
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   },
   photo: {
     width: '100%',
-    height: 300,
+    height: 280,
     borderRadius: radii.card,
     backgroundColor: colors.scanBackground,
   },
@@ -352,7 +353,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   camera: {
-    height: 300,
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

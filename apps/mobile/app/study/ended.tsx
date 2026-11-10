@@ -119,6 +119,7 @@ export default function StudyEndedScreen() {
       <View style={styles.spacer} />
 
       <Button
+        labelSize={17}
         label={tm('ended.entries')}
         onPress={() => router.replace('/(tabs)/entries')}
       />

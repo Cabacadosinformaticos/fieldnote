@@ -150,6 +150,7 @@ export default function SavedScreen() {
 
       <View style={styles.footer}>
         <Button
+          labelSize={17}
           label={td('saved.seeEntries')}
           onPress={() => router.replace('/(tabs)/entries')}
         />
@@ -167,7 +168,7 @@ export default function SavedScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: spacing.huge,
+    paddingTop: 72,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
     gap: spacing.lg,

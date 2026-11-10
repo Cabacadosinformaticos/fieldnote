@@ -231,6 +231,7 @@ export default function ScaleRecordScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Button
           disabled={value === null || saving}
+          labelSize={17}
           label={saving ? td('record.saving') : td('record.save')}
           onPress={() => {
             void save();

@@ -422,6 +422,7 @@ export default function AudioRecordScreen() {
         {mode === 'text' ? (
           <Button
             disabled={saving || !answer.trim()}
+            labelSize={17}
             label={saving ? td('record.saving') : td('record.save')}
             onPress={() => {
               void saveText();
@@ -431,6 +432,7 @@ export default function AudioRecordScreen() {
           <Button
             disabled={phase === 'stopping'}
             icon={<Ionicons name="square" size={16} color={colors.white} />}
+            labelSize={17}
             label={td('record.audio.stop')}
             onPress={() => {
               void stopRecording();
@@ -441,6 +443,7 @@ export default function AudioRecordScreen() {
           <>
             <Button
               disabled={saving}
+              labelSize={17}
               label={saving ? td('record.saving') : td('record.save')}
               onPress={() => {
                 void saveAudio();
@@ -496,7 +499,7 @@ const styles = StyleSheet.create({
   },
   recorder: {
     alignItems: 'center',
-    gap: spacing.xl,
+    gap: 24,
     paddingVertical: spacing.xxxl,
     paddingHorizontal: spacing.xl,
     borderRadius: radii.card,

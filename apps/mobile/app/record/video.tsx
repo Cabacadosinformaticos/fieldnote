@@ -345,6 +345,7 @@ export default function VideoRecordScreen() {
         {phase === 'recording' ? (
           <Button
             icon={<Ionicons name="square" size={16} color={colors.white} />}
+            labelSize={17}
             label={td('record.video.stop')}
             onPress={stopRecording}
             style={styles.stopButton}
@@ -353,6 +354,7 @@ export default function VideoRecordScreen() {
           <>
             <Button
               disabled={saving}
+              labelSize={17}
               label={saving ? td('record.saving') : td('record.save')}
               onPress={() => {
                 void save();
