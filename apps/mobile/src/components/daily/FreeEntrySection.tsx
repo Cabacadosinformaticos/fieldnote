@@ -130,7 +130,7 @@ export function FreeEntrySection({
         <Text style={styles.title}>{td('today.freeTitle')}</Text>
         <Text style={styles.used}>{usedLabel(activity)}</Text>
       </View>
-      <Text style={styles.short}>{td('today.freeShort')}</Text>
+      {reason ? null : <Text style={styles.short}>{td('today.freeShort')}</Text>}
       <View style={styles.spacer} />
       <Pressable
         accessibilityLabel={`${td('today.freeAction')}: ${activity.title}`}
