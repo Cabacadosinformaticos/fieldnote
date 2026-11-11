@@ -151,17 +151,12 @@ const more = {
   'scheduled.headingAll': 'Os seus dados serão apagados a {date}, às {time}',
   'scheduled.body':
     'Até lá, pode mudar de ideias. Depois dessa hora, já não é possível recuperar nada.',
-  'scheduled.whatTitle': 'O que está a acontecer',
-  'scheduled.what1Title': 'Os pedidos param',
   'scheduled.whatB1':
     'Desde já, os pedidos e a participação param, a equipa não vê os seus dados, eles ficam fora das exportações e, a partir de hoje, já não entram nas cópias de segurança.',
-  'scheduled.what2Title': 'Apagamento definitivo',
   'scheduled.whatB2':
     'A {date}, às {time}, a sua identidade, os seus registos e todas as cópias dos ficheiros são apagados de forma definitiva. Nessa altura, as cópias de segurança feitas antes do pedido já expiraram, por isso não fica nenhuma cópia dos dados.',
-  'scheduled.what3Title': 'Pode cancelar',
   'scheduled.whatB3':
     'Até lá, «Cancelar o apagamento» repõe tudo: os dados continuam no sistema e voltam a entrar nas cópias de segurança.',
-  'scheduled.what4Title': 'Exportações anteriores',
   'scheduled.whatB4':
     'As exportações que a equipa já fez antes de hoje não podem ser recolhidas.',
   'scheduled.cancel': 'Cancelar o apagamento',
