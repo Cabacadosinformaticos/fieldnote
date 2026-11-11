@@ -69,7 +69,7 @@ class ParticipantMetadata:
 def participant_metadata(
     session: Session, participants: list[Participant]
 ) -> dict[uuid.UUID, ParticipantMetadata]:
-    """Consent, last entry and availability for every row, in three grouped queries."""
+    """Consent, last entry and availability for every row, in four grouped queries."""
     if not participants:
         return {}
     ids = [participant.id for participant in participants]
