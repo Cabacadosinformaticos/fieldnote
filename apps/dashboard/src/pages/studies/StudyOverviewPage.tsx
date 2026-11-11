@@ -36,6 +36,7 @@ import {
   type StudyPlan,
 } from '../../api/studies'
 import {
+  participantDisplayState,
   participantStatusMeta,
   participantsKeys,
   useParticipants,
@@ -330,14 +331,14 @@ export default function StudyOverviewPage() {
       const warn = staleIds.has(participant.id)
       const note = warn
         ? t('overview.adherence.inactive')
-        : participant.status !== 'active'
-          ? participantT(participantStatusMeta[participant.status].labelKey)
+        : participantDisplayState(participant) !== 'active'
+          ? participantT(participantStatusMeta[participantDisplayState(participant)].labelKey)
           : ''
       return {
         id: participant.id,
         alias:
           participant.alias ??
-          participantT(participantStatusMeta[participant.status].labelKey),
+          participantT(participantStatusMeta[participantDisplayState(participant)].labelKey),
         cells,
         last: lastEntryById.get(participant.id) ?? participant.last_entry_at,
         warn,
