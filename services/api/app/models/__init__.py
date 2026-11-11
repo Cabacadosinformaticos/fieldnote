@@ -7,7 +7,7 @@ from app.models.account import (
 from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.entry import Entry, EntryTag, MediaObject
-from app.models.erasure import ErasureFileDeletion
+from app.models.erasure import ErasureFileDeletion, ErasureRequest
 from app.models.outbox import OutboxEvent
 from app.models.participant import (
     Availability,
@@ -34,6 +34,7 @@ __all__ = [
     "Entry",
     "EntryTag",
     "ErasureFileDeletion",
+    "ErasureRequest",
     "InviteCode",
     "LeaderLease",
     "MediaObject",

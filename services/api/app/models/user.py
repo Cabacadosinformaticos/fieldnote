@@ -13,6 +13,7 @@ class UserAccount(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(Text, unique=True)
+    name: Mapped[str | None] = mapped_column(Text)
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[UserRole] = mapped_column(user_role)
     failed_logins: Mapped[int] = mapped_column(Integer, server_default=text("0"), default=0)

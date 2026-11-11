@@ -19,6 +19,12 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(Text)
     target: Mapped[str | None] = mapped_column(Text)
     details: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    # Where the action came from: 'portal', 'app_android', 'app_ios', 'scheduled_task' or
+    # 'automatic_task'. The address and the browser are kept only for team accounts, never for
+    # participants, so the log stays pseudonymous.
+    origin_client: Mapped[str | None] = mapped_column(Text)
+    origin_ip: Mapped[str | None] = mapped_column(Text)
+    origin_browser: Mapped[str | None] = mapped_column(Text)
     at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

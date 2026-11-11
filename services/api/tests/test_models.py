@@ -78,6 +78,7 @@ DOCUMENT_TABLES = {
     "entry",
     "entry_tag",
     "erasure_file_deletion",
+    "erasure_request",
     "invite_code",
     "leader_lease",
     "media_object",

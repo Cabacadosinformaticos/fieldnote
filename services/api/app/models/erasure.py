@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, Uuid, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Text, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -21,3 +21,36 @@ class ErasureFileDeletion(Base):
     study_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
     entries: Mapped[int] = mapped_column(Integer, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ErasureRequest(Base):
+    """An erasure asked outside the app, passed by the research team to the administrator (UC17).
+
+    The team records the request once it has decided to grant it; the administrator then erases
+    the participant through FR-44 and the request is marked done.
+    """
+
+    __tablename__ = "erasure_request"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'done', 'cancelled')", name="ck_erasure_request_status_valid"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    study_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("study.id", ondelete="CASCADE"), index=True
+    )
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("participant.id", ondelete="CASCADE"), index=True
+    )
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(Text, server_default=text("'pending'"))
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    done_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("user_account.id", ondelete="SET NULL")
+    )
