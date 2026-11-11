@@ -179,6 +179,9 @@ function ActivityEditor({ studyId, activityId }: { studyId: string; activityId?:
   }
 
   function save() {
+    if (!draft) {
+      return
+    }
     setSaveError('')
     const validation = draftValidationError(draft)
     if (validation) {

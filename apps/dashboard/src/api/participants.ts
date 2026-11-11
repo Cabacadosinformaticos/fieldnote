@@ -582,17 +582,17 @@ export function buildAdherenceView(data: AdherenceResponse): AdherenceView {
       return prompt ? promptState[prompt.status] ?? 'notSent' : 'notSent'
     }),
   )
-  const free = data.days.map((day) => (day.cells.length === 0 ? null : day.free_entries))
+  const free = data.days.map((day) => ((day.cells ?? []).length === 0 ? null : day.free_entries))
   const freeCount = data.days.reduce((sum, day) => sum + day.free_entries, 0)
 
-  const daysWithCells = data.days.filter((day) => day.cells.length > 0)
+  const daysWithCells = data.days.filter((day) => (day.cells ?? []).length > 0)
   const recent = daysWithCells.slice(-2)
   const hasGap =
     recent.length > 0 &&
-    recent.every((day) => day.cells.every((cell) => cell.state !== 'answered'))
+    recent.every((day) => (day.cells ?? []).every((cell) => cell.state !== 'answered'))
   const lastAnswered = [...daysWithCells]
     .reverse()
-    .find((day) => day.cells.some((cell) => cell.state === 'answered'))
+    .find((day) => (day.cells ?? []).some((cell) => cell.state === 'answered'))
   const lastDay = daysWithCells[daysWithCells.length - 1]
 
   return {
@@ -614,7 +614,7 @@ export function buildAdherenceView(data: AdherenceResponse): AdherenceView {
     gap: hasGap
       ? {
           last: lastAnswered?.date ?? '–',
-          sentToday: lastDay?.cells.filter((cell) => cell.state !== 'answered').length ?? 0,
+          sentToday: (lastDay?.cells ?? []).filter((cell) => cell.state !== 'answered').length ?? 0,
         }
       : null,
   }
@@ -631,7 +631,7 @@ export function dayStat(day: AdherenceDay): DayStat {
   // participant page do, so every view shows the same requests.
   let answered = 0
   let sent = 0
-  for (const cell of day.cells) {
+  for (const cell of day.cells ?? []) {
     for (const prompt of cell.prompts ?? []) {
       if (prompt.status === 'answered') {
         answered += 1
