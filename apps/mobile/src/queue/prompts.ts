@@ -249,6 +249,9 @@ async function fetchForParticipation(
 async function refreshFreeEntryDisplay(participation: Participation): Promise<void> {
   try {
     const client = await deviceClientForStudy(participation.studyId);
+    if (!client) {
+      return;
+    }
     const { data } = await client.GET('/api/v1/participation/me');
     if (data) {
       await setTodayFreeEntryDisplay(
