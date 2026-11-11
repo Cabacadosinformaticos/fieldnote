@@ -14,6 +14,22 @@ jobs:
       fail-fast: false
       matrix:
         service: [api, scheduler, media-worker]
+    # The API and scheduler tests create their own database in this server, as they do against
+    # the dev stack; the media worker tests transcode with ffmpeg.
+    services:
+      postgres:
+        image: postgres:17.8
+        env:
+          POSTGRES_USER: fieldnote
+          POSTGRES_PASSWORD: fieldnote
+          POSTGRES_DB: fieldnote
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fieldnote"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: services/${{ matrix.service }}
@@ -22,6 +38,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
+      - if: matrix.service == 'media-worker'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run ruff format --check .
