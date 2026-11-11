@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 
 API_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DATABASE_URL = "postgresql+psycopg://fieldnote:fieldnote@127.0.0.1:5432/fieldnote"
-TEST_DATABASE_NAME = "fieldnote_test"
+# Several runs at once each set their own name, so they do not share one database.
+TEST_DATABASE_NAME = os.environ.get("FIELDNOTE_TEST_DATABASE", "fieldnote_test")
 TEST_PASSWORD = "correct horse battery staple"
 
 _base_url = make_url(os.environ.get("FIELDNOTE_DATABASE_URL", DEFAULT_DATABASE_URL))
