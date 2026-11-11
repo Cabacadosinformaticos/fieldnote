@@ -63,7 +63,7 @@ export default function TodayScreen() {
 
   const load = useCallback(async () => {
     try {
-      const result = await loadTodayPrompts();
+      const result = await loadTodayPrompts({ refreshDisplay: true });
       // The prompt is on Today now, so its first appearance is reported (FR-19). The write is
       // queued on the phone and never blocks or fails the screen.
       for (const activity of result.activities) {

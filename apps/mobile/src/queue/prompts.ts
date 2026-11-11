@@ -242,8 +242,13 @@ async function fetchForParticipation(
     ok = false;
   }
 
-  // The team can change what Today shows at any time; offline, the last known choice stays.
+  return { ok, activities, freeActivities };
+}
+
+// The team can change what Today shows at any time; offline, the last known choice stays.
+async function refreshFreeEntryDisplay(participation: Participation): Promise<void> {
   try {
+    const client = await deviceClientForStudy(participation.studyId);
     const { data } = await client.GET('/api/v1/participation/me');
     if (data) {
       await setTodayFreeEntryDisplay(
@@ -252,10 +257,8 @@ async function fetchForParticipation(
       );
     }
   } catch {
-    // Not a reason to report the phone as offline: the requests above already say so.
+    // Not a reason to report the phone as offline: the requests already say so.
   }
-
-  return { ok, activities, freeActivities };
 }
 
 export type TodayPrompts = {
@@ -270,12 +273,17 @@ export type TodayPrompts = {
  * falls back to the last copy saved on the phone for studies whose request failed. A prompt
  * with an outbox entry is not shown again, even if it has not reached the server yet.
  */
-export async function loadTodayPrompts(): Promise<TodayPrompts> {
+export async function loadTodayPrompts(
+  options: { refreshDisplay?: boolean } = {},
+): Promise<TodayPrompts> {
   const participations = await listParticipations();
   const active = participations.filter(
     (participation) => participation.status === 'active',
   );
   const results = await Promise.all(active.map(fetchForParticipation));
+  if (options.refreshDisplay) {
+    await Promise.all(active.map(refreshFreeEntryDisplay));
+  }
   const offline = results.some((result) => !result.ok);
   const activeStudyIds = new Set(active.map((participation) => participation.studyId));
 
