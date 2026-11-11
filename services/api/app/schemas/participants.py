@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, time
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -39,6 +40,8 @@ class ParticipantOut(BaseModel):
     locale: Locale | None = None
     availability_summary: AvailabilitySummaryOut | None = None
     last_entry_at: datetime | None = None
+    # Set only while the person has not accepted the invitation yet (UC10 postcondition).
+    invite_state: Literal["unused", "expired"] | None = None
 
 
 class ParticipantAddedOut(ParticipantOut):

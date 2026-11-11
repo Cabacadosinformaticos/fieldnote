@@ -3136,6 +3136,21 @@
           "invite_code": {
             "$ref": "#/components/schemas/PersonalInviteCodeOut"
           },
+          "invite_state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unused",
+                  "expired"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite State"
+          },
           "last_entry_at": {
             "anyOf": [
               {
@@ -3429,6 +3444,21 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "invite_state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unused",
+                  "expired"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite State"
           },
           "last_entry_at": {
             "anyOf": [

@@ -461,13 +461,17 @@ export function useSendPoolInvitations(studyId: string) {
 // View helpers.
 
 export type PillTone = 'ok' | 'wa' | 'ne' | 'da' | 'pr'
-export type FilterKey = 'all' | ParticipantStatus
+export type InviteState = 'invite_unused' | 'invite_expired'
+export type DisplayState = ParticipantStatus | InviteState
+export type FilterKey = 'all' | DisplayState
 
 export const participantStatusMeta: Record<
-  ParticipantStatus,
+  DisplayState,
   { labelKey: ParticipantsKey; pill: PillTone }
 > = {
   active: { labelKey: 'status.active', pill: 'ok' },
+  invite_unused: { labelKey: 'status.inviteUnused', pill: 'wa' },
+  invite_expired: { labelKey: 'status.inviteExpired', pill: 'ne' },
   pending_approval: { labelKey: 'status.pendingApproval', pill: 'wa' },
   declined: { labelKey: 'status.declined', pill: 'ne' },
   withdrawn: { labelKey: 'status.withdrawn', pill: 'ne' },
@@ -475,9 +479,22 @@ export const participantStatusMeta: Record<
   erasure_scheduled: { labelKey: 'status.deleting', pill: 'ne' },
 }
 
+/** The state a researcher sees: an invitation not yet accepted replaces "active". */
+export function participantDisplayState(
+  participant: Pick<ParticipantOut, 'status' | 'invite_state'>,
+): DisplayState {
+  if (participant.status === 'active' && participant.invite_state === 'unused') {
+    return 'invite_unused'
+  }
+  if (participant.status === 'active' && participant.invite_state === 'expired') {
+    return 'invite_expired'
+  }
+  return participant.status
+}
+
 export const participantFilters: { key: FilterKey; labelKey: ParticipantsKey }[] = [
   { key: 'all', labelKey: 'list.filterAll' },
-  ...(Object.keys(participantStatusMeta) as ParticipantStatus[]).map((key) => ({
+  ...(Object.keys(participantStatusMeta) as DisplayState[]).map((key) => ({
     key,
     labelKey: participantStatusMeta[key].labelKey,
   })),
@@ -489,7 +506,7 @@ export function participantFilterCount(
 ): number {
   return key === 'all'
     ? participants.length
-    : participants.filter((participant) => participant.status === key).length
+    : participants.filter((participant) => participantDisplayState(participant) === key).length
 }
 
 /**

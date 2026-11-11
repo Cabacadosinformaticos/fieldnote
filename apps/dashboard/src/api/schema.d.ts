@@ -2693,6 +2693,8 @@ export interface components {
              */
             id: string;
             invite_code: components["schemas"]["PersonalInviteCodeOut"];
+            /** Invite State */
+            invite_state?: ("unused" | "expired") | null;
             /** Last Entry At */
             last_entry_at?: string | null;
             locale?: components["schemas"]["Locale"] | null;
@@ -2758,6 +2760,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Invite State */
+            invite_state?: ("unused" | "expired") | null;
             /** Last Entry At */
             last_entry_at?: string | null;
             locale?: components["schemas"]["Locale"] | null;

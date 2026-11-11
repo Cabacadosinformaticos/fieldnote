@@ -8,6 +8,7 @@ import {
   participantLabel,
   ParticipantsApiError,
   participantsKeys,
+  participantDisplayState,
   participantStatusMeta,
   useAdherence,
   useCanReadIdentity,
@@ -102,7 +103,7 @@ export default function ParticipantDetailPage() {
 
   const item = participant.data
   const alias = participantLabel(item)
-  const status = participantStatusMeta[item.status]
+  const status = participantStatusMeta[participantDisplayState(item)]
   const canWithdraw = item.status === 'active' || item.status === 'pending_approval'
   const view = adherence.data ? buildAdherenceView(adherence.data) : null
   const entriesCount = view ? view.totals.answered + view.freeCount : null

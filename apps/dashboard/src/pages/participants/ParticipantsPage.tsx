@@ -6,6 +6,7 @@ import {
   dayStat,
   getAdherence,
   participantFilterCount,
+  participantDisplayState,
   participantFilters,
   participantsKeys,
   searchParticipants,
@@ -41,7 +42,7 @@ export default function ParticipantsPage() {
   const filtered = useMemo(
     () =>
       searchParticipants(
-        filter === 'all' ? list ?? [] : (list ?? []).filter((item) => item.status === filter),
+        filter === 'all' ? list ?? [] : (list ?? []).filter((item) => participantDisplayState(item) === filter),
         query,
       ),
     [list, filter, query],

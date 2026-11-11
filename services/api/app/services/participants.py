@@ -62,6 +62,8 @@ class ParticipantMetadata:
     consented_at: datetime | None
     last_entry_at: datetime | None
     availability: list[Availability]
+    # Expiry of the newest personal invite code that nobody has used yet, if any.
+    invite_expires_at: datetime | None = None
 
 
 def participant_metadata(
@@ -85,6 +87,17 @@ def participant_metadata(
             .group_by(Entry.participant_id)
         ).all()
     )
+    open_invites = dict(
+        session.execute(
+            select(InviteCode.participant_id, func.max(InviteCode.expires_at))
+            .where(
+                InviteCode.kind == InviteCodeKind.PERSONAL,
+                InviteCode.participant_id.in_(ids),
+                InviteCode.used_at.is_(None),
+            )
+            .group_by(InviteCode.participant_id)
+        ).all()
+    )
     availability: dict[uuid.UUID, list[Availability]] = defaultdict(list)
     for row in session.scalars(
         select(Availability)
@@ -97,6 +110,7 @@ def participant_metadata(
             consented_at=consented.get(participant.id),
             last_entry_at=last_entries.get(participant.id),
             availability=availability.get(participant.id, []),
+            invite_expires_at=open_invites.get(participant.id),
         )
         for participant in participants
     }

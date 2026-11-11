@@ -1,6 +1,7 @@
 """Participant list, personal codes, removal, identity reads and entry approval."""
 
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -68,6 +69,13 @@ def _out(
                 for row in details.availability
             ],
         )
+    invite_state = None
+    if (
+        participant.status == ParticipantStatus.ACTIVE
+        and details.consented_at is None
+        and details.invite_expires_at is not None
+    ):
+        invite_state = "expired" if details.invite_expires_at <= datetime.now(UTC) else "unused"
     return ParticipantOut(
         id=participant.id,
         alias=participant.alias,
@@ -79,6 +87,7 @@ def _out(
         locale=None if hidden else participant.locale,
         availability_summary=summary,
         last_entry_at=None if hidden else details.last_entry_at,
+        invite_state=invite_state,
     )
 
 

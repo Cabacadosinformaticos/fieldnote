@@ -436,3 +436,27 @@ def test_two_participants_of_a_study_cannot_share_an_alias(
     with pytest.raises(IntegrityError):
         session.commit()
     session.rollback()
+
+
+def test_a_participant_shows_the_invitation_state_until_the_invitation_is_accepted(
+    client: TestClient, session: Session, make_user, make_study, bearer_headers
+) -> None:
+    study = make_study()
+    user = make_user()
+    _add_member(session, study, user)
+    headers = bearer_headers(user)
+    added = _add_participant(client, study, headers)
+    participant_id = added["id"]
+
+    def invite_state() -> str | None:
+        return client.get(_url(study, f"/{participant_id}"), headers=headers).json()["invite_state"]
+
+    assert invite_state() == "unused"
+    code_row = session.scalar(select(InviteCode).where(InviteCode.participant_id == added["id"]))
+    code_row.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    session.commit()
+    assert invite_state() == "expired"
+
+    session.add(Consent(participant_id=participant_id, version="1"))
+    session.commit()
+    assert invite_state() is None

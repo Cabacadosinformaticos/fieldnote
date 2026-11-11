@@ -6,6 +6,7 @@ import {
   entryRouteKey,
   participantLabel,
   ParticipantsApiError,
+  participantDisplayState,
   participantStatusMeta,
   useIssuePersonalCode,
   type DayStat,
@@ -192,7 +193,7 @@ export default function ParticipantsTable({
           </thead>
           <tbody>
             {rows.map((item) => {
-              const status = participantStatusMeta[item.status]
+              const status = participantStatusMeta[participantDisplayState(item)]
               const detailsTo = `/estudos/${studyId}/participantes/${item.id}`
               const menuOpen = menu?.id === item.id
 
