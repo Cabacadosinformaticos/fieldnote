@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { AdminApiError, useErasures, useEraseParticipant } from '../../api/admin'
+import {
+  AdminApiError,
+  useErasures,
+  useEraseParticipant,
+  type CompletedErasure,
+} from '../../api/admin'
 import {
   usePendingErasureRequests,
   type PendingErasureRequest,
@@ -7,6 +12,8 @@ import {
 import {
   formatDateOnly,
   formatDateTime,
+  formatDay,
+  formatHourMinute,
   isUuid,
   shortId,
 } from '../../components/admin/format'
@@ -192,9 +199,33 @@ function erasureErrorText(error: unknown): string {
       return t('erasure.error.notFound')
     case 'erasure_scheduled':
       return t('erasure.error.scheduled')
+    case 'totp_required':
+      return t('erasure.error.totpRequired')
+    case 'invalid_totp':
+      return t('erasure.error.totpInvalid')
+    case 'totp_enrolment_required':
+      return t('erasure.error.totpNotEnrolled')
     default:
       return t('erasure.error.generic', { code: error.code })
   }
+}
+
+function backupUntil(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return '—'
+  }
+  date.setUTCDate(date.getUTCDate() + 7)
+  return formatDateOnly(date.toISOString().slice(0, 10))
+}
+
+function historyActor(item: CompletedErasure): string {
+  if (item.actor_name) {
+    return item.actor_name
+  }
+  return item.actor_type === 'system'
+    ? t('erasure.historySystemActor')
+    : t('audit.actorUnknown')
 }
 
 export default function AdminErasurePage() {
@@ -204,6 +235,7 @@ export default function AdminErasurePage() {
 
   const [participantId, setParticipantId] = useState('')
   const [confirmation, setConfirmation] = useState('')
+  const [totpCode, setTotpCode] = useState('')
   const [success, setSuccess] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -219,6 +251,7 @@ export default function AdminErasurePage() {
   const canErase =
     Boolean(targetId) &&
     confirmation.trim() === expected &&
+    /^\d{6}$/.test(totpCode.trim()) &&
     (selected !== null || isUuid(id)) &&
     !eraseParticipant.isPending
 
@@ -228,24 +261,29 @@ export default function AdminErasurePage() {
       return
     }
     setSuccess('')
-    eraseParticipant.mutate(targetId, {
-      onSuccess: (result) => {
-        setSuccess(
-          t('erasure.confirm.success', {
-            entries: result.entries_deleted,
-            files: result.files_deleted,
-          }),
-        )
-        setParticipantId('')
-        setConfirmation('')
-        setSelectedId(null)
+    eraseParticipant.mutate(
+      { participantId: targetId, totpCode: totpCode.trim() },
+      {
+        onSuccess: (result) => {
+          setSuccess(
+            t('erasure.confirm.success', {
+              entries: result.entries_deleted,
+              files: result.files_deleted,
+            }),
+          )
+          setParticipantId('')
+          setConfirmation('')
+          setTotpCode('')
+          setSelectedId(null)
+        },
       },
-    })
+    )
   }
 
   function handleCancel() {
     setParticipantId('')
     setConfirmation('')
+    setTotpCode('')
     setSelectedId(null)
     setSuccess('')
     eraseParticipant.reset()
@@ -493,6 +531,28 @@ export default function AdminErasurePage() {
                 />
               </div>
 
+              <div className="ad-field">
+                <label className="ad-label" htmlFor="ad-erasure-totp">
+                  {t('erasure.confirm.totp')}
+                </label>
+                <input
+                  id="ad-erasure-totp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  className="ad-input ad-mono ad-input-alias"
+                  value={totpCode}
+                  onChange={(event) => setTotpCode(event.target.value)}
+                  aria-describedby="ad-erasure-totp-hint"
+                  autoComplete="one-time-code"
+                  disabled={eraseParticipant.isPending}
+                />
+                <span id="ad-erasure-totp-hint" className="ad-hint">
+                  {t('erasure.confirm.totpHint')}
+                </span>
+              </div>
+
               {eraseParticipant.error ? (
                 <p className="ad-form-error" role="alert">
                   {erasureErrorText(eraseParticipant.error)}
@@ -526,22 +586,27 @@ export default function AdminErasurePage() {
             {completed.length === 0 ? (
               <p className="ad-detail-note">{t('erasure.historyEmpty')}</p>
             ) : (
-              completed.map((item) => (
+              completed.map((item, index) => (
                 <div
-                  key={`${item.participant_id}-${item.at}`}
+                  key={`${item.participant_id ?? item.alias ?? index}-${item.at}`}
                   className="ad-history-item"
                 >
                   <CheckIcon width={18} height={18} />
                   <div>
                     <span className="ad-detail-title">
-                      {t('erasure.historyItem', { id: shortId(item.participant_id) })}
+                      {t('erasure.historyItem', {
+                        alias: item.alias ?? shortId(item.participant_id),
+                        study: item.study_title ?? '—',
+                      })}
                     </span>
                     <span className="ad-detail-note">
                       {t('erasure.historyMeta', {
-                        study: item.study_title ?? '—',
-                        date: formatDateTime(item.at),
+                        date: formatDay(item.at),
+                        time: formatHourMinute(item.at),
+                        actor: historyActor(item),
                         entries: item.entries,
                         files: item.files,
+                        until: backupUntil(item.at),
                       })}
                     </span>
                   </div>

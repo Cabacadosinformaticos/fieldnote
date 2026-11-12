@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.models import Participant, UserAccount
-from app.models.enums import AuditActorType, ParticipantStatus
+from app.errors import ApiError
+from app.models import UserAccount
+from app.models.enums import AuditActorType
 from app.schemas.admin import (
     AccountCreate,
     AccountCreatedOut,
@@ -24,11 +25,14 @@ from app.schemas.admin import (
     AuditEventOut,
     AuditLogPage,
     CompletedErasureOut,
+    ErasureConfirmRequest,
     ErasureListOut,
     ErasureResultOut,
     ScheduledErasureOut,
     StudyResearcherOut,
 )
+from app.security import totp
+from app.security.audit import record
 from app.security.deps import require_admin
 from app.services import admin as service
 from app.services import erasure as erasure_service
@@ -56,19 +60,6 @@ def _account_out(summary: service.AccountSummary) -> AccountOut:
         totp_enrolled=user.totp_confirmed_at is not None,
         created_at=user.created_at,
     )
-
-
-def _uuid_or_none(value: object) -> uuid.UUID | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        return uuid.UUID(value)
-    except ValueError:
-        return None
-
-
-def _int_or_zero(value: object) -> int:
-    return value if isinstance(value, int) else 0
 
 
 @router.get("/accounts", response_model=list[AccountOut])
@@ -185,6 +176,7 @@ def list_audit_log(
         limit=limit,
     )
     names = service.actor_names(session, page.events)
+    titles = service.actor_study_titles(session, page.events)
     return AuditLogPage(
         items=[
             AuditEventOut(
@@ -195,6 +187,9 @@ def list_audit_log(
                     names.get((event.actor_type, event.actor_id))
                     if event.actor_id is not None
                     else None
+                ),
+                actor_study_title=(
+                    titles.get(event.actor_id) if event.actor_id is not None else None
                 ),
                 action=event.action,
                 target=event.target,
@@ -244,32 +239,32 @@ def list_erasures(
     """FR-44, FR-85: erasures scheduled from the app (read only) and those already run."""
     listing = service.list_erasures(session, cursor=cursor, limit=limit)
     study_ids = {participant.study_id for participant in listing.scheduled}
-    for row in listing.completed:
-        details = row.details or {}
-        study_id = _uuid_or_none(details.get("study_id"))
-        if study_id is not None:
-            study_ids.add(study_id)
+    study_ids.update(item.study_id for item in listing.completed if item.study_id is not None)
     titles = service.study_titles(session, study_ids)
+    names = service.user_names(
+        session,
+        {
+            item.actor_id
+            for item in listing.completed
+            if item.actor_id is not None and item.actor_type == AuditActorType.USER
+        },
+    )
 
-    completed: list[CompletedErasureOut] = []
-    for row in listing.completed:
-        participant_id = _uuid_or_none(row.target)
-        if participant_id is None:
-            continue
-        details = row.details or {}
-        study_id = _uuid_or_none(details.get("study_id"))
-        completed.append(
-            CompletedErasureOut(
-                participant_id=participant_id,
-                study_id=study_id,
-                study_title=titles.get(study_id) if study_id is not None else None,
-                actor_type=row.actor_type,
-                actor_id=row.actor_id,
-                at=row.at,
-                entries=_int_or_zero(details.get("entries")),
-                files=_int_or_zero(details.get("files")),
-            )
+    completed = [
+        CompletedErasureOut(
+            participant_id=item.participant_id,
+            alias=item.alias,
+            study_id=item.study_id,
+            study_title=titles.get(item.study_id) if item.study_id is not None else None,
+            actor_type=item.actor_type,
+            actor_id=item.actor_id,
+            actor_name=names.get(item.actor_id) if item.actor_id is not None else None,
+            at=item.at,
+            entries=item.entries,
+            files=item.files,
         )
+        for item in listing.completed
+    ]
 
     return ErasureListOut(
         scheduled=[
@@ -288,16 +283,65 @@ def list_erasures(
     )
 
 
+TOTP_NOT_ENROLLED = "The administrator must enrol a TOTP authenticator first."
+TOTP_REQUIRED = "A TOTP code is required."
+TOTP_INVALID = "The TOTP code is not valid."
+
+
+def _audit_erasure_failure(
+    session: Session, admin: UserAccount, participant_id: uuid.UUID, reason: str
+) -> None:
+    """A refused erasure leaves a row, like a failed sign-in, and nothing else."""
+    record(
+        session,
+        admin,
+        "erasure_failed",
+        target=str(participant_id),
+        details={"reason": reason},
+    )
+    session.commit()
+
+
+def _require_totp(
+    session: Session, admin: UserAccount, participant_id: uuid.UUID, code: str | None
+) -> None:
+    if admin.totp_secret is None or admin.totp_confirmed_at is None:
+        _audit_erasure_failure(session, admin, participant_id, "totp_enrolment_required")
+        raise ApiError(403, "totp_enrolment_required", TOTP_NOT_ENROLLED)
+    if not code or not code.strip():
+        _audit_erasure_failure(session, admin, participant_id, "totp_missing")
+        raise ApiError(401, "totp_required", TOTP_REQUIRED)
+    if not totp.verify_code(admin.totp_secret, code):
+        _audit_erasure_failure(session, admin, participant_id, "bad_totp")
+        raise ApiError(401, "invalid_totp", TOTP_INVALID)
+
+
 @router.post("/participants/{participant_id}/erasure", response_model=ErasureResultOut)
 def erase_participant(
-    participant_id: uuid.UUID, session: SessionDep, admin: AdminUser
+    participant_id: uuid.UUID,
+    session: SessionDep,
+    admin: AdminUser,
+    payload: ErasureConfirmRequest | None = None,
 ) -> ErasureResultOut:
-    """FR-44 and UC17: erase one participant from the live system, immediately."""
-    participant = session.get(Participant, participant_id)
-    if participant is not None and participant.status != ParticipantStatus.ERASURE_SCHEDULED:
-        # Close the team's request first: the participant row cascades the request away.
-        erasure_requests_service.mark_done(session, participant_id, admin)
+    """FR-44 and UC17: erase one participant from the live system, immediately.
+
+    The administrator confirms with a fresh TOTP code, verified against the secret of the signed-in
+    account with the same helper as the sign-in. A wrong or missing code erases nothing and leaves
+    an ``erasure_failed`` row in the audit log.
+    """
+    _require_totp(session, admin, participant_id, payload.totp_code if payload else None)
+    # Read the team's request before the erasure clears the participant link on it.
+    request = erasure_requests_service.pending_for_participant(session, participant_id)
     result = erasure_service.erase_participant_now(session, admin, participant_id)
+    if request is not None:
+        erasure_requests_service.mark_done(
+            session,
+            request.id,
+            admin,
+            participant_id=participant_id,
+            entries=result.entries,
+            files=result.files,
+        )
     return ErasureResultOut(
         participant_id=result.participant_id,
         entries_deleted=result.entries,

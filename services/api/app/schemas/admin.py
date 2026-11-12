@@ -74,6 +74,8 @@ class AuditEventOut(BaseModel):
     actor_type: AuditActorType
     actor_id: uuid.UUID | None
     actor_name: str | None
+    # The study of a participant actor, shown in the target column of the audit page.
+    actor_study_title: str | None = None
     action: str
     target: str | None
     details: dict[str, object] | None
@@ -100,11 +102,15 @@ class ScheduledErasureOut(BaseModel):
 
 
 class CompletedErasureOut(BaseModel):
-    participant_id: uuid.UUID
+    # The request keeps the alias after the participant row is gone, and participant_id may be
+    # null then; the audit-log entries have the id but no alias.
+    participant_id: uuid.UUID | None
+    alias: str | None
     study_id: uuid.UUID | None
     study_title: str | None
     actor_type: AuditActorType
     actor_id: uuid.UUID | None
+    actor_name: str | None
     at: datetime
     entries: int
     files: int
@@ -114,6 +120,10 @@ class ErasureListOut(BaseModel):
     scheduled: list[ScheduledErasureOut]
     completed: list[CompletedErasureOut]
     next_cursor: int | None = None
+
+
+class ErasureConfirmRequest(BaseModel):
+    totp_code: str | None = Field(default=None, max_length=16)
 
 
 class ErasureResultOut(BaseModel):
