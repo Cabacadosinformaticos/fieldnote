@@ -179,8 +179,7 @@ def _entry_dict(
     }
 
 
-def list_entries(
-    session: Session,
+def entry_conditions(
     study_id: uuid.UUID,
     *,
     participant_id: uuid.UUID | None = None,
@@ -192,12 +191,9 @@ def list_entries(
     q: str | None = None,
     free_only: bool = False,
     late_only: bool = False,
-    cursor: str | None = None,
-    limit: int = DEFAULT_PAGE_SIZE,
-) -> dict[str, object]:
-    limit = max(1, min(limit, MAX_PAGE_SIZE))
+) -> list:
+    """The WHERE clauses of the entries list, shared with the export of the current filter."""
     conditions = [_visible_participant_clause(study_id)]
-
     if participant_id is not None:
         conditions.append(Entry.participant_id == participant_id)
     if activity_id is not None:
@@ -220,11 +216,44 @@ def list_entries(
         conditions.append(Entry.prompt_id.is_(None))
     if late_only:
         conditions.append(Entry.received_at > Entry.recorded_at + LATE_THRESHOLD)
+    if entry_type is not None:
+        conditions.append(Entry.entry_type == entry_type)
+    return conditions
+
+
+def list_entries(
+    session: Session,
+    study_id: uuid.UUID,
+    *,
+    participant_id: uuid.UUID | None = None,
+    activity_id: uuid.UUID | None = None,
+    entry_type: EntryType | None = None,
+    tag_id: uuid.UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    q: str | None = None,
+    free_only: bool = False,
+    late_only: bool = False,
+    cursor: str | None = None,
+    limit: int = DEFAULT_PAGE_SIZE,
+) -> dict[str, object]:
+    limit = max(1, min(limit, MAX_PAGE_SIZE))
 
     # The type chips show how many entries of each type match every other filter, so the type
     # itself is applied after this snapshot. ``total`` counts the full filtered set and ignores
     # both the cursor and the page.
-    type_conditions = list(conditions)
+    type_conditions = entry_conditions(
+        study_id,
+        participant_id=participant_id,
+        activity_id=activity_id,
+        tag_id=tag_id,
+        date_from=date_from,
+        date_to=date_to,
+        q=q,
+        free_only=free_only,
+        late_only=late_only,
+    )
+    conditions = list(type_conditions)
     if entry_type is not None:
         conditions.append(Entry.entry_type == entry_type)
 

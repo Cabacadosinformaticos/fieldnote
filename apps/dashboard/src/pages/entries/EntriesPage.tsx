@@ -138,6 +138,20 @@ export default function EntriesPage() {
     q: debouncedQuery || undefined,
   }
 
+  // The export page reads the filter the researcher set here and offers it as "o filtro atual".
+  const exportParams = new URLSearchParams()
+  if (baseFilters.participantId) exportParams.set('participant_id', baseFilters.participantId)
+  if (baseFilters.activityId) exportParams.set('activity_id', baseFilters.activityId)
+  if (baseFilters.entryType) exportParams.set('entry_type', baseFilters.entryType)
+  if (baseFilters.tagId) exportParams.set('tag_id', baseFilters.tagId)
+  if (baseFilters.dateFrom) exportParams.set('date_from', baseFilters.dateFrom)
+  if (baseFilters.dateTo) exportParams.set('date_to', baseFilters.dateTo)
+  if (baseFilters.q) exportParams.set('q', baseFilters.q)
+  if (freeOnly) exportParams.set('free_only', 'true')
+  if (lateOnly) exportParams.set('late_only', 'true')
+  const exportSearch = exportParams.toString()
+  const exportHref = exportSearch ? `${base}/exportar?${exportSearch}` : `${base}/exportar`
+
   const apiFilters: EntryFilters = {
     ...baseFilters,
     freeOnly,
@@ -288,7 +302,7 @@ export default function EntriesPage() {
           <span className={`en-live en-live-${eventStatus}`} aria-live="polite">
             {eventStatus === 'live' ? t('list.live') : t('list.offline')}
           </span>
-          <Link className="btn" to={`${base}/exportar`}>
+          <Link className="btn" to={exportHref}>
             <ExportIcon width={18} height={18} />
             {t('list.export')}
           </Link>

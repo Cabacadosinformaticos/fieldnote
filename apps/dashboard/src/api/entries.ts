@@ -65,6 +65,33 @@ export type EntryFilters = {
   limit?: number
 }
 
+export type ExportScope = 'all' | 'filtered'
+export type ExportMediaType = 'photo' | 'audio' | 'video'
+
+export type ExportHistoryItem = {
+  id: number
+  who: string
+  when: string
+  entry_count: number | null
+  scope: ExportScope
+  filter: Record<string, unknown> | null
+  include_location: boolean
+  include_identity: boolean
+  include_media: boolean
+  media_types: ExportMediaType[]
+  include_csv: boolean
+}
+
+export type ExportOptions = {
+  includeLocation: boolean
+  includeIdentity: boolean
+  scope: ExportScope
+  filter?: EntryFilters
+  includeMedia: boolean
+  mediaTypes: ExportMediaType[]
+  includeCsv: boolean
+}
+
 export type TimelineParams = {
   zoom: TimelineZoom
   start: string
@@ -90,6 +117,7 @@ export const entryKeys = {
   members: (studyId: string) => [ROOT, studyId, 'members'] as const,
   timeline: (studyId: string, params: TimelineParams) =>
     [ROOT, studyId, 'timeline', params] as const,
+  exports: (studyId: string) => [ROOT, studyId, 'exports'] as const,
 }
 
 export function useEntries(studyId: string | undefined, filters: EntryFilters) {
@@ -588,7 +616,7 @@ async function exportResponse(url: string): Promise<Response> {
 
 export async function downloadStudyExport(
   studyId: string,
-  options: { includeLocation: boolean; includeIdentity: boolean },
+  options: ExportOptions,
 ): Promise<string> {
   const query = new URLSearchParams()
   if (options.includeLocation) {
@@ -596,6 +624,46 @@ export async function downloadStudyExport(
   }
   if (options.includeIdentity) {
     query.set('include_identity', 'true')
+  }
+  if (options.includeMedia) {
+    query.set('include_media', 'true')
+    for (const type of options.mediaTypes) {
+      query.append('media_type', type)
+    }
+    if (!options.includeCsv) {
+      query.set('include_csv', 'false')
+    }
+  }
+  if (options.scope === 'filtered') {
+    query.set('scope', 'filtered')
+    const filter = options.filter ?? {}
+    if (filter.participantId) {
+      query.set('participant_id', filter.participantId)
+    }
+    if (filter.activityId) {
+      query.set('activity_id', filter.activityId)
+    }
+    if (filter.entryType) {
+      query.set('entry_type', filter.entryType)
+    }
+    if (filter.tagId) {
+      query.set('tag_id', filter.tagId)
+    }
+    if (filter.dateFrom) {
+      query.set('date_from', filter.dateFrom)
+    }
+    if (filter.dateTo) {
+      query.set('date_to', filter.dateTo)
+    }
+    if (filter.q) {
+      query.set('q', filter.q)
+    }
+    if (filter.freeOnly) {
+      query.set('free_only', 'true')
+    }
+    if (filter.lateOnly) {
+      query.set('late_only', 'true')
+    }
   }
   const suffix = query.size > 0 ? `?${query.toString()}` : ''
   const response = await exportResponse(`/api/v1/studies/${studyId}/export${suffix}`)
@@ -624,4 +692,37 @@ export async function downloadStudyExport(
   // Revoking at once can cancel the download while the browser is still reading the blob.
   setTimeout(() => URL.revokeObjectURL(href), 60_000)
   return filename
+}
+
+async function fetchExportHistory(studyId: string): Promise<ExportHistoryItem[]> {
+  const response = await exportResponse(`/api/v1/studies/${studyId}/exports`)
+  if (!response.ok) {
+    let code: string | null = null
+    try {
+      const body = (await response.json()) as ErrorEnvelope
+      code = body.error?.code ?? null
+    } catch {
+      code = null
+    }
+    throw new EntriesApiError(
+      code ?? `http_${response.status}`,
+      response.status,
+      'Export history failed.',
+    )
+  }
+  const body = (await response.json()) as { items?: ExportHistoryItem[] }
+  return body.items ?? []
+}
+
+export function useExportHistory(studyId: string | undefined) {
+  return useQuery({
+    queryKey: entryKeys.exports(studyId ?? ''),
+    enabled: Boolean(studyId),
+    queryFn: async (): Promise<ExportHistoryItem[]> => {
+      if (!studyId) {
+        throw new EntriesApiError('study_missing', 0, 'The study is missing.')
+      }
+      return fetchExportHistory(studyId)
+    },
+  })
 }

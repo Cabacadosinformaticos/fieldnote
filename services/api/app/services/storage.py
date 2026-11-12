@@ -18,6 +18,7 @@ from app.config import settings
 
 UPLOAD_URL_TTL_SECONDS = 10 * 60
 DOWNLOAD_URL_TTL_SECONDS = 10 * 60
+DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 OBJECT_KEY_PREFIX = "entries"
 # The media worker writes the JPEG preview next to the original (media_worker/storage.py).
 THUMBNAIL_SUFFIX = ".thumb.jpg"
@@ -96,6 +97,16 @@ def object_exists(object_key: str) -> bool:
             return False
         raise
     return True
+
+
+def open_object(object_key: str):
+    """Open a stored object as a streaming body.
+
+    The caller reads it in chunks and closes it. The export uses this to write a large media file
+    into the zip without loading it into memory.
+    """
+    response = _client(settings.s3_endpoint).get_object(Bucket=settings.s3_bucket, Key=object_key)
+    return response["Body"]
 
 
 def delete_participant_objects(participant_id: uuid.UUID) -> int:

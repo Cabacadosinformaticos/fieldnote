@@ -1908,9 +1908,8 @@
 
 .en-scope-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--fn-space-14);
-  max-width: 560px;
 }
 
 .en-scope-card {
@@ -2421,6 +2420,41 @@ img.en-detail-media-file {
   color: #9a6400;
   font-size: var(--fn-text-12);
   line-height: 18px;
+}
+
+.en-media-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fn-space-8) var(--fn-space-16);
+  margin-top: var(--fn-space-8);
+  padding: var(--fn-space-12);
+  border: 1px solid var(--fn-color-border);
+  border-radius: var(--fn-radius-md);
+  background: var(--fn-color-bg);
+}
+
+.en-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fn-space-8);
+  color: var(--fn-color-text);
+  font-size: var(--fn-text-13);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.en-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--fn-color-primary);
+}
+
+.en-check-csv {
+  flex-basis: 100%;
+}
+
+.en-media-choices .en-export-option-note {
+  flex-basis: 100%;
 }
 
 .en-export-source a {

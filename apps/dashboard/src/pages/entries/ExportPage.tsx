@@ -1,13 +1,22 @@
-import { useState, type ComponentType } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { useAuth } from '../../auth/useAuth'
+import { useMemo, useState, type ComponentType } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   downloadStudyExport,
+  useActivities,
   useEntries,
+  useExportHistory,
+  useParticipants,
   useStudy,
   useStudyPermissions,
+  useTags,
+  type EntryFilters,
   type EntryOut,
+  type EntryType,
+  type ExportHistoryItem,
+  type ExportMediaType,
+  type ExportScope,
 } from '../../api/entries'
+import { participantLabel } from '../../api/participants'
 import { useStudyOverview } from '../../api/studies'
 import {
   MapPinIcon,
@@ -25,14 +34,16 @@ import {
   entryKindMeta,
   formatRange,
   formatReceived,
+  formatShortDate,
   formatStamp,
   isFree,
   shortId,
+  zonedParts,
 } from '../../components/entries/entryMeta'
 import { t, type EntriesKey } from '../../i18n/entries'
 import '../../styles/entries.css'
 
-type OptionId = 'location' | 'identity'
+type OptionId = 'location' | 'media' | 'identity'
 
 type OptionDefinition = {
   id: OptionId
@@ -41,12 +52,31 @@ type OptionDefinition = {
   Icon: ComponentType<IconProps>
 }
 
-type ExportRecord = {
-  id: string
-  who: string
-  when: string
-  count: string
-  options: OptionId[]
+const ENTRY_TYPES: EntryType[] = ['text', 'photo', 'audio', 'video', 'scale', 'choice']
+const MEDIA_TYPE_ORDER: ExportMediaType[] = ['photo', 'audio', 'video']
+
+const mediaTypeKeys: Record<ExportMediaType, EntriesKey> = {
+  photo: 'export.media.photo',
+  audio: 'export.media.audio',
+  video: 'export.media.video',
+}
+
+function MediaIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
+      <path d="m12 2 10 5-10 5L2 7z" />
+      <path d="m2 17 10 5 10-5M2 12l10 5 10-5" />
+    </svg>
+  )
 }
 
 const optionDefinitions: OptionDefinition[] = [
@@ -55,6 +85,12 @@ const optionDefinitions: OptionDefinition[] = [
     nameKey: 'export.option.location',
     descriptionKey: 'export.option.locationDesc',
     Icon: MapPinIcon,
+  },
+  {
+    id: 'media',
+    nameKey: 'export.option.media',
+    descriptionKey: 'export.option.mediaDesc',
+    Icon: MediaIcon,
   },
   {
     id: 'identity',
@@ -74,6 +110,37 @@ const previewColumns: { key: EntriesKey }[] = [
   { key: 'export.column.received' },
   { key: 'export.column.tags' },
 ]
+
+function readFilter(searchParams: URLSearchParams): EntryFilters {
+  const entryType = searchParams.get('entry_type')
+  return {
+    participantId: searchParams.get('participant_id') ?? undefined,
+    activityId: searchParams.get('activity_id') ?? undefined,
+    entryType: ENTRY_TYPES.includes(entryType as EntryType)
+      ? (entryType as EntryType)
+      : undefined,
+    tagId: searchParams.get('tag_id') ?? undefined,
+    dateFrom: searchParams.get('date_from') ?? undefined,
+    dateTo: searchParams.get('date_to') ?? undefined,
+    q: searchParams.get('q') ?? undefined,
+    freeOnly: searchParams.get('free_only') === 'true',
+    lateOnly: searchParams.get('late_only') === 'true',
+  }
+}
+
+function hasAnyFilter(filters: EntryFilters): boolean {
+  return Boolean(
+    filters.participantId ||
+      filters.activityId ||
+      filters.entryType ||
+      filters.tagId ||
+      filters.dateFrom ||
+      filters.dateTo ||
+      filters.q ||
+      filters.freeOnly ||
+      filters.lateOnly,
+  )
+}
 
 function previewContent(entry: EntryOut): string {
   if (entry.entry_type === 'text') {
@@ -96,50 +163,193 @@ function previewPrompt(entry: EntryOut): string {
   return '–'
 }
 
+function historyOptions(record: ExportHistoryItem): { key: string; label: string; tone: string }[] {
+  const options: { key: string; label: string; tone: string }[] = []
+  if (record.include_location) {
+    options.push({ key: 'location', label: t('export.option.location'), tone: 'wa' })
+  }
+  if (record.include_media) {
+    const allTypes = record.media_types.length === MEDIA_TYPE_ORDER.length
+    options.push({
+      key: 'media',
+      label: allTypes
+        ? t('export.option.media')
+        : t('export.option.mediaTypes', {
+            types: record.media_types.map((type) => t(mediaTypeKeys[type])).join(', '),
+          }),
+      tone: 'wa',
+    })
+    if (!record.include_csv) {
+      options.push({ key: 'noCsv', label: t('export.previous.noCsv'), tone: 'ne' })
+    }
+  }
+  if (record.include_identity) {
+    options.push({ key: 'identity', label: t('export.option.identity'), tone: 'wa' })
+  }
+  return options
+}
+
+function historyFormat(record: ExportHistoryItem): string {
+  if (!record.include_media) {
+    return t('export.format.csv')
+  }
+  return record.include_csv ? t('export.format.csvMedia') : t('export.format.media')
+}
+
 export default function ExportPage() {
   const params = useParams<{ studyId: string }>()
   const studyId = params.studyId ?? ''
   const base = `/estudos/${studyId}`
-  const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+  const filterKey = searchParams.toString()
+  const filters = useMemo(() => readFilter(new URLSearchParams(filterKey)), [filterKey])
+  const filtered = hasAnyFilter(filters)
+
   const permissions = useStudyPermissions(studyId)
   const studyQuery = useStudy(studyId)
   const timeZone = studyQuery.data?.timezone ?? 'Europe/Lisbon'
   const overviewQuery = useStudyOverview(studyId)
-  const entriesQuery = useEntries(studyId, { limit: 4 })
-  const entries = entriesQuery.data?.items ?? []
-  const preview = entries.slice(0, 4)
+  const participantsQuery = useParticipants(studyId)
+  const activitiesQuery = useActivities(studyId)
+  const tagsQuery = useTags(studyId)
+  const filteredCountQuery = useEntries(studyId, { ...filters, limit: 1 })
+  const historyQuery = useExportHistory(studyId)
 
-  const [options, setOptions] = useState<Record<OptionId, boolean>>({
+  const [scope, setScope] = useState<ExportScope>('all')
+  const [toggles, setToggles] = useState<Record<OptionId, boolean>>({
     location: false,
+    media: false,
     identity: false,
   })
-  const [history, setHistory] = useState<ExportRecord[]>([])
+  const [mediaTypes, setMediaTypes] = useState<Record<ExportMediaType, boolean>>({
+    photo: true,
+    audio: true,
+    video: true,
+  })
+  const [includeCsv, setIncludeCsv] = useState(true)
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [exportError, setExportError] = useState<unknown>(null)
 
-  const total = overviewQuery.data?.entries.total
+  const previewFilters: EntryFilters = scope === 'filtered' ? filters : {}
+  const entriesQuery = useEntries(studyId, { ...previewFilters, limit: 4 })
+  const preview = (entriesQuery.data?.items ?? []).slice(0, 4)
+
+  const total =
+    scope === 'all' ? overviewQuery.data?.entries.total : filteredCountQuery.data?.total
   const countLabel = total === undefined ? '–' : String(total)
   const range =
     studyQuery.data?.starts_on && studyQuery.data.ends_on
       ? formatRange(studyQuery.data.starts_on, studyQuery.data.ends_on)
       : '—'
 
-  const selectedIds: OptionId[] = optionDefinitions
-    .filter((option) => options[option.id])
-    .map((option) => option.id)
-    .filter((id) => id !== 'identity' || permissions.canIncludeIdentity)
-  const selectedNames = optionDefinitions
-    .filter((option) => selectedIds.includes(option.id))
-    .map((option) => t(option.nameKey))
+  const filterDescription = useMemo(() => {
+    const parts: string[] = []
+    const participant = participantsQuery.data?.find(
+      (item) => item.id === filters.participantId,
+    )
+    if (participant) {
+      parts.push(t('export.filter.participant', { value: participantLabel(participant) }))
+    }
+    const activity = activitiesQuery.data?.find((item) => item.id === filters.activityId)
+    if (activity) {
+      parts.push(t('export.filter.activity', { value: activity.title }))
+    }
+    if (filters.entryType) {
+      parts.push(
+        t('export.filter.type', { value: t(entryKindMeta[filters.entryType].labelKey) }),
+      )
+    }
+    const tag = tagsQuery.data?.find((item) => item.id === filters.tagId)
+    if (tag) {
+      parts.push(t('export.filter.tag', { value: tag.name }))
+    }
+    if (filters.dateFrom) {
+      parts.push(
+        t('export.filter.date', {
+          value: formatShortDate(zonedParts(filters.dateFrom, timeZone).date),
+        }),
+      )
+    } else if (filters.dateTo) {
+      parts.push(
+        t('export.filter.date', {
+          value: formatShortDate(zonedParts(filters.dateTo, timeZone).date),
+        }),
+      )
+    }
+    if (filters.q) {
+      parts.push(t('export.filter.q', { value: filters.q }))
+    }
+    if (filters.freeOnly) {
+      parts.push(t('export.filter.freeOnly'))
+    }
+    if (filters.lateOnly) {
+      parts.push(t('export.filter.lateOnly'))
+    }
+    return parts.join(', ')
+  }, [
+    filters,
+    participantsQuery.data,
+    activitiesQuery.data,
+    tagsQuery.data,
+    timeZone,
+  ])
+
+  const selectedMediaTypes = MEDIA_TYPE_ORDER.filter((type) => mediaTypes[type])
+  const mediaOn = toggles.media && selectedMediaTypes.length > 0
+  const mediaMissing = toggles.media && selectedMediaTypes.length === 0
+  // Without the CSV tables there are no rows or columns to carry location or identity.
+  const csvOff = mediaOn && !includeCsv
+  const locationSelected = toggles.location && !csvOff
+  const identitySelected = toggles.identity && permissions.canIncludeIdentity && !csvOff
+  const selectedIds: OptionId[] = [
+    ...(locationSelected ? (['location'] as const) : []),
+    ...(mediaOn ? (['media'] as const) : []),
+    ...(identitySelected ? (['identity'] as const) : []),
+  ]
+  const selectedNames = selectedIds.map((id) => {
+    if (id === 'media') {
+      return selectedMediaTypes.length === MEDIA_TYPE_ORDER.length
+        ? t('export.option.media')
+        : t('export.option.mediaTypes', {
+            types: selectedMediaTypes.map((type) => t(mediaTypeKeys[type])).join(', '),
+          })
+    }
+    const definition = optionDefinitions.find((option) => option.id === id)
+    return definition ? t(definition.nameKey) : id
+  })
   const optionsSummary =
     selectedNames.length === 0 ? t('export.summary.none') : selectedNames.join(', ')
+  const formatLabel = !mediaOn
+    ? t('export.format.csv')
+    : includeCsv
+      ? t('export.format.csvMedia')
+      : t('export.format.media')
+  const columnCount =
+    mediaOn && !includeCsv
+      ? null
+      : 8 +
+        (mediaOn ? 1 : 0) +
+        (locationSelected ? 2 : 0) +
+        (identitySelected ? 2 : 0)
+
+  function changeScope(next: ExportScope) {
+    setScope(next)
+    setSuccess(null)
+    setExportError(null)
+  }
 
   function toggleOption(id: OptionId) {
     if (id === 'identity' && !permissions.canIncludeIdentity) {
       return
     }
-    setOptions((current) => ({ ...current, [id]: !current[id] }))
+    setToggles((current) => ({ ...current, [id]: !current[id] }))
+    setSuccess(null)
+    setExportError(null)
+  }
+
+  function toggleMediaType(type: ExportMediaType) {
+    setMediaTypes((current) => ({ ...current, [type]: !current[type] }))
     setSuccess(null)
     setExportError(null)
   }
@@ -150,20 +360,16 @@ export default function ExportPage() {
     setExportError(null)
     try {
       const filename = await downloadStudyExport(studyId, {
-        includeLocation: options.location,
-        includeIdentity: options.identity && permissions.canIncludeIdentity,
+        includeLocation: locationSelected,
+        includeIdentity: identitySelected,
+        scope,
+        filter: filters,
+        includeMedia: mediaOn,
+        mediaTypes: selectedMediaTypes,
+        includeCsv: mediaOn ? includeCsv : true,
       })
-      setHistory((current) => [
-        {
-          id: `local-${current.length + 1}`,
-          who: user?.email ?? '—',
-          when: formatStamp(new Date().toISOString(), timeZone),
-          count: countLabel,
-          options: selectedIds,
-        },
-        ...current,
-      ])
       setSuccess(filename)
+      void historyQuery.refetch()
     } catch (error) {
       setExportError(error)
     } finally {
@@ -189,13 +395,15 @@ export default function ExportPage() {
               <h2 className="h2">{t('export.scope.title')}</h2>
             </div>
             <div className="en-scope-grid" role="radiogroup" aria-label={t('export.scope.aria')}>
-              <label className="en-scope-card is-selected">
+              <label
+                className={`en-scope-card${scope === 'all' ? ' is-selected' : ''}`}
+              >
                 <input
                   className="en-visually-hidden"
                   type="radio"
                   name="export-scope"
-                  checked
-                  readOnly
+                  checked={scope === 'all'}
+                  onChange={() => changeScope('all')}
                 />
                 <span className="en-radio" aria-hidden="true">
                   <i />
@@ -210,10 +418,39 @@ export default function ExportPage() {
                   </span>
                 </span>
               </label>
+              <label
+                className={`en-scope-card${scope === 'filtered' ? ' is-selected' : ''}`}
+              >
+                <input
+                  className="en-visually-hidden"
+                  type="radio"
+                  name="export-scope"
+                  checked={scope === 'filtered'}
+                  onChange={() => changeScope('filtered')}
+                />
+                <span className="en-radio" aria-hidden="true">
+                  <i />
+                </span>
+                <span className="en-scope-copy">
+                  <span className="en-scope-name">{t('export.scope.filtered')}</span>
+                  <span className="en-scope-meta">
+                    {t(
+                      filteredCountQuery.data?.total === 1
+                        ? 'export.scope.filteredMetaOne'
+                        : 'export.scope.filteredMeta',
+                      {
+                        filter: filtered ? filterDescription : t('export.scope.noFilter'),
+                        count:
+                          filteredCountQuery.data === undefined
+                            ? '–'
+                            : String(filteredCountQuery.data.total),
+                      },
+                    )}{' '}
+                    <Link to={`${base}/registos`}>{t('export.scope.entries')}</Link>.
+                  </span>
+                </span>
+              </label>
             </div>
-            <p className="sub en-export-source">
-              <Link to={`${base}/registos`}>{t('export.scope.openList')}</Link>
-            </p>
           </section>
 
           <section className="card en-export-section" aria-label={t('export.format.title')}>
@@ -224,9 +461,15 @@ export default function ExportPage() {
             <div className="en-format-row">
               <span className="en-format-chip">
                 <CheckIcon width={16} height={16} />
-                {t('export.format.zip')}
+                {formatLabel}
               </span>
-              <span className="sub">{t('export.format.note')}</span>
+              <span className="sub">
+                {!mediaOn
+                  ? t('export.format.note')
+                  : includeCsv
+                    ? t('export.format.noteMediaCsv')
+                    : t('export.format.noteMedia')}
+              </span>
             </div>
             <div className="en-export-table-wrap">
               <table className="en-export-table">
@@ -281,7 +524,17 @@ export default function ExportPage() {
               />
             ) : null}
             <p className="sub">
-              {t('export.preview.note', { shown: preview.length, total: countLabel })}
+              {!mediaOn
+                ? t('export.preview.note', {
+                    shown: preview.length,
+                    total: countLabel,
+                  })
+                : includeCsv
+                  ? t('export.preview.noteMedia', {
+                      shown: preview.length,
+                      total: countLabel,
+                    })
+                  : t('export.preview.noteNoCsv', { shown: preview.length })}
             </p>
           </section>
 
@@ -298,10 +551,16 @@ export default function ExportPage() {
             </div>
             {optionDefinitions.map((option) => {
               const Icon = option.Icon
-              const locked =
-                option.id === 'identity' && !permissions.canIncludeIdentity
-              const on = options[option.id] && !locked
+              const identityLocked = option.id === 'identity' && !permissions.canIncludeIdentity
+              const withoutCsv = option.id !== 'media' && csvOff
+              const locked = identityLocked || withoutCsv
+              const on = toggles[option.id] && !locked
               const name = t(option.nameKey)
+              const lockedNote = identityLocked
+                ? t('export.option.identityLocked')
+                : withoutCsv
+                  ? t('export.option.csvOffNote')
+                  : null
               return (
                 <div className="en-export-option" key={option.id}>
                   <span className="en-export-option-icon">
@@ -315,10 +574,39 @@ export default function ExportPage() {
                       ) : null}
                     </span>
                     <span className="en-export-option-desc">{t(option.descriptionKey)}</span>
-                    {option.id === 'identity' && locked ? (
-                      <span className="en-export-option-note">
-                        {t('export.option.identityLocked')}
-                      </span>
+                    {lockedNote ? (
+                      <span className="en-export-option-note">{lockedNote}</span>
+                    ) : null}
+                    {option.id === 'media' && on ? (
+                      <div className="en-media-choices">
+                        {MEDIA_TYPE_ORDER.map((type) => (
+                          <label className="en-check" key={type}>
+                            <input
+                              type="checkbox"
+                              checked={mediaTypes[type]}
+                              onChange={() => toggleMediaType(type)}
+                            />
+                            <span>{t(mediaTypeKeys[type])}</span>
+                          </label>
+                        ))}
+                        <label className="en-check en-check-csv">
+                          <input
+                            type="checkbox"
+                            checked={includeCsv}
+                            onChange={() => {
+                              setIncludeCsv((current) => !current)
+                              setSuccess(null)
+                              setExportError(null)
+                            }}
+                          />
+                          <span>{t('export.option.includeCsv')}</span>
+                        </label>
+                        {mediaMissing ? (
+                          <span className="en-export-option-note">
+                            {t('export.option.mediaNone')}
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                   <div className="en-export-option-switch">
@@ -350,7 +638,6 @@ export default function ExportPage() {
             <div className="en-export-history-head">
               <h2 className="h2">{t('export.previous.title')}</h2>
               <p className="sub">{t('export.previous.sub')}</p>
-              <p className="sub">{t('export.previous.local')}</p>
             </div>
             <table className="en-export-table en-history-table">
               <thead>
@@ -363,39 +650,63 @@ export default function ExportPage() {
                 </tr>
               </thead>
               <tbody>
-                {history.length === 0 ? (
+                {historyQuery.isLoading ? (
+                  <tr>
+                    <td className="en-td en-history-meta" colSpan={5}>
+                      {t('export.previous.loading')}
+                    </td>
+                  </tr>
+                ) : historyQuery.isError ? (
+                  <tr>
+                    <td className="en-td en-history-meta" colSpan={5}>
+                      {t('export.previous.error')}
+                    </td>
+                  </tr>
+                ) : (historyQuery.data ?? []).length === 0 ? (
                   <tr>
                     <td className="en-td en-history-meta" colSpan={5}>
                       {t('export.previous.empty')}
                     </td>
                   </tr>
                 ) : (
-                  history.map((record) => (
-                    <tr key={record.id}>
-                      <td className="en-td en-history-who">{record.who}</td>
-                      <td className="en-td en-history-meta">{record.when}</td>
-                      <td className="en-td en-history-meta">
-                        {t(record.count === '1' ? 'export.previous.entriesOne' : 'export.previous.entries', {
-                          count: record.count,
-                        })}
-                      </td>
-                      <td className="en-td">
-                        {record.options.length === 0 ? (
-                          <span className="en-history-meta">{t('export.previous.none')}</span>
-                        ) : (
-                          record.options.map((option) => (
-                            <span key={option} className="pill wa">
-                              {t(
-                                optionDefinitions.find((item) => item.id === option)?.nameKey ??
-                                  'export.summary.options',
+                  (historyQuery.data ?? []).map((record) => {
+                    const options = historyOptions(record)
+                    return (
+                      <tr key={record.id}>
+                        <td className="en-td en-history-who">{record.who || '–'}</td>
+                        <td className="en-td en-history-meta">
+                          {formatStamp(record.when, timeZone)}
+                        </td>
+                        <td className="en-td en-history-meta">
+                          {record.entry_count === null
+                            ? '–'
+                            : t(
+                                record.entry_count === 1
+                                  ? 'export.previous.entriesOne'
+                                  : 'export.previous.entries',
+                                { count: record.entry_count },
                               )}
+                          {record.scope === 'filtered' ? (
+                            <span className="pill ne">{t('export.previous.filtered')}</span>
+                          ) : null}
+                        </td>
+                        <td className="en-td">
+                          {options.length === 0 ? (
+                            <span className="en-history-meta">
+                              {t('export.previous.none')}
                             </span>
-                          ))
-                        )}
-                      </td>
-                      <td className="en-td en-history-meta">{t('export.format.zip')}</td>
-                    </tr>
-                  ))
+                          ) : (
+                            options.map((option) => (
+                              <span key={option.key} className={`pill ${option.tone}`}>
+                                {option.label}
+                              </span>
+                            ))
+                          )}
+                        </td>
+                        <td className="en-td en-history-meta">{historyFormat(record)}</td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
@@ -407,30 +718,28 @@ export default function ExportPage() {
           <div className="en-summary-rows">
             <div>
               <span>{t('export.summary.entries')}</span>
-              <b>{entriesQuery.isLoading ? '–' : countLabel}</b>
+              <b>{total === undefined ? '–' : countLabel}</b>
             </div>
             <div>
               <span>{t('export.summary.format')}</span>
-              <b>{t('export.format.zip')}</b>
+              <b>{formatLabel}</b>
             </div>
             <div>
-              <span>{t('export.summary.files')}</span>
-              <b>3</b>
+              <span>{t('export.summary.columns')}</span>
+              <b>{columnCount ?? '–'}</b>
             </div>
             <div>
               <span>{t('export.summary.options')}</span>
               <b>{optionsSummary}</b>
             </div>
           </div>
-          <div
-            className={`en-summary-note${selectedIds.includes('identity') ? ' is-warning' : ''}`}
-          >
+          <div className={`en-summary-note${identitySelected ? ' is-warning' : ''}`}>
             <span>
               {selectedNames.length === 0
                 ? t('export.summary.safe')
                 : t('export.summary.includes', { options: selectedNames.join(', ') })}
             </span>
-            {selectedIds.includes('identity') ? (
+            {identitySelected ? (
               <span>{t('export.summary.identityWarning')}</span>
             ) : null}
           </div>
@@ -450,8 +759,11 @@ export default function ExportPage() {
             className="btn btn-dk en-export-button"
             disabled={
               busy ||
+              mediaMissing ||
               overviewQuery.isLoading ||
               overviewQuery.isError ||
+              filteredCountQuery.isLoading ||
+              filteredCountQuery.isError ||
               entriesQuery.isLoading ||
               entriesQuery.isError
             }
