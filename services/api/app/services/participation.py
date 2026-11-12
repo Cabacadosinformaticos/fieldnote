@@ -789,14 +789,15 @@ def free_entry_activities(session: Session, participant: Participant) -> list[Fr
 
 
 def study_card(session: Session, study: Study) -> dict[str, object]:
-    team = list(
-        session.scalars(
-            select(UserAccount.email)
+    team = [
+        {"name": name, "email": email}
+        for name, email in session.execute(
+            select(UserAccount.name, UserAccount.email)
             .join(StudyMember, StudyMember.user_id == UserAccount.id)
             .where(StudyMember.study_id == study.id)
             .order_by(UserAccount.email)
         )
-    )
+    ]
     activities = list(session.scalars(select(Activity).where(Activity.study_id == study.id)))
     entry_types = sorted(
         {entry_type for activity in activities for entry_type in activity.entry_types}

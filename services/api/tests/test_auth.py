@@ -45,6 +45,7 @@ def test_login_returns_an_access_token_and_sets_the_refresh_cookie(
     assert body["user"] == {
         "id": str(user.id),
         "email": user.email,
+        "name": None,
         "role": "researcher",
     }
     assert "refresh_token" not in body
@@ -66,8 +67,26 @@ def test_login_returns_an_access_token_and_sets_the_refresh_cookie(
     assert me.json() == {
         "id": str(user.id),
         "email": user.email,
+        "name": None,
         "role": "researcher",
     }
+
+
+def test_the_signed_in_user_carries_the_account_name(
+    client: TestClient, session: Session, make_user
+) -> None:
+    user = make_user()
+    user.name = "Inês Marques"
+    session.commit()
+
+    response = client.post(
+        LOGIN, json={"email": user.email, "password": "correct horse battery staple"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["name"] == "Inês Marques"
+    me = client.get(ME, headers={"Authorization": f"Bearer {response.json()['access_token']}"})
+    assert me.json()["name"] == "Inês Marques"
 
 
 def test_login_with_a_wrong_password_returns_the_generic_error(

@@ -3,11 +3,11 @@ import type { UserRole } from '../../api/admin'
 import { t } from '../../i18n/admin'
 import { CloseIcon, MailIcon } from './icons'
 
-export type AccountDraft = { email: string; role: UserRole }
+export type AccountDraft = { email: string; name: string | null; role: UserRole }
 
 type Props = {
   mode: 'create' | 'edit'
-  account?: { email: string; role: UserRole }
+  account?: { email: string; name?: string | null; role: UserRole }
   submitting?: boolean
   error?: string
   onClose: () => void
@@ -23,6 +23,7 @@ export default function AccountDialog({
   onSubmit,
 }: Props) {
   const [email, setEmail] = useState(account?.email ?? '')
+  const [name, setName] = useState(account?.name ?? '')
   const [role, setRole] = useState<UserRole>(account?.role ?? 'researcher')
 
   const isCreate = mode === 'create'
@@ -33,7 +34,8 @@ export default function AccountDialog({
     if (!canSubmit) {
       return
     }
-    onSubmit({ email: email.trim(), role })
+    const trimmedName = name.trim()
+    onSubmit({ email: email.trim(), name: trimmedName || null, role })
   }
 
   return (
@@ -67,6 +69,22 @@ export default function AccountDialog({
 
         <div className="ad-dialog-body">
           <div className="ad-field">
+            <label htmlFor="ad-account-name" className="ad-label">
+              {t('acct.dialog.name')}
+            </label>
+            <input
+              id="ad-account-name"
+              type="text"
+              className="ad-input"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={200}
+              autoFocus={isCreate}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="ad-field">
             <label htmlFor="ad-account-email" className="ad-label">
               {t('common.email')}
             </label>
@@ -77,7 +95,6 @@ export default function AccountDialog({
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               aria-describedby="ad-account-email-hint"
-              autoFocus={isCreate}
               readOnly={!isCreate}
               required
             />

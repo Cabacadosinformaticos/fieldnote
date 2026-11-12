@@ -100,6 +100,11 @@ RESEARCHERS = (
     (CO_INVESTIGATOR, "co_investigator"),
     (MEMBER, "member"),
 )
+RESEARCHERS_NAMES = {
+    PRINCIPAL: "Inês Marques",
+    CO_INVESTIGATOR: "Duarte Lopes",
+    MEMBER: "Rita Ferraz",
+}
 
 QUESTIONS = (
     {
@@ -617,13 +622,19 @@ def _account_passwords(api: Api, mailpit_url: str) -> dict[str, str]:
     passwords: dict[str, str] = {}
     for email, _role in RESEARCHERS:
         if email in by_email:
+            if not by_email[email].get("name"):
+                api.admin(
+                    "PATCH",
+                    f"/admin/accounts/{by_email[email]['id']}",
+                    json={"name": RESEARCHERS_NAMES[email]},
+                )
             print(f"Account already exists, password unchanged: {email}")
             continue
         created = api.admin(
             "POST",
             "/admin/accounts",
             expected=(201,),
-            json={"email": email, "role": "researcher"},
+            json={"email": email, "name": RESEARCHERS_NAMES[email], "role": "researcher"},
         )
         if not created.get("mail_sent"):
             raise SeedError(f"The account {email} was created but the link could not be mailed.")

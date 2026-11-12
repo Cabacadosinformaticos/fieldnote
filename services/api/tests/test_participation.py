@@ -120,6 +120,7 @@ def _add_question(
 
 def _add_team_member(session: Session, study: Study, make_user) -> str:
     user = make_user(email="team@example.org")
+    user.name = "Inês Marques"
     session.add(
         StudyMember(
             study_id=study.id,
@@ -281,7 +282,7 @@ def test_lookup_personal_code_returns_the_card_without_using_the_code(
     assert body["consent_version"]
     assert body["study"]["title"] == "Daily life"
     assert body["study"]["consent_text"] == "Texto de consentimento deste estudo."
-    assert body["study"]["team"] == [team_email]
+    assert body["study"]["team"] == [{"name": "Inês Marques", "email": team_email}]
     assert body["study"]["requests_per_day"] == activity.prompts_per_day
     assert body["study"]["expected_minutes_per_day"] == (
         activity.prompts_per_day * activity.expected_minutes
@@ -999,7 +1000,7 @@ def test_get_me_includes_the_description_team_and_daily_request_limit(
     summary = response.json()["study"]
     assert summary["description"] == "Como é que o bairro dorme."
     assert summary["consent_text"] == "Texto de consentimento deste estudo."
-    assert summary["team"] == [team_email]
+    assert summary["team"] == [{"name": "Inês Marques", "email": team_email}]
     assert summary["max_prompts_per_day"] == 3
 
 

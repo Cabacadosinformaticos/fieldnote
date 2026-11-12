@@ -138,6 +138,7 @@ class StudyMemberUpdate(BaseModel):
 class StudyMemberOut(BaseModel):
     user_id: uuid.UUID
     email: str
+    name: str | None
     role: StudyRole
 
 

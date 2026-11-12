@@ -9,6 +9,7 @@ import {
   formatPeriod,
   formatRequestsPerDay,
   formatTeam,
+  type TeamMemberLike,
 } from './format';
 
 type Study = components['schemas']['StudyCardOut'];
@@ -17,8 +18,9 @@ type Study = components['schemas']['StudyCardOut'];
  * The join flow has the whole study card; a cached participation only keeps the text and the
  * facts stored on the phone, so the sections without data are left out.
  */
-type ConsentStudy = Pick<Study, 'title' | 'description' | 'consent_text' | 'team'> &
-  Partial<
+type ConsentStudy = Pick<Study, 'title' | 'description' | 'consent_text'> & {
+  team: TeamMemberLike[];
+} & Partial<
     Pick<
       Study,
       | 'starts_on'

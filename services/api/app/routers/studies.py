@@ -115,7 +115,9 @@ def list_members(
     session: SessionDep,
 ) -> list[StudyMemberOut]:
     return [
-        StudyMemberOut(user_id=member.user_id, email=account.email, role=member.role)
+        StudyMemberOut(
+            user_id=member.user_id, email=account.email, name=account.name, role=member.role
+        )
         for member, account in studies.list_members(session, study_id)
     ]
 
@@ -130,7 +132,9 @@ def add_member(
     member, account = studies.add_member(
         session, access.user, study_id, payload.email, payload.role
     )
-    return StudyMemberOut(user_id=member.user_id, email=account.email, role=member.role)
+    return StudyMemberOut(
+        user_id=member.user_id, email=account.email, name=account.name, role=member.role
+    )
 
 
 @router.patch("/{study_id}/members/{user_id}", response_model=StudyMemberOut)
@@ -143,7 +147,9 @@ def change_member_role(
 ) -> StudyMemberOut:
     member = studies.change_member_role(session, access.user, study_id, user_id, payload.role)
     account = session.get(UserAccount, user_id)
-    return StudyMemberOut(user_id=member.user_id, email=account.email, role=member.role)
+    return StudyMemberOut(
+        user_id=member.user_id, email=account.email, name=account.name, role=member.role
+    )
 
 
 @router.delete("/{study_id}/members/{user_id}", status_code=204)

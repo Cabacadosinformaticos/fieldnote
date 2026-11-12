@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 
 import type { components } from '@/api/schema';
+import type { TeamMemberLike } from '@/components/join/format';
 
 export type ParticipationStatus = components['schemas']['ParticipantStatus'];
 
@@ -19,7 +20,7 @@ export type Participation = {
   title: string;
   description: string | null;
   consentText: string | null;
-  team: string[];
+  team: TeamMemberLike[];
   maxPromptsPerDay: number | null;
   todayFreeEntryDisplay: TodayFreeEntryDisplay;
   status: ParticipationStatus;
@@ -42,7 +43,7 @@ export type ParticipationInput = Omit<
 > & {
   description?: string | null;
   consentText?: string | null;
-  team?: string[] | null;
+  team?: TeamMemberLike[] | null;
   maxPromptsPerDay?: number | null;
   todayFreeEntryDisplay?: string | null;
 };
@@ -124,7 +125,15 @@ type ParticipationRow = {
   updated_at: string;
 };
 
-function parseTeam(value: string | null): string[] {
+function isTeamMember(item: unknown): item is Exclude<TeamMemberLike, string> {
+  if (typeof item !== 'object' || item === null) {
+    return false;
+  }
+  const candidate = item as { name?: unknown; email?: unknown };
+  return typeof candidate.name === 'string' || typeof candidate.email === 'string';
+}
+
+function parseTeam(value: string | null): TeamMemberLike[] {
   if (!value) {
     return [];
   }
@@ -132,7 +141,9 @@ function parseTeam(value: string | null): string[] {
   try {
     const parsed: unknown = JSON.parse(value);
     return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === 'string')
+      ? parsed.filter(
+          (item): item is TeamMemberLike => typeof item === 'string' || isTeamMember(item),
+        )
       : [];
   } catch {
     return [];

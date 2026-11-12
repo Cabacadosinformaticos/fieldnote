@@ -434,6 +434,7 @@ def test_the_principal_adds_members_by_email(
     assert response.json() == {
         "user_id": str(colleague.id),
         "email": "colleague@example.org",
+        "name": None,
         "role": "co_investigator",
     }
 

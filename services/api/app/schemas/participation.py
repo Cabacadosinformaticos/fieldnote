@@ -35,6 +35,13 @@ class InvitationAcceptRequest(BaseModel):
     answers: list[StudyAnswerIn] = Field(default_factory=list)
 
 
+class StudyTeamMemberOut(BaseModel):
+    """A person on the study team, as the participant sees them."""
+
+    name: str | None
+    email: str
+
+
 class StudyCardOut(BaseModel):
     id: uuid.UUID
     title: str
@@ -44,7 +51,7 @@ class StudyCardOut(BaseModel):
     starts_on: date | None
     ends_on: date | None
     timezone: str
-    team: list[str]
+    team: list[StudyTeamMemberOut]
     requests_per_day: int
     expected_minutes_per_day: int
     entry_types: list[str]
@@ -88,7 +95,7 @@ class StudySummaryOut(BaseModel):
     starts_on: date | None
     ends_on: date | None
     timezone: str
-    team: list[str]
+    team: list[StudyTeamMemberOut]
     max_prompts_per_day: int
     today_free_entry_display: TodayFreeEntryDisplay
 

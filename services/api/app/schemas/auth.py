@@ -47,6 +47,7 @@ class UserOut(BaseModel):
 
     id: uuid.UUID
     email: str
+    name: str | None = None
     role: UserRole
 
 

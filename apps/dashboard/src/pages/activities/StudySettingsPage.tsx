@@ -113,8 +113,12 @@ function emailName(email: string): string {
   )
 }
 
-function emailInitials(email: string): string {
-  const words = emailName(email).split(' ').filter(Boolean)
+function memberName(member: { email: string; name?: string | null }): string {
+  return member.name?.trim() || emailName(member.email)
+}
+
+function memberInitials(member: { email: string; name?: string | null }): string {
+  const words = memberName(member).split(' ').filter(Boolean)
   return (
     words
       .map((word) => word.charAt(0))
@@ -843,10 +847,10 @@ export default function StudySettingsPage() {
               {members.map((member, index) => (
                 <div className="ac-team-row" key={member.user_id}>
                   <span className={`ac-avatar ac-avatar-${avatarTones[index % avatarTones.length]}`}>
-                    {emailInitials(member.email)}
+                    {memberInitials(member)}
                   </span>
                   <div className="ac-team-copy">
-                    <span className="ac-team-name">{emailName(member.email)}</span>
+                    <span className="ac-team-name">{memberName(member)}</span>
                     <span className="ac-team-note">{member.email}</span>
                   </div>
                   {canManage ? (
@@ -874,7 +878,7 @@ export default function StudySettingsPage() {
                         className="btn btn-sm ac-icon-only"
                         disabled={removeMember.isPending}
                         aria-label={t('settings.team.removeAria', {
-                          name: emailName(member.email),
+                          name: memberName(member),
                         })}
                         onClick={() => removeTeamMember(member.user_id)}
                       >

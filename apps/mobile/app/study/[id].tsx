@@ -20,7 +20,7 @@ import { Bullets } from '@/components/more/Bullets';
 import { SettingsRow } from '@/components/more/SettingsRow';
 import { StatusPill, type StatusTone } from '@/components/more/StatusPill';
 import { moreHref } from '@/components/more/navigation';
-import { formatDate, formatPeriod, formatTeam } from '@/components/join/format';
+import { formatDate, formatPeriod, teamMembers } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
 import { setErasureDue } from '@/state/actions';
 import {
@@ -265,9 +265,14 @@ function StudyDetailsScreen({ id }: { id: string | undefined }) {
 
       <View style={styles.teamCard}>
         <Text style={styles.sectionLabel}>{tm('study.team')}</Text>
-        <Text style={styles.teamValue}>
-          {formatTeam(me.study.team)}
-        </Text>
+        {teamMembers(me.study.team).map((member, index) => (
+          <View key={`${member.email ?? member.name ?? index}`} style={styles.teamMember}>
+            <Text style={styles.teamValue}>{member.name || member.email}</Text>
+            {member.name && member.email ? (
+              <Text style={styles.teamEmail}>{member.email}</Text>
+            ) : null}
+          </View>
+        ))}
       </View>
 
       <Pressable
@@ -488,11 +493,20 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     backgroundColor: colors.surface,
   },
+  teamMember: {
+    gap: 2,
+  },
   teamValue: {
     fontFamily: fonts.semibold,
     fontSize: 15,
     lineHeight: 21,
     color: colors.text,
+  },
+  teamEmail: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.primary,
   },
   sectionLabel: {
     fontFamily: fonts.extrabold,

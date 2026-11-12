@@ -1,7 +1,8 @@
-import { client, refreshSession, type AuthUser } from './client'
+import { client, refreshSession, type AuthUser as SessionUser } from './client'
 import { setAccessToken } from './tokens'
 
-export type { AuthUser }
+// The generated schema does not carry ``name`` yet; it is added here until it is regenerated.
+export type AuthUser = SessionUser & { name?: string | null }
 
 export type SignInOutcome =
   | { status: 'authenticated'; user: AuthUser }

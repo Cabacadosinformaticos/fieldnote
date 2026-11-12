@@ -8,7 +8,7 @@ import { deviceClient } from '@/api/client';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { InfoRow } from '@/components/more/InfoRow';
-import { formatDate, formatTeam } from '@/components/join/format';
+import { formatDate, formatTeam, type TeamMemberLike } from '@/components/join/format';
 import { tm } from '@/i18n/tm';
 import { getDeviceToken, getParticipation, saveParticipation } from '@/state/participations';
 import { colors, fonts, radii, spacing } from '@/theme';
@@ -17,7 +17,7 @@ export default function StudyEndedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [title, setTitle] = useState('');
   const [endedOn, setEndedOn] = useState<string | null>(null);
-  const [team, setTeam] = useState<string[]>([]);
+  const [team, setTeam] = useState<TeamMemberLike[]>([]);
 
   useEffect(() => {
     let active = true;

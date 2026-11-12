@@ -8,7 +8,7 @@ import { deviceClient } from '@/api/client';
 import { networkErrorMessage } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
-import { formatTeam } from '@/components/join/format';
+import { formatTeam, type TeamMemberLike } from '@/components/join/format';
 import { InfoRow } from '@/components/more/InfoRow';
 import { moreHref } from '@/components/more/navigation';
 import { tm } from '@/i18n/tm';
@@ -18,7 +18,7 @@ import { colors, fonts, radii, spacing } from '@/theme';
 export default function StudyRemovedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [title, setTitle] = useState<string | null>(null);
-  const [team, setTeam] = useState<string[]>([]);
+  const [team, setTeam] = useState<TeamMemberLike[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

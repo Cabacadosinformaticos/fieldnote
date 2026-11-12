@@ -125,10 +125,21 @@ export default function AppLayout() {
       location.pathname.startsWith(`${studyBase}/registos`))
 
   const userEmail = user?.email ?? ''
+  const userName = user?.name?.trim()
   const userCard = {
-    name: userEmail ? emailDisplayName(userEmail) : '',
+    name: userName || (userEmail ? emailDisplayName(userEmail) : ''),
     role: t(isAdmin ? 'user.role.admin' : 'user.role.researcher'),
-    initials: userEmail ? emailInitials(userEmail) : '',
+    initials: userName
+      ? userName
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((word) => word.charAt(0))
+          .join('')
+          .toUpperCase()
+      : userEmail
+        ? emailInitials(userEmail)
+        : '',
   }
   const pendingErasures = erasuresQuery.data?.scheduled.length ?? 0
 

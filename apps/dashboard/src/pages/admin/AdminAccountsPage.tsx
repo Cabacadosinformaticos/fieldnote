@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   AdminApiError,
   useAccounts,
-  useChangeAccountRole,
   useCreateAccount,
   useLockAccount,
   useSendAccountLink,
   useUnlockAccount,
+  useUpdateAccount,
   type AdminAccount,
   type CreatedAccount,
   type UserRole,
@@ -90,7 +90,7 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
   const { user } = useAuth()
   const accountsQuery = useAccounts()
   const createAccount = useCreateAccount()
-  const changeRole = useChangeAccountRole()
+  const updateAccount = useUpdateAccount()
   const lockAccount = useLockAccount()
   const unlockAccount = useUnlockAccount()
   const sendLink = useSendAccountLink()
@@ -127,7 +127,10 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
     const term = query.trim().toLowerCase()
     return accounts.filter((account) => {
       const matchesFilter = filter === 'all' || account.state === filter
-      const matchesQuery = term.length === 0 || account.email.toLowerCase().includes(term)
+      const matchesQuery =
+        term.length === 0 ||
+        account.email.toLowerCase().includes(term) ||
+        (account.name ?? '').toLowerCase().includes(term)
       return matchesFilter && matchesQuery
     })
   }, [accounts, filter, query])
@@ -156,8 +159,8 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
     if (!editing) {
       return
     }
-    changeRole.mutate(
-      { userId: editing.id, role: draft.role },
+    updateAccount.mutate(
+      { userId: editing.id, role: draft.role, name: draft.name },
       {
         onSuccess: () => {
           setNotice(t('acct.updated', { email: editing.email }))
@@ -339,10 +342,12 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
                           account.state === 'active' ? 'ad-account-name' : 'ad-account-name is-disabled'
                         }
                       >
-                        {account.email}
+                        {account.name?.trim() || account.email}
                       </span>
                       <span className="ad-account-email">
-                        {formatDateTime(account.created_at)}
+                        {account.name?.trim()
+                          ? account.email
+                          : formatDateTime(account.created_at)}
                       </span>
                     </div>
 
@@ -416,7 +421,7 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
                         className={isSelf ? 'ad-btn-sm ad-btn-muted' : 'ad-btn-sm'}
                         aria-label={isSelf ? t('acct.selfAria') : t('acct.editAria', { email: account.email })}
                         onClick={() => setEditing(account)}
-                        disabled={isSelf || changeRole.isPending}
+                        disabled={isSelf || updateAccount.isPending}
                       >
                         {t('common.edit')}
                       </button>
@@ -521,10 +526,10 @@ export default function AdminAccountsPage({ newAccountOpen = false }: { newAccou
           key={editing.id}
           mode="edit"
           account={editing}
-          submitting={changeRole.isPending}
-          error={changeRole.error ? accountErrorText(changeRole.error) : ''}
+          submitting={updateAccount.isPending}
+          error={updateAccount.error ? accountErrorText(updateAccount.error) : ''}
           onClose={() => {
-            changeRole.reset()
+            updateAccount.reset()
             setEditing(null)
           }}
           onSubmit={handleUpdate}

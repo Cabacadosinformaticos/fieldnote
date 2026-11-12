@@ -148,6 +148,25 @@ export function formatRequestsPerDay(count: number, minutes: number): string {
   });
 }
 
-export function formatTeam(team: string[]): string {
-  return team.length > 0 ? team.join(', ') : tj('invitation.teamEmpty');
+/** A team member from the API or from an older cached list that held only the email. */
+export type TeamMemberLike = string | { name?: string | null; email?: string | null };
+
+export type TeamMember = { name: string | null; email: string | null };
+
+export function teamMembers(team: TeamMemberLike[]): TeamMember[] {
+  return team.map((member) => {
+    if (typeof member === 'string') {
+      return member.includes('@')
+        ? { name: null, email: member }
+        : { name: member, email: null };
+    }
+    return { name: member.name ?? null, email: member.email ?? null };
+  });
+}
+
+export function formatTeam(team: TeamMemberLike[]): string {
+  const labels = teamMembers(team)
+    .map((member) => member.name || member.email || '')
+    .filter(Boolean);
+  return labels.length > 0 ? labels.join(', ') : tj('invitation.teamEmpty');
 }
