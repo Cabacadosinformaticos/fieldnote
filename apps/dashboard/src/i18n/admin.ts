@@ -330,6 +330,9 @@ const pt = {
   'audit.action.entry_tags_changed': 'Etiquetas do registo alteradas',
   'audit.action.media_retry_requested': 'Nova tentativa de media pedida',
   'audit.action.media_processing_failed': 'Ficheiro com falha',
+  'audit.action.plan_completed': 'Plano diário concluído',
+  'audit.action.media_failed': 'Ficheiro com falha',
+  'audit.action.erasure_failed': 'Apagamento recusado',
   'audit.actionUnknown': 'Ação não catalogada',
 
   /* Audit detail labels and values */
@@ -367,9 +370,15 @@ const pt = {
   'audit.detail.filter': 'Filtro',
   'audit.detail.scope': 'Âmbito',
   'audit.detail.include_media': 'Ficheiros de media',
+  'audit.detail.planned': 'Pedidos planeados',
+  'audit.detail.unplanned': 'Pedidos sem plano',
+  'audit.detail.seconds': 'Tempo',
+  'audit.detail.search': 'Pesquisa',
   'audit.detail.value.yes': 'Sim',
   'audit.detail.value.no': 'Não',
   'audit.detail.value.zip': 'ZIP com CSV',
+  'audit.detail.value.complete': 'Completa',
+  'audit.detail.value.cut': 'Cortada',
   'audit.detail.reason.unknown_email': 'E-mail desconhecido',
   'audit.detail.reason.locked': 'Conta bloqueada',
   'audit.detail.reason.bad_password': 'Palavra-passe errada',
@@ -488,22 +497,32 @@ const pt = {
   'erasure.confirm.idBefore': 'Escreva o identificador do participante para confirmar',
   'erasure.confirm.repeat': 'Repita o identificador',
   'erasure.confirm.alias': 'Escreva o pseudónimo {alias} para confirmar',
+  'erasure.confirm.totp': 'Código TOTP da sua aplicação de autenticação',
+  'erasure.confirm.totpHint': '6 dígitos. Muda de 30 em 30 segundos.',
   'erasure.confirm.erase': 'Apagar definitivamente',
   'erasure.confirm.cancel': 'Cancelar',
   'erasure.confirm.note':
-    'O botão só fica ativo quando os dois identificadores coincidirem. O apagamento fica registado na auditoria com a sua conta, nunca com o nome do participante.',
+    'O botão só fica ativo quando os dois identificadores coincidirem e o código TOTP tiver 6 dígitos. O apagamento fica registado na auditoria com a sua conta, nunca com o nome do participante.',
   'erasure.confirm.pendingNote':
-    'O botão só fica ativo quando o pseudónimo coincidir. O apagamento e o pedido tratado ficam registados na auditoria, com a sua conta e nunca com o nome do participante.',
+    'O botão só fica ativo quando o pseudónimo coincidir e o código TOTP tiver 6 dígitos. O apagamento e o pedido tratado ficam registados na auditoria, com a sua conta e nunca com o nome do participante.',
   'erasure.confirm.success':
     'Participante apagado: {entries} registos e {files} ficheiros.',
   'erasure.error.notFound': 'Não existe nenhum participante com esse identificador.',
   'erasure.error.scheduled':
     'Este participante já tem um apagamento agendado pela app; não é preciso apagar à mão.',
+  'erasure.error.totpRequired':
+    'Escreva o código de 6 dígitos da aplicação de autenticação.',
+  'erasure.error.totpInvalid':
+    'O código TOTP não é válido. Escreva o código atual e tente outra vez.',
+  'erasure.error.totpNotEnrolled':
+    'A sua conta ainda não tem uma aplicação de autenticação configurada.',
   'erasure.error.generic': 'Não foi possível apagar o participante ({code}).',
   'erasure.historyTitle': 'Apagamentos já feitos',
   'erasure.historyEmpty': 'Ainda não há apagamentos registados.',
-  'erasure.historyItem': 'Participante {id}',
-  'erasure.historyMeta': '{study} · {date} · {entries} registos e {files} ficheiros',
+  'erasure.historyItem': '{alias} · {study}',
+  'erasure.historyMeta':
+    '{date}, {time} por {actor}. {entries} registos e {files} ficheiros. Sai das cópias de segurança até {until}.',
+  'erasure.historySystemActor': 'Sistema',
 
   /* TOTP second step */
 

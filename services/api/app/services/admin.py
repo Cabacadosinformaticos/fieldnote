@@ -14,6 +14,7 @@ from app.models import (
     AccountParticipation,
     AuditLog,
     Entry,
+    ErasureRequest,
     Participant,
     RefreshToken,
     Study,
@@ -26,6 +27,7 @@ from app.security.passwords import hash_password
 from app.services import account_links
 from app.services import overview as overview_service
 from app.services.erasure import ERASED_ACTION
+from app.services.erasure_requests import DONE_ACTION as REQUEST_DONE_ACTION
 
 # The schema has no ``active`` column, so an account deactivated by an administrator is locked
 # until this moment. The access token already issued keeps working until it expires (UC14).
@@ -64,9 +66,23 @@ class AuditPage:
 
 
 @dataclass(frozen=True)
+class CompletedErasure:
+    """One erasure already run, either through a team request or straight from the audit log."""
+
+    participant_id: uuid.UUID | None
+    alias: str | None
+    study_id: uuid.UUID | None
+    actor_type: AuditActorType
+    actor_id: uuid.UUID | None
+    at: datetime
+    entries: int
+    files: int
+
+
+@dataclass(frozen=True)
 class ErasureListing:
     scheduled: list[Participant]
-    completed: list[AuditLog]
+    completed: list[CompletedErasure]
     next_cursor: int | None = None
 
 
@@ -450,7 +466,7 @@ def list_audit(
 def actor_names(
     session: Session, events: list[AuditLog]
 ) -> dict[tuple[AuditActorType, uuid.UUID], str]:
-    """Display names for the actors of these rows: account name or email, alias and study."""
+    """Display names for the actors of these rows: the account name or email, or the alias."""
     user_ids = {
         event.actor_id
         for event in events
@@ -473,16 +489,68 @@ def actor_names(
             labels[(AuditActorType.USER, user_id)] = display or email
 
     if participant_ids:
-        for participant_id, alias, study_id in session.execute(
-            select(Participant.id, Participant.alias, Participant.study_id).where(
-                Participant.id.in_(participant_ids)
-            )
+        for participant_id, alias in session.execute(
+            select(Participant.id, Participant.alias).where(Participant.id.in_(participant_ids))
         ):
-            reference = alias or str(participant_id)[:8]
-            labels[(AuditActorType.PARTICIPANT, participant_id)] = (
-                f"{reference} ({str(study_id)[:8]})"
-            )
+            labels[(AuditActorType.PARTICIPANT, participant_id)] = alias or str(participant_id)[:8]
     return labels
+
+
+def actor_study_titles(session: Session, events: list[AuditLog]) -> dict[uuid.UUID, str]:
+    """The study title of each participant actor, for the target column of the audit page."""
+    participant_ids = {
+        event.actor_id
+        for event in events
+        if event.actor_id is not None and event.actor_type == AuditActorType.PARTICIPANT
+    }
+    if not participant_ids:
+        return {}
+    rows = session.execute(
+        select(Participant.id, Study.title)
+        .join(Study, Study.id == Participant.study_id)
+        .where(Participant.id.in_(participant_ids))
+    )
+    return {participant_id: title for participant_id, title in rows}
+
+
+def _uuid_or_none(value: object) -> uuid.UUID | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        return None
+
+
+def _count(value: object) -> int:
+    return value if isinstance(value, int) else 0
+
+
+def _request_participants(
+    session: Session, request_ids: set[uuid.UUID]
+) -> dict[uuid.UUID, uuid.UUID]:
+    """The participant behind each done request, read from the audit row the request wrote.
+
+    The request loses its participant id when the participant is erased (``ON DELETE SET NULL``),
+    so the ``erasure_request_done`` row is what still links the two.
+    """
+    if not request_ids:
+        return {}
+    rows = session.execute(
+        select(AuditLog.target, AuditLog.details).where(
+            AuditLog.action == REQUEST_DONE_ACTION,
+            AuditLog.details.op("->>")("request_id").in_(
+                [str(request_id) for request_id in request_ids]
+            ),
+        )
+    )
+    pairs: dict[uuid.UUID, uuid.UUID] = {}
+    for target, details in rows:
+        request_id = _uuid_or_none((details or {}).get("request_id"))
+        participant_id = _uuid_or_none(target)
+        if request_id is not None and participant_id is not None:
+            pairs[request_id] = participant_id
+    return pairs
 
 
 def list_erasures(
@@ -493,8 +561,11 @@ def list_erasures(
 ) -> ErasureListing:
     """Erasures scheduled from the app (read only) and the erasures already run.
 
-    The completed list is paginated like :func:`list_audit`: ``cursor`` is the id of the last
-    row of the previous page.
+    A team request keeps its alias and counts after the erasure and is shown from its own row;
+    the ``participant_erased`` audit row of that erasure is folded into the request so the list
+    never shows it twice. The completed list is paginated like :func:`list_audit`: ``cursor`` is
+    the id of the last audit row of the previous page, and done requests only appear on the
+    first page because they have no audit id to page by.
     """
     scheduled = list(
         session.scalars(
@@ -503,17 +574,83 @@ def list_erasures(
             .order_by(Participant.erasure_due_at.asc().nulls_last(), Participant.id)
         )
     )
+
+    done_requests: list[ErasureRequest] = []
+    request_participants: dict[uuid.UUID, uuid.UUID] = {}
+    if cursor is None:
+        done_requests = list(
+            session.scalars(
+                select(ErasureRequest)
+                .where(ErasureRequest.status == "done")
+                .order_by(ErasureRequest.done_at.desc().nulls_last(), ErasureRequest.id)
+            )
+        )
+        request_participants = _request_participants(
+            session, {request.id for request in done_requests}
+        )
+
     statement = select(AuditLog).where(AuditLog.action == ERASED_ACTION)
+    if request_participants:
+        statement = statement.where(
+            AuditLog.target.not_in(
+                [str(participant_id) for participant_id in request_participants.values()]
+            )
+        )
     if cursor is not None:
         statement = statement.where(AuditLog.id < cursor)
     rows = list(session.scalars(statement.order_by(AuditLog.id.desc()).limit(limit + 1)))
     has_more = len(rows) > limit
-    completed = rows[:limit]
+    events = rows[:limit]
+
+    completed = [
+        CompletedErasure(
+            participant_id=request_participants.get(request.id),
+            alias=request.participant_alias,
+            study_id=request.study_id,
+            actor_type=AuditActorType.USER,
+            actor_id=request.done_by,
+            at=_as_utc(request.done_at or request.created_at),
+            entries=request.entries or 0,
+            files=request.files or 0,
+        )
+        for request in done_requests
+    ]
+    for row in events:
+        details = row.details or {}
+        completed.append(
+            CompletedErasure(
+                participant_id=_uuid_or_none(row.target),
+                alias=None,
+                study_id=_uuid_or_none(details.get("study_id")),
+                actor_type=row.actor_type,
+                actor_id=row.actor_id,
+                at=_as_utc(row.at),
+                entries=_count(details.get("entries")),
+                files=_count(details.get("files")),
+            )
+        )
+    completed.sort(key=lambda item: item.at, reverse=True)
+
     return ErasureListing(
         scheduled=scheduled,
         completed=completed,
-        next_cursor=completed[-1].id if has_more and completed else None,
+        next_cursor=events[-1].id if has_more and events else None,
     )
+
+
+def user_names(session: Session, user_ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """The display name or email of each account, for the actor of a completed erasure."""
+    if not user_ids:
+        return {}
+    names: dict[uuid.UUID, str] = {}
+    for user_id, name, email in session.execute(
+        select(UserAccount.id, UserAccount.name, UserAccount.email).where(
+            UserAccount.id.in_(user_ids)
+        )
+    ):
+        display = name.strip() if name else ""
+        names[user_id] = display or email
+    return names
 
 
 def study_titles(session: Session, study_ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:

@@ -21,6 +21,7 @@ export type AdminStudy = Omit<components['schemas']['AdminStudyOut'], 'team'> & 
 export type AuditActorType = components['schemas']['AuditActorType']
 export type AuditEvent = components['schemas']['AuditEventOut'] & {
   actor_name: string | null
+  actor_study_title: string | null
   origin_client: 'portal' | 'app_android' | 'app_ios' | 'scheduled_task' | 'automatic_task' | null
   origin_ip: string | null
   origin_browser: string | null
@@ -30,9 +31,23 @@ export type AuditPage = Omit<components['schemas']['AuditLogPage'], 'items'> & {
   total: number
   page_count: number
 }
-export type ErasureList = components['schemas']['ErasureListOut']
+// The generated schema predates the alias and the counts kept on a done request.
+export type ErasureList = Omit<components['schemas']['ErasureListOut'], 'completed'> & {
+  completed: CompletedErasure[]
+}
 export type ScheduledErasure = components['schemas']['ScheduledErasureOut']
-export type CompletedErasure = components['schemas']['CompletedErasureOut']
+export type CompletedErasure = {
+  participant_id: string | null
+  alias: string | null
+  study_id: string | null
+  study_title: string | null
+  actor_type: AuditActorType
+  actor_id: string | null
+  actor_name: string | null
+  at: string
+  entries: number
+  files: number
+}
 export type ErasureResult = components['schemas']['ErasureResultOut']
 export type UserRole = components['schemas']['UserRole']
 export type PoolOverview = components['schemas']['AdminPoolOverviewOut']
@@ -182,7 +197,7 @@ export async function fetchAuditLog(filters: AuditFilters): Promise<AuditPage> {
 export async function fetchErasures(): Promise<ErasureList> {
   const { data, error, response } = await client.GET('/admin/erasures')
   if (data) {
-    return data
+    return data as ErasureList
   }
   throw await toAdminError(error, response)
 }
@@ -195,10 +210,28 @@ export async function fetchPoolOverview(): Promise<PoolOverview> {
   throw await toAdminError(error, response)
 }
 
-export async function eraseParticipant(participantId: string): Promise<ErasureResult> {
-  const { data, error, response } = await client.POST(
+type ErasurePostResult = { data?: ErasureResult; error?: unknown; response: Response }
+
+// The generated schema predates the TOTP code in the body; openapi.json is refreshed after the
+// batch, so the route is called through this narrow cast instead of being regenerated here.
+const postErasure = client.POST as unknown as (
+  path: '/admin/participants/{participant_id}/erasure',
+  options: {
+    params: { path: { participant_id: string } }
+    body: { totp_code: string }
+  },
+) => Promise<ErasurePostResult>
+
+export async function eraseParticipant(
+  participantId: string,
+  totpCode: string,
+): Promise<ErasureResult> {
+  const { data, error, response } = await postErasure(
     '/admin/participants/{participant_id}/erasure',
-    { params: { path: { participant_id: participantId } } },
+    {
+      params: { path: { participant_id: participantId } },
+      body: { totp_code: totpCode },
+    },
   )
   if (data) {
     return data
@@ -282,7 +315,8 @@ export function useSendAccountLink() {
 export function useEraseParticipant() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: eraseParticipant,
+    mutationFn: (input: { participantId: string; totpCode: string }) =>
+      eraseParticipant(input.participantId, input.totpCode),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: keys.erasures })
       void queryClient.invalidateQueries({ queryKey: keys.audit })

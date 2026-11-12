@@ -128,6 +128,9 @@ const auditActions: { code: string; labelKey: AdminKey }[] = [
   { code: 'entry_tags_changed', labelKey: 'audit.action.entry_tags_changed' },
   { code: 'media_retry_requested', labelKey: 'audit.action.media_retry_requested' },
   { code: 'media_processing_failed', labelKey: 'audit.action.media_processing_failed' },
+  { code: 'plan_completed', labelKey: 'audit.action.plan_completed' },
+  { code: 'media_failed', labelKey: 'audit.action.media_failed' },
+  { code: 'erasure_failed', labelKey: 'audit.action.erasure_failed' },
 ]
 
 const actionLabels = new Map(auditActions.map((item) => [item.code, item.labelKey]))
@@ -162,6 +165,10 @@ const detailLabels: Record<string, AdminKey> = {
   filter: 'audit.detail.filter',
   scope: 'audit.detail.scope',
   include_media: 'audit.detail.include_media',
+  planned: 'audit.detail.planned',
+  unplanned: 'audit.detail.unplanned',
+  seconds: 'audit.detail.seconds',
+  search: 'audit.detail.search',
 }
 
 const reasonLabels: Record<string, AdminKey> = {
@@ -227,7 +234,19 @@ function detailValue(
   }
   if (key === 'reason' && typeof value === 'string') {
     const label = reasonLabels[value]
-    return label ? t(label) : null
+    return label ? t(label) : value
+  }
+  if (key === 'search' && typeof value === 'string') {
+    if (value === 'complete') {
+      return t('audit.detail.value.complete')
+    }
+    if (value === 'cut') {
+      return t('audit.detail.value.cut')
+    }
+    return null
+  }
+  if (key === 'seconds' && typeof value === 'number') {
+    return `${value.toLocaleString('pt-PT', { maximumFractionDigits: 1 })} s`
   }
   if (key === 'role' && typeof value === 'string') {
     if (value === 'admin') {
@@ -296,6 +315,10 @@ function targetLabel(event: AuditEvent, studyTitles: Map<string, string>): strin
   const email = event.details?.email
   if (typeof email === 'string' && email.includes('@')) {
     return email
+  }
+  // The actor column shows the participant alias, so the target column carries their study.
+  if (event.actor_type === 'participant' && event.actor_study_title) {
+    return event.actor_study_title
   }
   if (!event.target) {
     return '—'

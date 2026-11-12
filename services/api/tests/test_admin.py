@@ -611,6 +611,34 @@ def test_audit_log_filters_by_actor_action_study_and_date(
     assert [row["action"] for row in by_date.json()["items"]] == ["study_updated"]
 
 
+def test_audit_log_shows_the_alias_and_the_study_of_a_participant_actor(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study(title="Pequenos-almoços em casa")
+    participant = make_participant(study, alias="P-14")
+    _add_event(
+        session,
+        "erasure_requested",
+        at=datetime(2026, 10, 1, 9, 0, tzinfo=UTC),
+        actor_type=AuditActorType.PARTICIPANT,
+        actor_id=participant.id,
+    )
+
+    response = client.get(
+        f"{ADMIN}/audit-log?action=erasure_requested", headers=bearer_headers(admin)
+    )
+
+    assert response.status_code == 200
+    row = response.json()["items"][0]
+    assert row["actor_name"] == "P-14"
+    assert row["actor_study_title"] == "Pequenos-almoços em casa"
+
+
 def test_audit_log_paginates_with_a_cursor(
     client: TestClient, session: Session, admin: UserAccount, bearer_headers
 ) -> None:
