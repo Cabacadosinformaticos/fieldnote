@@ -28,6 +28,7 @@ from app.models.enums import (
     QuestionKind,
     UserRole,
 )
+from app.security import totp
 from app.security.audit import record
 from app.services import storage
 from app.services.erasure import erase_participant
@@ -38,7 +39,20 @@ ADMIN = f"{API}/admin"
 
 @pytest.fixture
 def admin(make_user):
-    return make_user(email="admin@example.org", role=UserRole.ADMIN)
+    return make_user(
+        email="admin@example.org",
+        role=UserRole.ADMIN,
+        totp_secret=totp.generate_secret(),
+    )
+
+
+def _code(admin) -> str:
+    return totp.generate_code(admin.totp_secret)
+
+
+def _erase(client: TestClient, admin, headers, participant_id, code: str | None = None):
+    body = {} if code is None else {"totp_code": code}
+    return client.post(f"{ADMIN}/participants/{participant_id}/erasure", headers=headers, json=body)
 
 
 @pytest.fixture
@@ -143,10 +157,7 @@ def test_admin_erasure_removes_rows_files_and_audits_without_personal_data(
     entry_id, media_id = entry.id, media.id
     account_id = account.id
 
-    response = client.post(
-        f"{ADMIN}/participants/{participant_id}/erasure",
-        headers=bearer_headers(admin),
-    )
+    response = _erase(client, admin, bearer_headers(admin), participant_id, _code(admin))
 
     assert response.status_code == 200, response.text
     assert response.json() == {
@@ -209,10 +220,7 @@ def test_admin_erasure_refuses_a_participant_scheduled_by_the_app(
     session.commit()
     calls = _delete_file_calls(monkeypatch)
 
-    response = client.post(
-        f"{ADMIN}/participants/{participant.id}/erasure",
-        headers=bearer_headers(admin),
-    )
+    response = _erase(client, admin, bearer_headers(admin), participant.id, _code(admin))
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "erasure_scheduled"
@@ -237,6 +245,74 @@ def test_erasure_endpoints_are_admin_only(
     assert client.get(f"{ADMIN}/erasures", headers=bearer_headers(researcher)).status_code == 403
 
 
+def _wrong_code(admin) -> str:
+    now = datetime.now(UTC)
+    valid = {
+        totp.generate_code(admin.totp_secret, now + timedelta(seconds=step * 30))
+        for step in (-1, 0, 1)
+    }
+    candidate = "000000"
+    while candidate in valid:
+        candidate = f"{(int(candidate) + 1) % 10**6:06d}"
+    return candidate
+
+
+def test_a_wrong_totp_code_refuses_the_erasure_and_audits_it(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    calls = _delete_file_calls(monkeypatch)
+
+    response = _erase(client, admin, bearer_headers(admin), participant.id, _wrong_code(admin))
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_totp"
+    assert calls == []
+    session.expire_all()
+    assert session.get(Participant, participant.id) is not None
+    audit = session.scalar(select(AuditLog).where(AuditLog.action == "erasure_failed"))
+    assert audit is not None
+    assert audit.actor_id == admin.id
+    assert audit.target == str(participant.id)
+    assert audit.details == {"reason": "bad_totp"}
+
+
+def test_a_missing_totp_code_refuses_the_erasure_and_audits_it(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    calls = _delete_file_calls(monkeypatch)
+    url = f"{ADMIN}/participants/{participant.id}/erasure"
+
+    no_body = client.post(url, headers=bearer_headers(admin))
+    empty_body = client.post(url, headers=bearer_headers(admin), json={})
+
+    assert no_body.status_code == 401
+    assert no_body.json()["error"]["code"] == "totp_required"
+    assert empty_body.status_code == 401
+    assert empty_body.json()["error"]["code"] == "totp_required"
+    assert calls == []
+    session.expire_all()
+    assert session.get(Participant, participant.id) is not None
+    audit = session.scalar(select(AuditLog).where(AuditLog.action == "erasure_failed"))
+    assert audit is not None
+    assert audit.details == {"reason": "totp_missing"}
+
+
 def test_erasures_list_shows_scheduled_and_completed_ones(
     client: TestClient,
     session: Session,
@@ -257,10 +333,7 @@ def test_erasures_list_shows_scheduled_and_completed_ones(
     erased, _, _, _ = _seed(session, study, make_participant, alias="P-08")
     _delete_file_calls(monkeypatch, deleted_files=2)
     erased_id = erased.id
-    response = client.post(
-        f"{ADMIN}/participants/{erased_id}/erasure",
-        headers=bearer_headers(admin),
-    )
+    response = _erase(client, admin, bearer_headers(admin), erased_id, _code(admin))
     assert response.status_code == 200
 
     listing = client.get(f"{ADMIN}/erasures", headers=bearer_headers(admin))
@@ -417,10 +490,7 @@ def test_erasure_removes_a_staged_upload_that_has_no_entry(
     staged_id = staged.id
     _delete_file_calls(monkeypatch)
 
-    response = client.post(
-        f"{ADMIN}/participants/{participant.id}/erasure",
-        headers=bearer_headers(admin),
-    )
+    response = _erase(client, admin, bearer_headers(admin), participant.id, _code(admin))
 
     assert response.status_code == 200, response.text
     session.expire_all()

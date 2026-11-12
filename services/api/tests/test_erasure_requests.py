@@ -15,6 +15,7 @@ from app.models import (
     StudyMember,
 )
 from app.models.enums import EntryType, ParticipantStatus, StudyRole, UserRole
+from app.security import totp
 from app.services import erasure_requests as service
 from app.services import storage
 
@@ -23,6 +24,22 @@ API = "/api/v1"
 
 def _url(study, participant) -> str:
     return f"{API}/studies/{study.id}/participants/{participant.id}/erasure-request"
+
+
+def _admin(make_user):
+    return make_user(
+        email="admin@example.org",
+        role=UserRole.ADMIN,
+        totp_secret=totp.generate_secret(),
+    )
+
+
+def _erase(client: TestClient, admin, headers, participant_id):
+    return client.post(
+        f"{API}/admin/participants/{participant_id}/erasure",
+        headers=headers,
+        json={"totp_code": totp.generate_code(admin.totp_secret)},
+    )
 
 
 def _add_member(session: Session, study, user, role: StudyRole) -> None:
@@ -103,6 +120,7 @@ def test_owner_creates_a_request_and_the_admin_card_has_the_counts(
     body = created.json()
     assert body["status"] == "pending"
     assert body["participant_id"] == str(participant.id)
+    assert body["participant_alias"] == "P-05"
     assert body["study_id"] == str(study.id)
     assert body["requested_by"] == str(owner.id)
     assert body["requested_by_name"] == "Rita Ferraz"
@@ -112,6 +130,7 @@ def test_owner_creates_a_request_and_the_admin_card_has_the_counts(
         select(ErasureRequest).where(ErasureRequest.participant_id == participant.id)
     )
     assert stored is not None and stored.status == "pending"
+    assert stored.participant_alias == "P-05"
     audit = session.scalar(select(AuditLog).where(AuditLog.action == "erasure_request_created"))
     assert audit is not None and audit.actor_id == owner.id
 
@@ -334,7 +353,7 @@ def test_get_returns_null_when_there_is_no_pending_request(
     assert forbidden.status_code == 403
 
 
-def test_the_admin_erasure_closes_the_request_and_audits_it(
+def test_the_admin_erasure_closes_the_request_and_keeps_its_record(
     client: TestClient,
     session: Session,
     make_user,
@@ -345,7 +364,7 @@ def test_the_admin_erasure_closes_the_request_and_audits_it(
 ) -> None:
     study = make_study()
     owner = make_user(email="owner@example.org")
-    admin = make_user(email="admin@example.org", role=UserRole.ADMIN)
+    admin = _admin(make_user)
     _add_member(session, study, owner, StudyRole.PRINCIPAL_INVESTIGATOR)
     participant = make_participant(study, alias="P-05")
     _entry(session, participant)
@@ -356,19 +375,26 @@ def test_the_admin_erasure_closes_the_request_and_audits_it(
         json={"received_at": datetime.now(UTC).isoformat()},
     )
     assert created.status_code == 201
-    request_id = created.json()["id"]
+    request_id = uuid.UUID(created.json()["id"])
     participant_id = participant.id
 
-    erased = client.post(
-        f"{API}/admin/participants/{participant_id}/erasure",
-        headers=bearer_headers(admin),
-    )
+    erased = _erase(client, admin, bearer_headers(admin), participant_id)
 
     assert erased.status_code == 200, erased.text
+    assert erased.json()["entries_deleted"] == 1
+    assert erased.json()["files_deleted"] == 0
     session.expire_all()
     assert session.get(Participant, participant_id) is None
-    # The participant foreign key cascades, so only the audit row remains as the record.
-    assert session.get(ErasureRequest, uuid.UUID(request_id)) is None
+    # The participant link is set to null, and the request keeps the alias and counts as record.
+    stored = session.get(ErasureRequest, request_id)
+    assert stored is not None
+    assert stored.status == "done"
+    assert stored.participant_id is None
+    assert stored.participant_alias == "P-05"
+    assert stored.entries == 1
+    assert stored.files == 0
+    assert stored.done_by == admin.id
+    assert stored.done_at is not None
     done = session.scalar(
         select(AuditLog).where(
             AuditLog.action == "erasure_request_done",
@@ -378,12 +404,22 @@ def test_the_admin_erasure_closes_the_request_and_audits_it(
     assert done is not None
     assert done.actor_id == admin.id
     assert done.details is not None
-    assert done.details["request_id"] == request_id
+    assert done.details["request_id"] == str(request_id)
     assert done.details["study_id"] == str(study.id)
-    assert session.scalar(select(ErasureRequest.id)) is None
+
+    listing = client.get(f"{API}/admin/erasures", headers=bearer_headers(admin))
+    assert listing.status_code == 200
+    completed = listing.json()["completed"]
+    # The erasure of a request shows once, from the request, not again from the audit row.
+    assert len(completed) == 1
+    assert completed[0]["participant_id"] == str(participant_id)
+    assert completed[0]["alias"] == "P-05"
+    assert completed[0]["study_title"] == study.title
+    assert completed[0]["entries"] == 1
+    assert completed[0]["files"] == 0
 
 
-def test_mark_done_sets_the_status_and_the_administrator(
+def test_mark_done_sets_the_status_the_administrator_and_the_counts(
     session: Session,
     make_user,
     make_study,
@@ -391,7 +427,7 @@ def test_mark_done_sets_the_status_and_the_administrator(
 ) -> None:
     study = make_study()
     owner = make_user(email="owner@example.org")
-    admin = make_user(email="admin@example.org", role=UserRole.ADMIN)
+    admin = _admin(make_user)
     _add_member(session, study, owner, StudyRole.PRINCIPAL_INVESTIGATOR)
     participant = make_participant(study)
     request = service.create_request(
@@ -402,7 +438,14 @@ def test_mark_done_sets_the_status_and_the_administrator(
         datetime.now(UTC) - timedelta(days=1),
     )
 
-    closed = service.mark_done(session, participant.id, admin)
+    closed = service.mark_done(
+        session,
+        request.id,
+        admin,
+        participant_id=participant.id,
+        entries=4,
+        files=2,
+    )
 
     assert closed is not None
     stored = session.get(ErasureRequest, request.id)
@@ -410,4 +453,18 @@ def test_mark_done_sets_the_status_and_the_administrator(
     assert stored.status == "done"
     assert stored.done_by == admin.id
     assert stored.done_at is not None
+    assert stored.entries == 4
+    assert stored.files == 2
+    assert stored.participant_alias == participant.alias
     assert service.pending_request(session, study.id, participant.id) is None
+    assert (
+        service.mark_done(
+            session,
+            request.id,
+            admin,
+            participant_id=participant.id,
+            entries=4,
+            files=2,
+        )
+        is None
+    )

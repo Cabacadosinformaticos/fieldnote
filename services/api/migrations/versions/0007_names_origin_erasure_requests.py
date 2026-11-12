@@ -38,11 +38,15 @@ def upgrade() -> None:
             sa.ForeignKey(
                 "participant.id",
                 name="fk_erasure_request_participant_id_participant",
-                ondelete="CASCADE",
+                ondelete="SET NULL",
             ),
-            nullable=False,
+            nullable=True,
             index=True,
         ),
+        # Kept when the participant row is erased, so the done list still says who it was.
+        sa.Column("participant_alias", sa.Text(), nullable=False),
+        sa.Column("entries", sa.Integer(), nullable=True),
+        sa.Column("files", sa.Integer(), nullable=True),
         sa.Column(
             "requested_by",
             sa.Uuid(),

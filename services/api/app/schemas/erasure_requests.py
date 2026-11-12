@@ -16,7 +16,9 @@ class ErasureRequestCreate(BaseModel):
 class ErasureRequestSummaryOut(BaseModel):
     id: uuid.UUID
     status: Literal["pending", "done", "cancelled"]
-    participant_id: uuid.UUID
+    # Null once the participant is erased; the alias and the counts stay on the request.
+    participant_id: uuid.UUID | None
+    participant_alias: str
     study_id: uuid.UUID
     requested_by: uuid.UUID | None
     requested_by_name: str | None

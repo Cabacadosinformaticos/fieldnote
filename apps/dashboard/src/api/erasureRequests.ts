@@ -10,7 +10,9 @@ export type StudyRole = 'principal_investigator' | 'co_investigator' | 'member'
 export type ErasureRequestSummary = {
   id: string
   status: 'pending' | 'done' | 'cancelled'
-  participant_id: string
+  // Null on a done request whose participant was erased; the alias stays as the record.
+  participant_id: string | null
+  participant_alias: string
   study_id: string
   requested_by: string | null
   requested_by_name: string | null
@@ -28,6 +30,8 @@ export type ErasureRequestCounts = {
 }
 
 export type PendingErasureRequest = ErasureRequestSummary & {
+  // A pending request always still points at its participant.
+  participant_id: string
   alias: string | null
   study_title: string
   requested_by_role: StudyRole | null

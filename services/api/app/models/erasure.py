@@ -41,9 +41,13 @@ class ErasureRequest(Base):
     study_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("study.id", ondelete="CASCADE"), index=True
     )
-    participant_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("participant.id", ondelete="CASCADE"), index=True
+    # Set to null when the participant is erased; the alias and the counts stay as the record.
+    participant_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("participant.id", ondelete="SET NULL"), index=True
     )
+    participant_alias: Mapped[str] = mapped_column(Text)
+    entries: Mapped[int | None] = mapped_column(Integer)
+    files: Mapped[int | None] = mapped_column(Integer)
     requested_by: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("user_account.id", ondelete="SET NULL")
     )

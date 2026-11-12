@@ -85,6 +85,19 @@ def pending_request(
     )
 
 
+def pending_for_participant(session: Session, participant_id: uuid.UUID) -> ErasureRequest | None:
+    """The pending request of one participant, found before the erasure removes the row."""
+    return session.scalar(
+        select(ErasureRequest)
+        .where(
+            ErasureRequest.participant_id == participant_id,
+            ErasureRequest.status == "pending",
+        )
+        .order_by(ErasureRequest.created_at.desc())
+        .limit(1)
+    )
+
+
 def create_request(
     session: Session,
     study_id: uuid.UUID,
@@ -101,6 +114,7 @@ def create_request(
     request = ErasureRequest(
         study_id=study_id,
         participant_id=participant_id,
+        participant_alias=participant.alias or str(participant_id),
         requested_by=user.id,
         received_at=received_at,
         status="pending",
@@ -150,26 +164,32 @@ def cancel_request(
 
 
 def mark_done(
-    session: Session, participant_id: uuid.UUID, admin: UserAccount
+    session: Session,
+    request_id: uuid.UUID,
+    admin: UserAccount,
+    *,
+    participant_id: uuid.UUID,
+    entries: int,
+    files: int,
 ) -> ErasureRequest | None:
-    """Close the pending request before FR-44 removes the participant.
+    """Close the pending request after FR-44 removed the participant.
 
-    The ``erasure_request.participant_id`` foreign key cascades, so the row itself disappears
-    with the participant it names. The audit row written here is the durable record that the
-    request was handled.
+    The participant foreign key is ``ON DELETE SET NULL`` and the alias and counts are copied
+    into the request, so the row survives the erasure and the administrator's list still says
+    who was erased and what was removed.
     """
     request = session.scalar(
-        select(ErasureRequest)
-        .where(ErasureRequest.participant_id == participant_id, ErasureRequest.status == "pending")
-        .with_for_update()
+        select(ErasureRequest).where(ErasureRequest.id == request_id).with_for_update()
     )
-    if request is None:
+    if request is None or request.status != "pending":
         return None
 
     done_at = datetime.now(UTC)
     request.status = "done"
     request.done_at = done_at
     request.done_by = admin.id
+    request.entries = entries
+    request.files = files
     record(
         session,
         admin,
@@ -180,6 +200,8 @@ def mark_done(
             "study_id": str(request.study_id),
             "received_at": request.received_at.isoformat(),
             "done_at": done_at.isoformat(),
+            "entries": entries,
+            "files": files,
         },
     )
     session.commit()
