@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.models import AuditLog, ErasureFileDeletion, Participant, ParticipantAccount
 from app.models.enums import ParticipantStatus
+from app.security import origin
 from app.security.audit import record
 from app.services import erasure, storage
 
@@ -178,6 +179,7 @@ def run_once(
 
 
 def main() -> int:
+    origin.set_process_client(origin.SCHEDULED_TASK)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",

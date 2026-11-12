@@ -6,11 +6,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import Text, cast, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
 from app.models import (
+    AccountParticipation,
     AuditLog,
     Entry,
     Participant,
@@ -19,10 +20,11 @@ from app.models import (
     StudyMember,
     UserAccount,
 )
-from app.models.enums import AuditActorType, ParticipantStatus, StudyRole, UserRole
+from app.models.enums import AuditActorType, ParticipantStatus, StudyRole, StudyStatus, UserRole
 from app.security.audit import record
 from app.security.passwords import hash_password
 from app.services import account_links
+from app.services import overview as overview_service
 from app.services.erasure import ERASED_ACTION
 
 # The schema has no ``active`` column, so an account deactivated by an administrator is locked
@@ -47,13 +49,18 @@ class StudyOverview:
     team: list[tuple[StudyMember, UserAccount]]
     owner_email: str | None
     participants: int
+    active_participants: int
     entries: int
+    adherence_percentage: float | None
+    adherence_period: str | None
 
 
 @dataclass(frozen=True)
 class AuditPage:
     events: list[AuditLog]
     next_cursor: int | None
+    total: int
+    page_count: int
 
 
 @dataclass(frozen=True)
@@ -87,9 +94,24 @@ def account_state(user: UserAccount, now: datetime | None = None) -> str:
     return "active"
 
 
+def _clean_name(name: str | None) -> str | None:
+    if name is None:
+        return None
+    cleaned = name.strip()
+    return cleaned or None
+
+
 def list_accounts(session: Session) -> list[AccountSummary]:
     """Every account with the study count and last sign-in the accounts table shows."""
-    users = list(session.scalars(select(UserAccount).order_by(UserAccount.email, UserAccount.id)))
+    users = list(
+        session.scalars(
+            select(UserAccount).order_by(
+                UserAccount.role,
+                func.coalesce(UserAccount.name, UserAccount.email),
+                UserAccount.id,
+            )
+        )
+    )
     if not users:
         return []
     ids = [user.id for user in users]
@@ -134,7 +156,7 @@ def account_summary(session: Session, user: UserAccount) -> AccountSummary:
 
 
 def create_account(
-    session: Session, actor: UserAccount, email: str, role: UserRole
+    session: Session, actor: UserAccount, email: str, role: UserRole, name: str | None = None
 ) -> tuple[UserAccount, bool]:
     """Create an account that can only sign in after choosing a password from a mailed link."""
     normalised = email.strip().lower()
@@ -149,6 +171,7 @@ def create_account(
     # Nobody holds this random password: only the single-use link can set one.
     user = UserAccount(
         email=normalised,
+        name=_clean_name(name),
         password_hash=hash_password(secrets.token_urlsafe(32)),
         role=role,
     )
@@ -175,21 +198,40 @@ def send_account_link(session: Session, actor: UserAccount, user_id: uuid.UUID) 
     return account_links.send_link(session, actor, user)
 
 
-def change_role(
-    session: Session, actor: UserAccount, user_id: uuid.UUID, role: UserRole
+def update_account(
+    session: Session,
+    actor: UserAccount,
+    user_id: uuid.UUID,
+    role: UserRole | None = None,
+    name: str | None = None,
+    *,
+    name_set: bool = False,
 ) -> UserAccount:
+    """Change the role, the name, or both. An omitted field keeps its value."""
     user = _get_account(session, user_id)
-    if user.id == actor.id:
+    role_changed = role is not None and role != user.role
+    if role_changed and user.id == actor.id:
         raise ApiError(409, "cannot_change_own_role", "You cannot change your own role.")
-    if user.role == role:
+
+    clean_name = _clean_name(name) if name_set else None
+    name_changed = name_set and clean_name != user.name
+    if not role_changed and not name_changed:
         return user
-    user.role = role
+
+    details: dict[str, object] = {"email": user.email}
+    if role_changed:
+        assert role is not None
+        user.role = role
+        details["role"] = role.value
+    if name_changed:
+        user.name = clean_name
+        details["name"] = clean_name
     record(
         session,
         actor,
-        "account_role_changed",
+        "account_role_changed" if role_changed else "account_updated",
         target=str(user.id),
-        details={"email": user.email, "role": role.value},
+        details=details,
     )
     session.commit()
     return user
@@ -232,6 +274,25 @@ def unlock_account(session: Session, actor: UserAccount, user_id: uuid.UUID) -> 
     return user
 
 
+def _study_adherence(session: Session, study: Study) -> tuple[float | None, str | None]:
+    """The percentage the study overview shows, and the period it covers.
+
+    A draft has no data yet, so the list shows a dash instead of a zero.
+    """
+    if study.status == StudyStatus.DRAFT:
+        return None, None
+    detail = overview_service.study_overview(session, study.id)
+    key, period = (
+        ("adherence_study", "final")
+        if study.status == StudyStatus.CLOSED
+        else ("adherence_today", "today")
+    )
+    adherence = detail[key]
+    if not isinstance(adherence, dict) or adherence.get("percentage") is None:
+        return None, period
+    return float(adherence["percentage"]), period
+
+
 def study_overview(session: Session) -> list[StudyOverview]:
     """Every study with its team, owner and the counts of FR-42."""
     studies = list(session.scalars(select(Study).order_by(Study.title, Study.id)))
@@ -256,6 +317,16 @@ def study_overview(session: Session) -> list[StudyOverview]:
             .group_by(Participant.study_id)
         ).all()
     )
+    active_counts = dict(
+        session.execute(
+            select(Participant.study_id, func.count())
+            .where(
+                Participant.study_id.in_(ids),
+                Participant.status == ParticipantStatus.ACTIVE,
+            )
+            .group_by(Participant.study_id)
+        ).all()
+    )
     entry_counts = dict(
         session.execute(
             select(Participant.study_id, func.count(Entry.id))
@@ -276,16 +347,54 @@ def study_overview(session: Session) -> list[StudyOverview]:
             ),
             None,
         )
+        adherence_percentage, adherence_period = _study_adherence(session, study)
         overviews.append(
             StudyOverview(
                 study=study,
                 team=team,
                 owner_email=owner,
                 participants=participant_counts.get(study.id, 0),
+                active_participants=active_counts.get(study.id, 0),
                 entries=entry_counts.get(study.id, 0),
+                adherence_percentage=adherence_percentage,
+                adherence_period=adherence_period,
             )
         )
     return overviews
+
+
+def _audit_search(term: str):
+    """Rows whose actor name or email, pseudonym, or study title match the term."""
+    escaped = term.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{escaped}%"
+
+    def contains(column):
+        return column.like(pattern, escape="\\")
+
+    user_ids = select(UserAccount.id).where(
+        or_(contains(func.lower(UserAccount.name)), contains(func.lower(UserAccount.email)))
+    )
+    participant_ids = select(Participant.id).where(contains(func.lower(Participant.alias)))
+    study_ids = select(Study.id).where(contains(func.lower(Study.title)))
+    study_ids_text = select(cast(Study.id, Text)).where(contains(func.lower(Study.title)))
+    account_ids_by_alias = (
+        select(AccountParticipation.account_id)
+        .join(Participant, Participant.id == AccountParticipation.participant_id)
+        .where(contains(func.lower(Participant.alias)))
+    )
+    account_ids_by_study = select(AccountParticipation.account_id).where(
+        AccountParticipation.study_id.in_(study_ids)
+    )
+    return or_(
+        AuditLog.actor_id.in_(user_ids),
+        AuditLog.actor_id.in_(participant_ids),
+        AuditLog.actor_id.in_(select(Participant.id).where(Participant.study_id.in_(study_ids))),
+        AuditLog.actor_id.in_(account_ids_by_alias),
+        AuditLog.actor_id.in_(account_ids_by_study),
+        contains(func.lower(AuditLog.details.op("->>")("email"))),
+        AuditLog.target.in_(study_ids_text),
+        AuditLog.details.op("->>")("study_id").in_(study_ids_text),
+    )
 
 
 def list_audit(
@@ -293,6 +402,7 @@ def list_audit(
     *,
     actor_type: AuditActorType | None = None,
     action: str | None = None,
+    q: str | None = None,
     study_id: uuid.UUID | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
@@ -304,6 +414,8 @@ def list_audit(
         conditions.append(AuditLog.actor_type == actor_type)
     if action:
         conditions.append(AuditLog.action == action)
+    if q and q.strip():
+        conditions.append(_audit_search(q.strip()))
     if study_id is not None:
         conditions.append(
             or_(
@@ -315,6 +427,8 @@ def list_audit(
         conditions.append(AuditLog.at >= _as_utc(since))
     if until is not None:
         conditions.append(AuditLog.at <= _as_utc(until))
+
+    total = session.scalar(select(func.count()).select_from(AuditLog).where(*conditions)) or 0
     if cursor is not None:
         conditions.append(AuditLog.id < cursor)
 
@@ -328,7 +442,47 @@ def list_audit(
     return AuditPage(
         events=events,
         next_cursor=events[-1].id if has_more and events else None,
+        total=total,
+        page_count=(total + limit - 1) // limit,
     )
+
+
+def actor_names(
+    session: Session, events: list[AuditLog]
+) -> dict[tuple[AuditActorType, uuid.UUID], str]:
+    """Display names for the actors of these rows: account name or email, alias and study."""
+    user_ids = {
+        event.actor_id
+        for event in events
+        if event.actor_id is not None and event.actor_type == AuditActorType.USER
+    }
+    participant_ids = {
+        event.actor_id
+        for event in events
+        if event.actor_id is not None and event.actor_type == AuditActorType.PARTICIPANT
+    }
+    labels: dict[tuple[AuditActorType, uuid.UUID], str] = {}
+
+    if user_ids:
+        for user_id, name, email in session.execute(
+            select(UserAccount.id, UserAccount.name, UserAccount.email).where(
+                UserAccount.id.in_(user_ids)
+            )
+        ):
+            display = name.strip() if name else ""
+            labels[(AuditActorType.USER, user_id)] = display or email
+
+    if participant_ids:
+        for participant_id, alias, study_id in session.execute(
+            select(Participant.id, Participant.alias, Participant.study_id).where(
+                Participant.id.in_(participant_ids)
+            )
+        ):
+            reference = alias or str(participant_id)[:8]
+            labels[(AuditActorType.PARTICIPANT, participant_id)] = (
+                f"{reference} ({str(study_id)[:8]})"
+            )
+    return labels
 
 
 def list_erasures(

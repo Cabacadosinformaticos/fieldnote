@@ -2,13 +2,34 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { client } from './client'
 import type { components } from './schema'
 
-export type AdminAccount = components['schemas']['app__schemas__admin__AccountOut']
-export type CreatedAccount = components['schemas']['AccountCreatedOut']
+export type AdminAccount = components['schemas']['app__schemas__admin__AccountOut'] & {
+  name?: string | null
+}
+export type CreatedAccount = components['schemas']['AccountCreatedOut'] & {
+  name?: string | null
+}
 export type AccountLinkResult = components['schemas']['AccountLinkOut']
-export type AdminStudy = components['schemas']['AdminStudyOut']
+export type ScheduleStyle = components['schemas']['ScheduleStyle']
+// The generated schema is refreshed after all workers finish; these fields are hand-written.
+export type AdminStudy = Omit<components['schemas']['AdminStudyOut'], 'team'> & {
+  schedule_style: ScheduleStyle
+  active_participants: number
+  adherence_percentage: number | null
+  adherence_period: 'today' | 'final' | null
+  team: (components['schemas']['AdminStudyOut']['team'][number] & { name: string | null })[]
+}
 export type AuditActorType = components['schemas']['AuditActorType']
-export type AuditEvent = components['schemas']['AuditEventOut']
-export type AuditPage = components['schemas']['AuditLogPage']
+export type AuditEvent = components['schemas']['AuditEventOut'] & {
+  actor_name: string | null
+  origin_client: 'portal' | 'app_android' | 'app_ios' | 'scheduled_task' | 'automatic_task' | null
+  origin_ip: string | null
+  origin_browser: string | null
+}
+export type AuditPage = Omit<components['schemas']['AuditLogPage'], 'items'> & {
+  items: AuditEvent[]
+  total: number
+  page_count: number
+}
 export type ErasureList = components['schemas']['ErasureListOut']
 export type ScheduledErasure = components['schemas']['ScheduledErasureOut']
 export type CompletedErasure = components['schemas']['CompletedErasureOut']
@@ -60,24 +81,26 @@ export async function fetchAccounts(): Promise<AdminAccount[]> {
 
 export async function createAccount(input: {
   email: string
+  name: string | null
   role: UserRole
 }): Promise<CreatedAccount> {
-  const { data, error, response } = await client.POST('/admin/accounts', {
-    body: input,
-  })
+  const body = input
+  const { data, error, response } = await client.POST('/admin/accounts', { body })
   if (data) {
     return data
   }
   throw await toAdminError(error, response)
 }
 
-export async function changeAccountRole(
+export async function updateAccount(
   userId: string,
   role: UserRole,
+  name: string | null,
 ): Promise<AdminAccount> {
+  const body = { role, name }
   const { data, error, response } = await client.PATCH('/admin/accounts/{user_id}', {
     params: { path: { user_id: userId } },
-    body: { role },
+    body,
   })
   if (data) {
     return data
@@ -121,7 +144,7 @@ export async function sendAccountLink(userId: string): Promise<AccountLinkResult
 export async function fetchStudies(): Promise<AdminStudy[]> {
   const { data, error, response } = await client.GET('/admin/studies')
   if (data) {
-    return data
+    return data as AdminStudy[]
   }
   throw await toAdminError(error, response)
 }
@@ -129,6 +152,7 @@ export async function fetchStudies(): Promise<AdminStudy[]> {
 export type AuditFilters = {
   actorType: AuditActorType | null
   action: string | null
+  q?: string | null
   since: string | null
   until: string | null
   cursor: number | null
@@ -141,6 +165,7 @@ export async function fetchAuditLog(filters: AuditFilters): Promise<AuditPage> {
       query: {
         actor_type: filters.actorType,
         action: filters.action,
+        q: filters.q,
         since: filters.since,
         until: filters.until,
         cursor: filters.cursor,
@@ -149,7 +174,7 @@ export async function fetchAuditLog(filters: AuditFilters): Promise<AuditPage> {
     },
   })
   if (data) {
-    return data
+    return data as AuditPage
   }
   throw await toAdminError(error, response)
 }
@@ -231,12 +256,14 @@ function useAccountMutation<TInput, TResult>(
 }
 
 export function useCreateAccount() {
-  return useAccountMutation((input: { email: string; role: UserRole }) => createAccount(input))
+  return useAccountMutation((input: { email: string; name: string | null; role: UserRole }) =>
+    createAccount(input),
+  )
 }
 
-export function useChangeAccountRole() {
-  return useAccountMutation((input: { userId: string; role: UserRole }) =>
-    changeAccountRole(input.userId, input.role),
+export function useUpdateAccount() {
+  return useAccountMutation((input: { userId: string; role: UserRole; name: string | null }) =>
+    updateAccount(input.userId, input.role, input.name),
   )
 }
 
@@ -259,6 +286,7 @@ export function useEraseParticipant() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: keys.erasures })
       void queryClient.invalidateQueries({ queryKey: keys.audit })
+      void queryClient.invalidateQueries({ queryKey: ['erasure-requests', 'pending'] })
     },
   })
 }

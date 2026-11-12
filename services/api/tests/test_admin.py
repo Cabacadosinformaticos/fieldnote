@@ -1,5 +1,6 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,15 +8,25 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import (
+    Activity,
     AuditLog,
     Entry,
     PasswordResetToken,
+    Prompt,
     RefreshToken,
     StudyMember,
     UserAccount,
 )
-from app.models.enums import AuditActorType, EntryType, StudyRole, UserRole
-from app.security import tokens
+from app.models.enums import (
+    AuditActorType,
+    EntryType,
+    PromptStatus,
+    StudyRole,
+    StudyStatus,
+    UserRole,
+)
+from app.security import origin, tokens
+from app.security.audit import record
 from app.security.passwords import verify_password
 from app.security.tokens import hash_token
 from app.services import mail
@@ -91,12 +102,17 @@ def test_create_account_mails_a_link_and_stores_no_usable_password(
     response = client.post(
         f"{ADMIN}/accounts",
         headers=bearer_headers(admin),
-        json={"email": "  New.Researcher@Example.ORG ", "role": "researcher"},
+        json={
+            "email": "  New.Researcher@Example.ORG ",
+            "name": "  Sofia Antunes ",
+            "role": "researcher",
+        },
     )
 
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["email"] == "new.researcher@example.org"
+    assert body["name"] == "Sofia Antunes"
     assert body["role"] == "researcher"
     assert body["state"] == "active"
     assert body["locked"] is False
@@ -111,6 +127,7 @@ def test_create_account_mails_a_link_and_stores_no_usable_password(
     )
     assert stored is not None
     assert str(stored.id) == body["id"]
+    assert stored.name == "Sofia Antunes"
     assert not verify_password(stored.password_hash, "")
     assert not verify_password(stored.password_hash, "correct horse battery staple")
 
@@ -192,6 +209,7 @@ def test_list_accounts_shows_role_state_studies_and_last_session(
     bearer_headers,
 ) -> None:
     study = make_study()
+    researcher.name = "Inês Marques"
     session.add(StudyMember(study_id=study.id, user_id=researcher.id, role=StudyRole.MEMBER))
     seen_at = datetime(2026, 11, 4, 9, 30, tzinfo=UTC)
     session.add(
@@ -213,6 +231,8 @@ def test_list_accounts_shows_role_state_studies_and_last_session(
     assert rows["admin@example.org"]["role"] == "admin"
     assert rows["admin@example.org"]["state"] == "active"
     assert rows["admin@example.org"]["studies"] == 0
+    assert rows["admin@example.org"]["name"] is None
+    assert rows["researcher@example.org"]["name"] == "Inês Marques"
     assert rows["researcher@example.org"]["role"] == "researcher"
     assert rows["researcher@example.org"]["state"] == "active"
     assert rows["researcher@example.org"]["locked"] is False
@@ -442,7 +462,9 @@ def test_study_overview_lists_every_study_with_team_owner_and_counts(
     study = make_study(title="Alpha")
     other = make_study(title="Beta")
     owner = make_user(email="owner@example.org")
+    owner.name = "Inês Marques"
     member = make_user(email="member@example.org")
+    member.name = "Duarte Lopes"
     session.add_all(
         [
             StudyMember(study_id=study.id, user_id=owner.id, role=StudyRole.PRINCIPAL_INVESTIGATOR),
@@ -470,12 +492,16 @@ def test_study_overview_lists_every_study_with_team_owner_and_counts(
     alpha = rows["Alpha"]
     assert alpha["status"] == "draft"
     assert alpha["owner_email"] == "owner@example.org"
-    assert {row["email"] for row in alpha["team"]} == {
-        "owner@example.org",
-        "member@example.org",
+    assert {(row["name"], row["email"]) for row in alpha["team"]} == {
+        ("Inês Marques", "owner@example.org"),
+        ("Duarte Lopes", "member@example.org"),
     }
+    assert alpha["schedule_style"] == "balanced"
     assert alpha["participants"] == 1
+    assert alpha["active_participants"] == 1
     assert alpha["entries"] == 1
+    assert alpha["adherence_percentage"] is None
+    assert alpha["adherence_period"] is None
     assert rows["Beta"]["participants"] == 1
     assert rows["Beta"]["entries"] == 0
     assert rows["Beta"]["owner_email"] is None
@@ -485,6 +511,57 @@ def test_study_overview_is_admin_only(
     client: TestClient, researcher: UserAccount, bearer_headers
 ) -> None:
     assert client.get(f"{ADMIN}/studies", headers=bearer_headers(researcher)).status_code == 403
+
+
+def test_admin_studies_list_shows_adherence_and_active_participants(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study(title="Adherence")
+    study.status = StudyStatus.RUNNING
+    session.commit()
+    participant = make_participant(study, alias="P-01")
+    activity = Activity(
+        study_id=study.id,
+        title="Walk",
+        entry_types=[EntryType.TEXT.value],
+        prompts_per_day=1,
+        window_start=time(8, 0),
+        window_end=time(20, 0),
+        min_gap_minutes=30,
+        expected_minutes=3,
+    )
+    session.add(activity)
+    session.commit()
+    today = datetime.now(UTC).astimezone(ZoneInfo("Europe/Lisbon")).date()
+    for occurrence, status in enumerate(
+        (PromptStatus.ANSWERED, PromptStatus.SENT, PromptStatus.EXPIRED), start=1
+    ):
+        session.add(
+            Prompt(
+                participant_id=participant.id,
+                activity_id=activity.id,
+                plan_date=today,
+                occurrence=occurrence,
+                status=status,
+            )
+        )
+    session.commit()
+
+    response = client.get(f"{ADMIN}/studies", headers=bearer_headers(admin))
+
+    assert response.status_code == 200
+    row = next(item for item in response.json() if item["title"] == "Adherence")
+    assert row["status"] == "running"
+    assert row["schedule_style"] == "balanced"
+    assert row["participants"] == 1
+    assert row["active_participants"] == 1
+    assert row["adherence_percentage"] == 33.3
+    assert row["adherence_period"] == "today"
 
 
 def test_audit_log_filters_by_actor_action_study_and_date(
@@ -546,18 +623,182 @@ def test_audit_log_paginates_with_a_cursor(
     first = client.get(f"{ADMIN}/audit-log?limit=2", headers=headers).json()
     assert [row["id"] for row in first["items"]] == [events[4].id, events[3].id]
     assert first["next_cursor"] == events[3].id
+    assert first["total"] == 5
+    assert first["page_count"] == 3
 
     second = client.get(
         f"{ADMIN}/audit-log?limit=2&cursor={first['next_cursor']}", headers=headers
     ).json()
     assert [row["id"] for row in second["items"]] == [events[2].id, events[1].id]
     assert second["next_cursor"] == events[1].id
+    assert second["total"] == 5
+    assert second["page_count"] == 3
 
     last = client.get(
         f"{ADMIN}/audit-log?limit=2&cursor={second['next_cursor']}", headers=headers
     ).json()
     assert [row["id"] for row in last["items"]] == [events[0].id]
     assert last["next_cursor"] is None
+    assert last["total"] == 5
+    assert last["page_count"] == 3
+
+
+def test_audit_log_searches_by_person_pseudonym_and_study(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study(title="Pequenos-almoços em casa")
+    owner = make_user(email="owner@example.org")
+    owner.name = "Inês Marques"
+    participant = make_participant(study, alias="P-14")
+    session.commit()
+    base = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+    _add_event(
+        session,
+        "study_updated",
+        at=base,
+        target=str(study.id),
+        details={"study_id": str(study.id)},
+    )
+    _add_event(session, "login", at=base + timedelta(minutes=1), actor_id=owner.id)
+    _add_event(
+        session,
+        "erasure_requested",
+        at=base + timedelta(minutes=2),
+        actor_type=AuditActorType.PARTICIPANT,
+        actor_id=participant.id,
+    )
+    _add_event(
+        session,
+        "login_failed",
+        at=base + timedelta(minutes=3),
+        details={"email": "unknown@example.org"},
+    )
+    headers = bearer_headers(admin)
+
+    def search(term: str) -> list[str]:
+        response = client.get(f"{ADMIN}/audit-log", params={"q": term}, headers=headers)
+        assert response.status_code == 200, response.text
+        return [row["action"] for row in response.json()["items"]]
+
+    assert search("Inês") == ["login"]
+    assert search("owner@example.org") == ["login"]
+    assert search("unknown@example.org") == ["login_failed"]
+    assert search("P-14") == ["erasure_requested"]
+    assert search("Pequenos") == ["erasure_requested", "study_updated"]
+    assert search("nothing-matches") == []
+
+
+def test_team_request_stores_the_address_and_browser_and_the_actor_name(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    bearer_headers,
+    sent_links: list[tuple[str, str]],
+) -> None:
+    admin.name = "Carla Nunes"
+    session.commit()
+    headers = {
+        **bearer_headers(admin),
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        ),
+        "X-Forwarded-For": "203.0.113.41, 10.0.0.9",
+    }
+
+    created = client.post(f"{ADMIN}/accounts", headers=headers, json={"email": "new@example.org"})
+    assert created.status_code == 201, created.text
+
+    event = session.scalar(
+        select(AuditLog).where(AuditLog.action == "account_created").order_by(AuditLog.id.desc())
+    )
+    assert event is not None
+    assert event.origin_client == "portal"
+    assert event.origin_ip == "203.0.113.41"
+    assert event.origin_browser == "Chrome"
+
+    page = client.get(
+        f"{ADMIN}/audit-log?action=account_created", headers=bearer_headers(admin)
+    ).json()
+    row = page["items"][0]
+    assert row["actor_name"] == "Carla Nunes"
+    assert row["origin_client"] == "portal"
+    assert row["origin_ip"] == "203.0.113.41"
+    assert row["origin_browser"] == "Chrome"
+
+
+def test_failed_portal_sign_in_keeps_the_address_and_browser(
+    client: TestClient, session: Session
+) -> None:
+    response = client.post(
+        LOGIN,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0"
+            ),
+            "X-Forwarded-For": "192.0.2.88",
+        },
+        json={"email": "nobody@example.org", "password": "wrong"},
+    )
+
+    assert response.status_code == 401
+    event = session.scalar(
+        select(AuditLog).where(AuditLog.action == "login_failed").order_by(AuditLog.id.desc())
+    )
+    assert event is not None
+    assert event.actor_id is None
+    assert event.actor_type == AuditActorType.USER
+    assert event.origin_client == "portal"
+    assert event.origin_ip == "192.0.2.88"
+    assert event.origin_browser == "Firefox"
+
+
+def test_participant_request_keeps_no_address_or_browser(
+    client: TestClient, session: Session, make_study, make_participant
+) -> None:
+    study = make_study()
+    make_participant(study, device_token="device-token", alias="P-14")
+
+    response = client.post(
+        f"{API}/participation/me/erasure",
+        headers={
+            "Authorization": "Device device-token",
+            "User-Agent": (
+                "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+            ),
+            "X-Forwarded-For": "198.51.100.84",
+        },
+        json={"confirmation": "APAGAR"},
+    )
+
+    assert response.status_code == 200, response.text
+    event = session.scalar(
+        select(AuditLog).where(AuditLog.action == "erasure_requested").order_by(AuditLog.id.desc())
+    )
+    assert event is not None
+    assert event.origin_client == "app_android"
+    assert event.origin_ip is None
+    assert event.origin_browser is None
+
+
+def test_system_row_outside_a_request_uses_the_process_origin(session: Session) -> None:
+    token = origin.set_process_client(origin.SCHEDULED_TASK)
+    try:
+        event = record(session, None, "plan_completed")
+        session.commit()
+    finally:
+        origin.reset_process_client(token)
+
+    assert event.origin_client == "scheduled_task"
+    assert event.origin_ip is None
+    assert event.origin_browser is None
 
 
 def test_audit_log_is_admin_only_and_read_only(

@@ -6,7 +6,7 @@ import {
   type AuditEvent,
 } from '../../api/admin'
 import { formatDay, formatTime, isUuid, shortId } from '../../components/admin/format'
-import { LockIcon } from '../../components/admin/icons'
+import { LockIcon, SearchIcon } from '../../components/admin/icons'
 import { t, type AdminKey } from '../../i18n/admin'
 import '../../styles/admin.css'
 
@@ -25,6 +25,45 @@ const actorLabel: Record<AuditActorType, AdminKey> = {
   system: 'audit.actor.system',
 }
 
+const originClientLabels: Record<NonNullable<AuditEvent['origin_client']>, AdminKey> = {
+  portal: 'audit.origin.portal',
+  app_android: 'audit.origin.app_android',
+  app_ios: 'audit.origin.app_ios',
+  scheduled_task: 'audit.origin.scheduled_task',
+  automatic_task: 'audit.origin.automatic_task',
+}
+
+function originLines(item: AuditEvent): { address: string | null; via: string } {
+  if (item.origin_client === 'scheduled_task' || item.origin_client === 'automatic_task') {
+    return {
+      address: t(originClientLabels[item.origin_client]),
+      via: t('audit.origin.noAddress'),
+    }
+  }
+  if (item.origin_client === null) {
+    return { address: t('audit.origin.none'), via: t('audit.origin.noAddress') }
+  }
+  const label = t(originClientLabels[item.origin_client])
+  return {
+    address: item.origin_ip,
+    via:
+      item.origin_client === 'portal' && item.origin_browser
+        ? `${label} · ${item.origin_browser}`
+        : label,
+  }
+}
+
+function actorName(item: AuditEvent): string {
+  if (item.actor_name) {
+    return item.actor_name
+  }
+  return item.actor_id ? shortId(item.actor_id) : t('audit.actorUnknown')
+}
+
+function formatCount(value: number): string {
+  return value.toLocaleString('pt-PT')
+}
+
 const auditActions: { code: string; labelKey: AdminKey }[] = [
   { code: 'login', labelKey: 'audit.action.login' },
   { code: 'login_failed', labelKey: 'audit.action.login_failed' },
@@ -36,9 +75,14 @@ const auditActions: { code: string; labelKey: AdminKey }[] = [
   { code: 'account_link_sent', labelKey: 'audit.action.account_link_sent' },
   { code: 'account_link_failed', labelKey: 'audit.action.account_link_failed' },
   { code: 'account_role_changed', labelKey: 'audit.action.account_role_changed' },
+  { code: 'account_updated', labelKey: 'audit.action.account_updated' },
   { code: 'account_locked', labelKey: 'audit.action.account_locked' },
   { code: 'account_unlocked', labelKey: 'audit.action.account_unlocked' },
   { code: 'account_deleted', labelKey: 'audit.action.account_deleted' },
+  { code: 'account_signed_in', labelKey: 'audit.action.account_signed_in' },
+  { code: 'account_method_added', labelKey: 'audit.action.account_method_added' },
+  { code: 'account_method_removed', labelKey: 'audit.action.account_method_removed' },
+  { code: 'unconfirmed_accounts_deleted', labelKey: 'audit.action.unconfirmed_accounts_deleted' },
   { code: 'study_created', labelKey: 'audit.action.study_created' },
   { code: 'study_updated', labelKey: 'audit.action.study_updated' },
   { code: 'study_started', labelKey: 'audit.action.study_started' },
@@ -53,6 +97,9 @@ const auditActions: { code: string; labelKey: AdminKey }[] = [
   { code: 'study_code_created', labelKey: 'audit.action.study_code_created' },
   { code: 'study_code_regenerated', labelKey: 'audit.action.study_code_regenerated' },
   { code: 'study_code_entry', labelKey: 'audit.action.study_code_entry' },
+  { code: 'study_code_switched_off', labelKey: 'audit.action.study_code_switched_off' },
+  { code: 'study_code_switched_on', labelKey: 'audit.action.study_code_switched_on' },
+  { code: 'study_code_updated', labelKey: 'audit.action.study_code_updated' },
   { code: 'tag_created', labelKey: 'audit.action.tag_created' },
   { code: 'tag_deleted', labelKey: 'audit.action.tag_deleted' },
   { code: 'activity_created', labelKey: 'audit.action.activity_created' },
@@ -71,12 +118,16 @@ const auditActions: { code: string; labelKey: AdminKey }[] = [
   { code: 'export', labelKey: 'audit.action.export' },
   { code: 'erasure_requested', labelKey: 'audit.action.erasure_requested' },
   { code: 'erasure_cancelled', labelKey: 'audit.action.erasure_cancelled' },
+  { code: 'erasure_request_created', labelKey: 'audit.action.erasure_request_created' },
+  { code: 'erasure_request_cancelled', labelKey: 'audit.action.erasure_request_cancelled' },
+  { code: 'erasure_request_done', labelKey: 'audit.action.erasure_request_done' },
   { code: 'pool_invitations_sent', labelKey: 'audit.action.pool_invitations_sent' },
   { code: 'password_reset_requested', labelKey: 'audit.action.password_reset_requested' },
   { code: 'password_reset_completed', labelKey: 'audit.action.password_reset_completed' },
   { code: 'password_changed', labelKey: 'audit.action.password_changed' },
   { code: 'entry_tags_changed', labelKey: 'audit.action.entry_tags_changed' },
   { code: 'media_retry_requested', labelKey: 'audit.action.media_retry_requested' },
+  { code: 'media_processing_failed', labelKey: 'audit.action.media_processing_failed' },
 ]
 
 const actionLabels = new Map(auditActions.map((item) => [item.code, item.labelKey]))
@@ -103,6 +154,14 @@ const detailLabels: Record<string, AdminKey> = {
   order: 'audit.detail.order',
   mime_type: 'audit.detail.mime_type',
   size_bytes: 'audit.detail.size_bytes',
+  count: 'audit.detail.count',
+  received_at: 'audit.detail.received_at',
+  done_at: 'audit.detail.done_at',
+  entry_type: 'audit.detail.entry_type',
+  entry_count: 'audit.detail.entry_count',
+  filter: 'audit.detail.filter',
+  scope: 'audit.detail.scope',
+  include_media: 'audit.detail.include_media',
 }
 
 const reasonLabels: Record<string, AdminKey> = {
@@ -135,8 +194,18 @@ const kindLabels: Record<string, AdminKey> = {
   short_text: 'audit.detail.kind.short_text',
 }
 
+const entryTypeLabels: Record<string, AdminKey> = {
+  text: 'audit.detail.entry_type.text',
+  photo: 'audit.detail.entry_type.photo',
+  video: 'audit.detail.entry_type.video',
+  audio: 'audit.detail.entry_type.audio',
+  scale: 'audit.detail.entry_type.scale',
+  choice: 'audit.detail.entry_type.choice',
+}
+
 const hiddenDetailKeys = new Set([
   'invite_code_id',
+  'request_id',
   'entry_id',
   'prompt_id',
   'participant_id',
@@ -174,6 +243,10 @@ function detailValue(
   }
   if (key === 'kind' && typeof value === 'string') {
     const label = kindLabels[value]
+    return label ? t(label) : null
+  }
+  if (key === 'entry_type' && typeof value === 'string') {
+    const label = entryTypeLabels[value]
     return label ? t(label) : null
   }
   if (key === 'study_id' && typeof value === 'string') {
@@ -246,6 +319,7 @@ function toIsoDate(value: string, endOfDay: boolean): string | null {
 export default function AdminAuditPage() {
   const [actor, setActor] = useState<'all' | AuditActorType>('all')
   const [action, setAction] = useState('all')
+  const [query, setQuery] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [cursors, setCursors] = useState<(number | null)[]>([null])
@@ -256,18 +330,33 @@ export default function AdminAuditPage() {
     () => ({
       actorType: actor === 'all' ? null : actor,
       action: action === 'all' ? null : action,
+      q: query.trim() || null,
       since: toIsoDate(from, false),
       until: toIsoDate(to, true),
       cursor: cursors[pageIndex] ?? null,
       limit: PAGE_SIZE,
     }),
-    [actor, action, from, to, cursors, pageIndex],
+    [actor, action, query, from, to, cursors, pageIndex],
   )
 
   const auditQuery = useAuditLog(filters)
   const studiesQuery = useStudies()
   const events = auditQuery.data?.items ?? []
   const nextCursor = auditQuery.data?.next_cursor ?? null
+  const total = auditQuery.data?.total ?? 0
+  const pageCount = Math.max(auditQuery.data?.page_count ?? 0, 1)
+  const firstEvent = events[0]
+  const lastEvent = events[events.length - 1]
+  const rangeFrom = from
+    ? formatDay(toIsoDate(from, false))
+    : lastEvent
+      ? formatDay(lastEvent.at)
+      : null
+  const rangeTo = to ? formatDay(toIsoDate(to, true)) : firstEvent ? formatDay(firstEvent.at) : null
+  const totalsLabel =
+    total > 0 && rangeFrom && rangeTo
+      ? t('audit.totals', { count: formatCount(total), from: rangeFrom, to: rangeTo })
+      : t('audit.totalsPlain', { count: formatCount(total) })
   const studyTitles = useMemo(
     () => new Map((studiesQuery.data ?? []).map((study) => [study.id, study.title])),
     [studiesQuery.data],
@@ -388,14 +477,32 @@ export default function AdminAuditPage() {
               }}
             />
           </div>
+
+          <div className="ad-field ad-field-grow">
+            <label className="ad-label" htmlFor="ad-audit-q">
+              {t('audit.search')}
+            </label>
+            <div className="ad-search ad-search-full">
+              <SearchIcon />
+              <input
+                id="ad-audit-q"
+                type="search"
+                className="ad-input"
+                placeholder={t('audit.searchPlaceholder')}
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  resetPaging()
+                }}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
       <section className="ad-events-card" aria-label={t('audit.title')}>
         <div className="ad-events-head">
-          <h2 className="ad-events-title">
-            {t('audit.headingPage', { count: events.length, page: pageIndex + 1 })}
-          </h2>
+          <h2 className="ad-events-title">{totalsLabel}</h2>
           <span className="ad-muted">{t('audit.order')}</span>
         </div>
 
@@ -406,6 +513,7 @@ export default function AdminAuditPage() {
             <span>{t('audit.col.action')}</span>
             <span>{t('audit.col.target')}</span>
             <span>{t('audit.col.detail')}</span>
+            <span>{t('audit.col.origin')}</span>
           </div>
 
           {auditQuery.isPending ? (
@@ -428,6 +536,7 @@ export default function AdminAuditPage() {
                 const isOpen = openId === item.id
                 const rows = detailRows(item, studyTitles)
                 const labelKey = actionLabels.get(item.action)
+                const source = originLines(item)
                 return (
                   <div key={item.id} className={isOpen ? 'ad-event is-open' : 'ad-event'}>
                     <button
@@ -446,14 +555,12 @@ export default function AdminAuditPage() {
                           <span className={`ad-actor-badge is-${item.actor_type}`}>
                             {t(actorLabel[item.actor_type])}
                           </span>
-                          <span className="ad-cell-strong">
-                            {item.actor_id ? shortId(item.actor_id) : t('audit.actorUnknown')}
-                          </span>
+                          <span className="ad-cell-strong">{actorName(item)}</span>
                         </div>
 
                         <div className="ad-actor">
                           <span className="ad-action-name">
-                            {labelKey ? t(labelKey) : item.action}
+                            {labelKey ? t(labelKey) : t('audit.actionUnknown')}
                           </span>
                           {failedActions.has(item.action) ? (
                             <span className="pill da ad-failed-pill">{t('audit.failed')}</span>
@@ -469,6 +576,12 @@ export default function AdminAuditPage() {
                             .map((row) => `${row.label}: ${row.value}`)
                             .join(' · ') || t('audit.detailsEmpty')}
                         </span>
+                        <div className="ad-origin">
+                          {source.address ? (
+                            <span className="ad-mono ad-ip">{source.address}</span>
+                          ) : null}
+                          <span className="ad-cell-note">{source.via}</span>
+                        </div>
                       </div>
                     </button>
 
@@ -493,7 +606,9 @@ export default function AdminAuditPage() {
         </div>
 
         <div className="ad-events-foot">
-          <span className="ad-muted">{t('audit.showing', { shown: events.length })}</span>
+          <span className="ad-muted">
+            {t('audit.showing', { shown: events.length, total: formatCount(total) })}
+          </span>
           <div className="ad-pager">
             <button
               type="button"
@@ -503,7 +618,9 @@ export default function AdminAuditPage() {
             >
               {t('audit.previous')}
             </button>
-            <span className="ad-page-label">{t('audit.page', { page: pageIndex + 1 })}</span>
+            <span className="ad-page-label">
+              {t('audit.page', { page: pageIndex + 1, pages: pageCount })}
+            </span>
             <button
               type="button"
               className="ad-btn-sm"

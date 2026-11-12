@@ -679,10 +679,10 @@
 .ad-studies-grid {
   display: grid;
   grid-template-columns:
-    minmax(0, 2.1fr) 112px 190px minmax(0, 1.9fr) 128px 88px 84px;
+    minmax(0, 2.1fr) 112px 150px minmax(0, 1.9fr) 128px 88px 96px 84px;
   gap: var(--fn-space-16);
   align-items: center;
-  min-width: 1050px;
+  min-width: 1120px;
   padding: 0 20px;
 }
 
@@ -1048,10 +1048,10 @@
 
 .ad-audit-grid {
   display: grid;
-  grid-template-columns: 88px 190px 180px 160px minmax(0, 1fr);
+  grid-template-columns: 88px 150px 158px 150px minmax(0, 1fr) 124px;
   gap: var(--fn-space-14);
   align-items: start;
-  min-width: 900px;
+  min-width: 980px;
   padding: 0 20px;
 }
 
@@ -1137,8 +1137,16 @@
   color: var(--fn-color-text-soft);
 }
 
+.ad-origin {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .ad-ip {
   font-size: var(--fn-text-12);
+  overflow-wrap: anywhere;
 }
 
 .ad-event-fields {

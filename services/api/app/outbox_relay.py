@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import settings
 from app.db import SessionLocal
 from app.models import OutboxEvent
+from app.security import origin
 from app.services.outbox import MEDIA_PROCESS_EVENT
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,7 @@ def run(
 
 
 def main() -> None:
+    origin.set_process_client(origin.AUTOMATIC_TASK)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",

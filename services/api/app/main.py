@@ -10,11 +10,21 @@ from starlette.exceptions import HTTPException
 from app.config import settings
 from app.db import engine
 from app.routers import discover_routers
+from app.security import origin
 
 API_PREFIX = "/api/v1"
 
 app = FastAPI(title="Fieldnote API", version="0.1.0")
 router = APIRouter(prefix=API_PREFIX)
+
+
+@app.middleware("http")
+async def audit_origin(request: Request, call_next):
+    token = origin.bind(request)
+    try:
+        return await call_next(request)
+    finally:
+        origin.reset(token)
 
 
 def _error_code(status_code: int) -> str:

@@ -8,14 +8,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.models import UserAccount
-from app.models.enums import AuditActorType
+from app.models import Participant, UserAccount
+from app.models.enums import AuditActorType, ParticipantStatus
 from app.schemas.admin import (
     AccountCreate,
     AccountCreatedOut,
     AccountLinkOut,
     AccountOut,
-    AccountRoleUpdate,
+    AccountUpdate,
     AdminPoolConcelhoOut,
     AdminPoolFieldsOut,
     AdminPoolInvitationResultsOut,
@@ -32,6 +32,7 @@ from app.schemas.admin import (
 from app.security.deps import require_admin
 from app.services import admin as service
 from app.services import erasure as erasure_service
+from app.services import erasure_requests as erasure_requests_service
 from app.services import pool as pool_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -45,6 +46,7 @@ def _account_out(summary: service.AccountSummary) -> AccountOut:
     return AccountOut(
         id=user.id,
         email=user.email,
+        name=user.name,
         role=user.role,
         state=service.account_state(user),
         locked=service.is_locked(user),
@@ -80,20 +82,29 @@ def create_account(
     payload: AccountCreate, session: SessionDep, admin: AdminUser
 ) -> AccountCreatedOut:
     """FR-41: create an account and mail it a link to choose its own password."""
-    user, mail_sent = service.create_account(session, admin, payload.email, payload.role)
+    user, mail_sent = service.create_account(
+        session, admin, payload.email, payload.role, payload.name
+    )
     summary = service.account_summary(session, user)
     return AccountCreatedOut(**_account_out(summary).model_dump(), mail_sent=mail_sent)
 
 
 @router.patch("/accounts/{user_id}", response_model=AccountOut)
-def change_account_role(
+def update_account(
     user_id: uuid.UUID,
-    payload: AccountRoleUpdate,
+    payload: AccountUpdate,
     session: SessionDep,
     admin: AdminUser,
 ) -> AccountOut:
-    """FR-41: change an account between researcher and administrator."""
-    user = service.change_role(session, admin, user_id, payload.role)
+    """FR-41: change an account's role, its name, or both."""
+    user = service.update_account(
+        session,
+        admin,
+        user_id,
+        role=payload.role,
+        name=payload.name,
+        name_set="name" in payload.model_fields_set,
+    )
     return _account_out(service.account_summary(session, user))
 
 
@@ -125,6 +136,7 @@ def list_all_studies(session: SessionDep, _admin: AdminUser) -> list[AdminStudyO
             id=overview.study.id,
             title=overview.study.title,
             status=overview.study.status,
+            schedule_style=overview.study.schedule_style,
             starts_on=overview.study.starts_on,
             ends_on=overview.study.ends_on,
             owner_email=overview.owner_email,
@@ -132,12 +144,16 @@ def list_all_studies(session: SessionDep, _admin: AdminUser) -> list[AdminStudyO
                 StudyResearcherOut(
                     user_id=member.user_id,
                     email=account.email,
+                    name=account.name,
                     role=member.role,
                 )
                 for member, account in overview.team
             ],
             participants=overview.participants,
+            active_participants=overview.active_participants,
             entries=overview.entries,
+            adherence_percentage=overview.adherence_percentage,
+            adherence_period=overview.adherence_period,
         )
         for overview in service.study_overview(session)
     ]
@@ -149,6 +165,7 @@ def list_audit_log(
     _admin: AdminUser,
     actor_type: AuditActorType | None = None,
     action: str | None = None,
+    q: str | None = None,
     study_id: uuid.UUID | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
@@ -160,26 +177,38 @@ def list_audit_log(
         session,
         actor_type=actor_type,
         action=action,
+        q=q,
         study_id=study_id,
         since=since,
         until=until,
         cursor=cursor,
         limit=limit,
     )
+    names = service.actor_names(session, page.events)
     return AuditLogPage(
         items=[
             AuditEventOut(
                 id=event.id,
                 actor_type=event.actor_type,
                 actor_id=event.actor_id,
+                actor_name=(
+                    names.get((event.actor_type, event.actor_id))
+                    if event.actor_id is not None
+                    else None
+                ),
                 action=event.action,
                 target=event.target,
                 details=event.details,
+                origin_client=event.origin_client,
+                origin_ip=event.origin_ip,
+                origin_browser=event.origin_browser,
                 at=event.at,
             )
             for event in page.events
         ],
         next_cursor=page.next_cursor,
+        total=page.total,
+        page_count=page.page_count,
     )
 
 
@@ -264,6 +293,10 @@ def erase_participant(
     participant_id: uuid.UUID, session: SessionDep, admin: AdminUser
 ) -> ErasureResultOut:
     """FR-44 and UC17: erase one participant from the live system, immediately."""
+    participant = session.get(Participant, participant_id)
+    if participant is not None and participant.status != ParticipantStatus.ERASURE_SCHEDULED:
+        # Close the team's request first: the participant row cascades the request away.
+        erasure_requests_service.mark_done(session, participant_id, admin)
     result = erasure_service.erase_participant_now(session, admin, participant_id)
     return ErasureResultOut(
         participant_id=result.participant_id,

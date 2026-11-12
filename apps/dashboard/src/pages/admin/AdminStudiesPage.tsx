@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useStudies, type AdminStudy } from '../../api/admin'
+import { useStudies, type AdminStudy, type ScheduleStyle } from '../../api/admin'
 import { formatDateOnly } from '../../components/admin/format'
 import { LockIcon } from '../../components/admin/icons'
 import { t, type AdminKey } from '../../i18n/admin'
@@ -24,17 +24,117 @@ const stateMeta: Record<StudyStatus, { key: AdminKey; noteKey: AdminKey; pill: '
   },
 }
 
+const styleLabels: Record<ScheduleStyle, AdminKey> = {
+  fixed: 'studies.style.fixed',
+  balanced: 'studies.style.balanced',
+  varied: 'studies.style.varied',
+}
+
 const roleLabel: Record<StudyRole, AdminKey> = {
   principal_investigator: 'studies.role.principal_investigator',
   co_investigator: 'studies.role.co_investigator',
   member: 'studies.role.member',
 }
 
+const DAY_MS = 86_400_000
+
 function datesLabel(study: AdminStudy): string {
   if (!study.starts_on && !study.ends_on) {
     return t('studies.noDates')
   }
   return `${formatDateOnly(study.starts_on)} a ${formatDateOnly(study.ends_on)}`
+}
+
+function dateValue(value: string | null): number | null {
+  if (!value) {
+    return null
+  }
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) {
+    return null
+  }
+  return Date.UTC(year, month - 1, day)
+}
+
+function localToday(): number {
+  const now = new Date()
+  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+function dateNote(study: AdminStudy): string {
+  const start = dateValue(study.starts_on)
+  const end = dateValue(study.ends_on)
+  const today = localToday()
+  if (study.status === 'running' && start !== null && end !== null && end >= start) {
+    const total = Math.floor((end - start) / DAY_MS) + 1
+    const day = Math.min(Math.max(Math.floor((today - start) / DAY_MS) + 1, 1), total)
+    return t('studies.datesNote.dayOf', { day, total })
+  }
+  if (study.status === 'closed' && end !== null) {
+    const days = Math.floor((today - end) / DAY_MS)
+    if (days <= 0) {
+      return t('studies.datesNote.finishedToday')
+    }
+    return days === 1
+      ? t('studies.datesNote.finishedOne')
+      : t('studies.datesNote.finishedDays', { days })
+  }
+  return t(stateMeta[study.status].noteKey)
+}
+
+function studyRef(id: string): string {
+  return id.slice(0, 8)
+}
+
+function joinPt(parts: string[]): string {
+  if (parts.length <= 1) {
+    return parts.join('')
+  }
+  return `${parts.slice(0, -1).join(', ')} e ${parts[parts.length - 1]}`
+}
+
+function countLabel(count: number, one: AdminKey, other: AdminKey): string {
+  return t(count === 1 ? one : other, { count })
+}
+
+function byStudy(studies: AdminStudy[], value: (study: AdminStudy) => number): string {
+  return joinPt(
+    studies
+      .filter((study) => value(study) > 0)
+      .map((study) =>
+        t('studies.kpi.byStudy', {
+          count: value(study).toLocaleString('pt-PT'),
+          study: studyRef(study.id),
+        }),
+      ),
+  )
+}
+
+function memberName(member: AdminStudy['team'][number]): string {
+  return member.name?.trim() || member.email
+}
+
+function formatMetric(value: number): string {
+  return value.toLocaleString('pt-PT')
+}
+
+function formatAdherence(study: AdminStudy): string {
+  if (study.adherence_percentage === null) {
+    return '-'
+  }
+  return `${study.adherence_percentage.toLocaleString('pt-PT', {
+    maximumFractionDigits: 1,
+  })} %`
+}
+
+function adherenceNote(study: AdminStudy): string {
+  if (study.adherence_period === 'today') {
+    return t('studies.adherence.today')
+  }
+  if (study.adherence_period === 'final') {
+    return t('studies.adherence.final')
+  }
+  return t('studies.adherence.none')
 }
 
 export default function AdminStudiesPage() {
@@ -44,30 +144,41 @@ export default function AdminStudiesPage() {
   const running = studies.filter((study) => study.status === 'running').length
   const draft = studies.filter((study) => study.status === 'draft').length
   const closed = studies.filter((study) => study.status === 'closed').length
-  const investigators = new Set(studies.flatMap((study) => study.team.map((member) => member.user_id)))
+  const investigators = new Map(
+    studies.flatMap((study) => study.team.map((member) => [member.user_id, memberName(member)])),
+  )
   const participants = studies.reduce((total, study) => total + study.participants, 0)
   const entries = studies.reduce((total, study) => total + study.entries, 0)
+  const participantsByStudy = byStudy(studies, (study) => study.participants)
+  const entriesByStudy = byStudy(studies, (study) => study.entries)
 
   const kpis: { labelKey: AdminKey; value: string; note: string }[] = [
     {
       labelKey: 'studies.kpi.platform',
       value: String(studies.length),
-      note: t('studies.kpi.platformNote', { running, draft, closed }),
+      note: joinPt([
+        countLabel(running, 'studies.count.runningOne', 'studies.count.runningOther'),
+        countLabel(draft, 'studies.count.draftOne', 'studies.count.draftOther'),
+        countLabel(closed, 'studies.count.closedOne', 'studies.count.closedOther'),
+      ]),
     },
     {
       labelKey: 'studies.kpi.investigators',
       value: String(investigators.size),
-      note: t('studies.kpi.investigatorsNote'),
+      note:
+        investigators.size > 0
+          ? joinPt([...investigators.values()])
+          : t('studies.kpi.investigatorsNote'),
     },
     {
       labelKey: 'studies.kpi.participants',
-      value: String(participants),
-      note: t('studies.kpi.participantsNote'),
+      value: formatMetric(participants),
+      note: participantsByStudy || t('studies.kpi.participantsNote'),
     },
     {
       labelKey: 'studies.kpi.entries',
-      value: String(entries),
-      note: t('studies.kpi.entriesNote'),
+      value: formatMetric(entries),
+      note: entriesByStudy || t('studies.kpi.entriesNote'),
     },
   ]
 
@@ -99,6 +210,7 @@ export default function AdminStudiesPage() {
             <span>{t('studies.col.team')}</span>
             <span>{t('studies.col.participants')}</span>
             <span>{t('studies.col.entries')}</span>
+            <span>{t('studies.col.adherence')}</span>
             <span />
           </div>
 
@@ -124,9 +236,10 @@ export default function AdminStudiesPage() {
                   <div key={study.id} className="ad-studies-grid ad-studies-row">
                     <div className="ad-study-identity">
                       <span className="ad-study-title">{study.title}</span>
-                      {study.owner_email ? (
-                        <span className="ad-study-meta">{study.owner_email}</span>
-                      ) : null}
+                      <span className="ad-study-meta">
+                        <span className="ad-study-id ad-mono">{studyRef(study.id)}</span>
+                        {` · ${t('studies.styleLabel')} ${t(styleLabels[study.schedule_style])}`}
+                      </span>
                     </div>
 
                     <div>
@@ -138,7 +251,7 @@ export default function AdminStudiesPage() {
 
                     <div className="ad-stack">
                       <span className="ad-cell-strong">{datesLabel(study)}</span>
-                      <span className="ad-cell-note">{t(meta.noteKey)}</span>
+                      <span className="ad-cell-note">{dateNote(study)}</span>
                     </div>
 
                     <div className="ad-team">
@@ -147,16 +260,31 @@ export default function AdminStudiesPage() {
                       ) : (
                         study.team.map((member) => (
                           <span key={member.user_id} className="ad-team-line">
-                            <strong>{member.email}</strong>{' '}
+                            <strong>{memberName(member)}</strong>{' '}
                             <span className="ad-cell-muted">{t(roleLabel[member.role])}</span>
                           </span>
                         ))
                       )}
                     </div>
 
-                    <span className="ad-metric">{study.participants}</span>
+                    <div className="ad-stack">
+                      <span className="ad-metric">{formatMetric(study.participants)}</span>
+                      <span className="ad-cell-note">
+                        {t(
+                          study.active_participants === 1
+                            ? 'studies.peopleNote.one'
+                            : 'studies.peopleNote.other',
+                          { count: study.active_participants },
+                        )}
+                      </span>
+                    </div>
 
-                    <span className="ad-metric">{study.entries}</span>
+                    <span className="ad-metric">{formatMetric(study.entries)}</span>
+
+                    <div className="ad-stack">
+                      <span className="ad-metric">{formatAdherence(study)}</span>
+                      <span className="ad-cell-note">{adherenceNote(study)}</span>
+                    </div>
 
                     <div className="ad-row-end">
                       <Link

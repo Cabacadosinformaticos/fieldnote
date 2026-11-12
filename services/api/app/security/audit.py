@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models import AuditLog, Participant, UserAccount
 from app.models.enums import AuditActorType
+from app.security import origin
 
 
 def record(
@@ -36,5 +37,17 @@ def record(
         target=target,
         details=details,
     )
+    request_origin = origin.current()
+    if request_origin is not None:
+        entry.origin_client = request_origin.client
+        # The address and the browser of a participant could identify the person and are not
+        # erased with their data, so only team accounts keep them.
+        if request_origin.client == origin.PORTAL and (
+            isinstance(actor, UserAccount) or actor_type == AuditActorType.USER
+        ):
+            entry.origin_ip = request_origin.ip
+            entry.origin_browser = request_origin.browser
+    else:
+        entry.origin_client = origin.process_client()
     session.add(entry)
     return entry
