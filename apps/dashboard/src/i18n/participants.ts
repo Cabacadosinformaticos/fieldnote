@@ -182,6 +182,19 @@ export const pt = {
   'detail.withdrawnNote': 'Este participante saiu do estudo.',
   'detail.erasureHelp': 'O pedido de apagamento segue para a administração, que confirma e apaga.',
   'detail.erasureRequested': 'Pedido de apagamento enviado para a administração.',
+  'detail.erasureTitle': 'Pedido de apagamento',
+  'detail.erasurePending': 'Aguarda a administração',
+  'detail.erasureReceived': 'Recebido em {date}.',
+  'detail.erasureRequestedBy': 'Pedido por {name}.',
+  'detail.erasureCancel': 'Cancelar pedido',
+  'detail.erasureDialogTitle': 'Pedir apagamento de {id}',
+  'detail.erasureDialogBody':
+    'O pedido segue para a administração, que confirma e apaga. Até lá, o participante continua a usar a app.',
+  'detail.erasureReceivedAt': 'Quando o pedido chegou',
+  'detail.erasureReceivedAtHelp':
+    'O dia em que o participante pediu o apagamento à equipa. Por omissão, hoje.',
+  'detail.erasureSubmit': 'Enviar pedido',
+  'detail.erasureSending': 'A enviar…',
   'detail.identity': 'Identidade',
   'detail.identityMasked': '•••••• ••••••',
   'detail.identityHidden': 'Nome e e-mail ocultos',
@@ -512,6 +525,10 @@ export const pt = {
   'error.code_generation_failed': 'Não foi possível gerar o código. Tente de novo.',
   'error.pool_group_too_small': 'O grupo tem menos de 5 pessoas.',
   'error.study_closed': 'Este estudo está fechado.',
+  'error.erasure_request_pending': 'Já existe um pedido pendente para este participante.',
+  'error.erasure_request_not_found': 'Já não há nenhum pedido pendente para este participante.',
+  'error.erasure_scheduled':
+    'Este participante já pediu o apagamento na app. A administração apaga os dados automaticamente.',
   'error.unknown': 'Ocorreu um erro. Tente de novo.',
 } as const
 

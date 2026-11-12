@@ -1,6 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { AdminApiError, useErasures, useEraseParticipant } from '../../api/admin'
-import { formatDateTime, isUuid, shortId } from '../../components/admin/format'
+import {
+  usePendingErasureRequests,
+  type PendingErasureRequest,
+} from '../../api/erasureRequests'
+import {
+  formatDateOnly,
+  formatDateTime,
+  isUuid,
+  shortId,
+} from '../../components/admin/format'
 import {
   AlertTriangleIcon,
   CheckIcon,
@@ -30,6 +39,150 @@ const steps: { n: string; titleKey: AdminKey; noteKey: AdminKey }[] = [
   { n: '3', titleKey: 'erasure.steps.threeTitle', noteKey: 'erasure.steps.threeNote' },
 ]
 
+const entryTypeKeys: { type: string; one: AdminKey; many: AdminKey }[] = [
+  { type: 'text', one: 'erasure.type.textOne', many: 'erasure.type.textMany' },
+  { type: 'photo', one: 'erasure.type.photoOne', many: 'erasure.type.photoMany' },
+  { type: 'audio', one: 'erasure.type.audioOne', many: 'erasure.type.audioMany' },
+  { type: 'video', one: 'erasure.type.videoOne', many: 'erasure.type.videoMany' },
+  { type: 'scale', one: 'erasure.type.scaleOne', many: 'erasure.type.scaleMany' },
+  { type: 'choice', one: 'erasure.type.choiceOne', many: 'erasure.type.choiceMany' },
+]
+
+function countText(one: AdminKey, many: AdminKey, count: number): string {
+  return count === 1 ? t(one) : t(many, { count })
+}
+
+function entryBreakdown(request: PendingErasureRequest): string {
+  return entryTypeKeys
+    .filter((item) => (request.counts.entry_types[item.type] ?? 0) > 0)
+    .map((item) => countText(item.one, item.many, request.counts.entry_types[item.type]))
+    .join(', ')
+}
+
+function requesterText(request: PendingErasureRequest): string {
+  const name = request.requested_by_name ?? t('erasure.pending.unknownRequester')
+  if (!request.requested_by_role) {
+    return name
+  }
+  return `${name}, ${t(`studies.role.${request.requested_by_role}` as AdminKey)}`
+}
+
+function PendingRequestCard({ request }: { request: PendingErasureRequest }) {
+  const alias = request.alias ?? shortId(request.participant_id)
+  const remaining = Math.max(0, request.counts.study_entries - request.counts.entries)
+  const breakdown = entryBreakdown(request)
+
+  return (
+    <>
+      <section className="ad-pending-card" aria-labelledby={`ad-pending-title-${request.id}`}>
+        <div className="ad-pending-head">
+          <div className="ad-pending-copy">
+            <span className="ad-eyebrow">{t('erasure.pending.eyebrow')}</span>
+            <h2 id={`ad-pending-title-${request.id}`} className="ad-pending-title">
+              {t('erasure.pending.title', {
+                alias,
+                study: request.study_title,
+              })}
+            </h2>
+          </div>
+          <span className="ad-warning-pill">{t('erasure.pending.status')}</span>
+        </div>
+        <div className="ad-meta-box">
+          <div>
+            <span className="ad-meta-key">{t('erasure.pending.requestedBy')}</span>
+            <span className="ad-meta-value">{requesterText(request)}</span>
+          </div>
+          <div>
+            <span className="ad-meta-key">{t('erasure.pending.receivedAt')}</span>
+            <span className="ad-meta-value">
+              {formatDateOnly(request.received_at.slice(0, 10))}
+            </span>
+          </div>
+          <div>
+            <span className="ad-meta-key">{t('erasure.pending.decision')}</span>
+            <span className="ad-meta-value">
+              {t('erasure.pending.acceptedAt', {
+                date: formatDateTime(request.created_at),
+              })}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <div className="ad-erasure-cards">
+        <section className="ad-erasure-card">
+          <div className="ad-erasure-card-head">
+            <span className="ad-icon-square is-danger">
+              <TrashIcon />
+            </span>
+            <h2 className="ad-card-title">{t('erasure.deletedTitle')}</h2>
+          </div>
+          <ul className="ad-detail-list">
+            <li>
+              <span className="ad-detail-title">{t('erasure.deleted.identity')}</span>
+              <span className="ad-detail-note">
+                {request.counts.has_identity
+                  ? t('erasure.deleted.identityNote')
+                  : t('erasure.deleted.identityAbsent')}
+              </span>
+            </li>
+            <li>
+              <span className="ad-detail-title">
+                {countText('erasure.counts.entryOne', 'erasure.counts.entries', request.counts.entries)}
+              </span>
+              <span className="ad-detail-note">{breakdown || t('erasure.counts.none')}</span>
+            </li>
+            <li>
+              <span className="ad-detail-title">
+                {countText('erasure.counts.fileOne', 'erasure.counts.files', request.counts.files)}
+              </span>
+              <span className="ad-detail-note">{t('erasure.deleted.filesNote')}</span>
+            </li>
+            <li>
+              <span className="ad-detail-title">{t('erasure.deleted.link')}</span>
+              <span className="ad-detail-note">{t('erasure.deleted.linkNote')}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section className="ad-erasure-card">
+          <div className="ad-erasure-card-head">
+            <span className="ad-icon-square is-primary">
+              <ShieldCheckIcon width={18} height={18} />
+            </span>
+            <h2 className="ad-card-title">{t('erasure.keptTitle')}</h2>
+          </div>
+          <ul className="ad-detail-list">
+            <li>
+              <span className="ad-detail-title">{t('erasure.kept.audit')}</span>
+              <span className="ad-detail-note">{t('erasure.kept.auditNote')}</span>
+            </li>
+            <li>
+              <span className="ad-detail-title">{t('erasure.kept.counts')}</span>
+              <span className="ad-detail-note">
+                {t('erasure.kept.countsNoteDynamic', {
+                  study: request.study_title,
+                  participants: request.counts.study_participants,
+                  total: request.counts.study_entries,
+                  remaining,
+                })}
+              </span>
+            </li>
+            <li>
+              <span className="ad-detail-title">{t('erasure.kept.backups')}</span>
+              <span className="ad-detail-note">{t('erasure.kept.backupsNote')}</span>
+            </li>
+            <li>
+              <span className="ad-detail-title">{t('erasure.kept.outside')}</span>
+              <span className="ad-detail-note">{t('erasure.kept.outsideNote')}</span>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </>
+  )
+}
+
 function erasureErrorText(error: unknown): string {
   if (!(error instanceof AdminApiError)) {
     return t('erasure.error.generic', { code: 'unknown' })
@@ -47,16 +200,27 @@ function erasureErrorText(error: unknown): string {
 export default function AdminErasurePage() {
   const erasuresQuery = useErasures()
   const eraseParticipant = useEraseParticipant()
+  const pendingQuery = usePendingErasureRequests()
 
   const [participantId, setParticipantId] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [success, setSuccess] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const scheduled = erasuresQuery.data?.scheduled ?? []
   const completed = erasuresQuery.data?.completed ?? []
+  const pendingRequests = pendingQuery.data ?? []
+  const selected =
+    pendingRequests.find((request) => request.id === selectedId) ?? pendingRequests[0] ?? null
 
   const id = participantId.trim()
-  const canErase = isUuid(id) && id === confirmation.trim() && !eraseParticipant.isPending
+  const expected = selected ? (selected.alias ?? selected.participant_id) : id
+  const targetId = selected ? selected.participant_id : id
+  const canErase =
+    Boolean(targetId) &&
+    confirmation.trim() === expected &&
+    (selected !== null || isUuid(id)) &&
+    !eraseParticipant.isPending
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -64,7 +228,7 @@ export default function AdminErasurePage() {
       return
     }
     setSuccess('')
-    eraseParticipant.mutate(id, {
+    eraseParticipant.mutate(targetId, {
       onSuccess: (result) => {
         setSuccess(
           t('erasure.confirm.success', {
@@ -74,6 +238,7 @@ export default function AdminErasurePage() {
         )
         setParticipantId('')
         setConfirmation('')
+        setSelectedId(null)
       },
     })
   }
@@ -81,6 +246,7 @@ export default function AdminErasurePage() {
   function handleCancel() {
     setParticipantId('')
     setConfirmation('')
+    setSelectedId(null)
     setSuccess('')
     eraseParticipant.reset()
   }
@@ -156,54 +322,81 @@ export default function AdminErasurePage() {
 
       <div className="ad-erasure-layout">
         <div className="ad-erasure-main">
-          <section className="ad-pending-card" aria-labelledby="ad-pending-title">
-            <div className="ad-pending-head">
-              <div className="ad-pending-copy">
-                <span className="ad-eyebrow">{t('erasure.manual.label')}</span>
-                <h2 id="ad-pending-title" className="ad-pending-title">
-                  {t('erasure.manual.title')}
-                </h2>
-                <span className="ad-cell-note">{t('erasure.manual.note')}</span>
-              </div>
-              <span className="ad-warning-pill">{t('erasure.manual.status')}</span>
-            </div>
-          </section>
-
-          <div className="ad-erasure-cards">
-            <section className="ad-erasure-card">
-              <div className="ad-erasure-card-head">
-                <span className="ad-icon-square is-danger">
-                  <TrashIcon />
-                </span>
-                <h2 className="ad-card-title">{t('erasure.deletedTitle')}</h2>
-              </div>
-              <ul className="ad-detail-list">
-                {deletedItems.map((item) => (
-                  <li key={item.titleKey}>
-                    <span className="ad-detail-title">{t(item.titleKey)}</span>
-                    <span className="ad-detail-note">{t(item.noteKey)}</span>
-                  </li>
-                ))}
-              </ul>
+          {pendingQuery.isPending ? (
+            <section className="ad-pending-card">
+              <p className="ad-cell-note">{t('erasure.pending.loading')}</p>
             </section>
+          ) : null}
 
-            <section className="ad-erasure-card">
-              <div className="ad-erasure-card-head">
-                <span className="ad-icon-square is-primary">
-                  <ShieldCheckIcon width={18} height={18} />
-                </span>
-                <h2 className="ad-card-title">{t('erasure.keptTitle')}</h2>
-              </div>
-              <ul className="ad-detail-list">
-                {keptItems.map((item) => (
-                  <li key={item.titleKey}>
-                    <span className="ad-detail-title">{t(item.titleKey)}</span>
-                    <span className="ad-detail-note">{t(item.noteKey)}</span>
-                  </li>
-                ))}
-              </ul>
+          {pendingQuery.isError ? (
+            <section className="ad-pending-card">
+              <p className="ad-cell-note">{t('erasure.pending.loadError')}</p>
+              <button
+                type="button"
+                className="ad-btn-sm"
+                onClick={() => void pendingQuery.refetch()}
+              >
+                {t('common.retry')}
+              </button>
             </section>
-          </div>
+          ) : null}
+
+          {pendingRequests.map((request) => (
+            <PendingRequestCard key={request.id} request={request} />
+          ))}
+
+          {!pendingQuery.isPending && !pendingQuery.isError && pendingRequests.length === 0 ? (
+            <>
+              <section className="ad-pending-card" aria-labelledby="ad-pending-title">
+                <div className="ad-pending-head">
+                  <div className="ad-pending-copy">
+                    <span className="ad-eyebrow">{t('erasure.manual.label')}</span>
+                    <h2 id="ad-pending-title" className="ad-pending-title">
+                      {t('erasure.manual.title')}
+                    </h2>
+                    <span className="ad-cell-note">{t('erasure.manual.note')}</span>
+                  </div>
+                  <span className="ad-warning-pill">{t('erasure.manual.status')}</span>
+                </div>
+              </section>
+
+              <div className="ad-erasure-cards">
+                <section className="ad-erasure-card">
+                  <div className="ad-erasure-card-head">
+                    <span className="ad-icon-square is-danger">
+                      <TrashIcon />
+                    </span>
+                    <h2 className="ad-card-title">{t('erasure.deletedTitle')}</h2>
+                  </div>
+                  <ul className="ad-detail-list">
+                    {deletedItems.map((item) => (
+                      <li key={item.titleKey}>
+                        <span className="ad-detail-title">{t(item.titleKey)}</span>
+                        <span className="ad-detail-note">{t(item.noteKey)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section className="ad-erasure-card">
+                  <div className="ad-erasure-card-head">
+                    <span className="ad-icon-square is-primary">
+                      <ShieldCheckIcon width={18} height={18} />
+                    </span>
+                    <h2 className="ad-card-title">{t('erasure.keptTitle')}</h2>
+                  </div>
+                  <ul className="ad-detail-list">
+                    {keptItems.map((item) => (
+                      <li key={item.titleKey}>
+                        <span className="ad-detail-title">{t(item.titleKey)}</span>
+                        <span className="ad-detail-note">{t(item.noteKey)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </div>
+            </>
+          ) : null}
 
           <section className="ad-erasure-card">
             <h2 className="ad-card-title">{t('erasure.afterTitle')}</h2>
@@ -230,28 +423,64 @@ export default function AdminErasurePage() {
             </div>
 
             <form className="ad-confirm-form" onSubmit={handleSubmit}>
-              <div className="ad-field">
-                <label className="ad-label" htmlFor="ad-erasure-id">
-                  {t('erasure.manual.id')}
-                </label>
-                <input
-                  id="ad-erasure-id"
-                  type="text"
-                  className="ad-input ad-mono ad-input-alias"
-                  value={participantId}
-                  onChange={(event) => setParticipantId(event.target.value)}
-                  aria-describedby="ad-erasure-id-hint"
-                  autoComplete="off"
-                  disabled={eraseParticipant.isPending}
-                />
-                <span id="ad-erasure-id-hint" className="ad-hint">
-                  {t('erasure.manual.idHint')}
-                </span>
-              </div>
+              {selected ? (
+                <div className="ad-field">
+                  <label className="ad-label" htmlFor="ad-erasure-request">
+                    {t('erasure.pending.select')}
+                  </label>
+                  {pendingRequests.length > 1 ? (
+                    <select
+                      id="ad-erasure-request"
+                      className="ad-input ad-select"
+                      value={selected.id}
+                      onChange={(event) => {
+                        setSelectedId(event.target.value)
+                        setConfirmation('')
+                      }}
+                      disabled={eraseParticipant.isPending}
+                    >
+                      {pendingRequests.map((request) => (
+                        <option key={request.id} value={request.id}>
+                          {request.alias ?? shortId(request.participant_id)} ·{' '}
+                          {request.study_title}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="ad-meta-value">
+                      {selected.alias ?? shortId(selected.participant_id)} ·{' '}
+                      {selected.study_title}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="ad-field">
+                  <label className="ad-label" htmlFor="ad-erasure-id">
+                    {t('erasure.manual.id')}
+                  </label>
+                  <input
+                    id="ad-erasure-id"
+                    type="text"
+                    className="ad-input ad-mono ad-input-alias"
+                    value={participantId}
+                    onChange={(event) => setParticipantId(event.target.value)}
+                    aria-describedby="ad-erasure-id-hint"
+                    autoComplete="off"
+                    disabled={eraseParticipant.isPending}
+                  />
+                  <span id="ad-erasure-id-hint" className="ad-hint">
+                    {t('erasure.manual.idHint')}
+                  </span>
+                </div>
+              )}
 
               <div className="ad-field">
                 <label className="ad-label" htmlFor="ad-erasure-confirm">
-                  {t('erasure.confirm.repeat')}
+                  {selected
+                    ? t('erasure.confirm.alias', {
+                        alias: selected.alias ?? selected.participant_id,
+                      })
+                    : t('erasure.confirm.repeat')}
                 </label>
                 <input
                   id="ad-erasure-confirm"
@@ -286,7 +515,9 @@ export default function AdminErasurePage() {
                 </button>
               </div>
 
-              <p className="ad-confirm-note">{t('erasure.confirm.note')}</p>
+              <p className="ad-confirm-note">
+                {selected ? t('erasure.confirm.pendingNote') : t('erasure.confirm.note')}
+              </p>
             </form>
           </section>
 

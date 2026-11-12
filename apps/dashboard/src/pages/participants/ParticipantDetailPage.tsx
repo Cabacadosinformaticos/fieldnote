@@ -3,6 +3,12 @@ import '../../styles/participants.css'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useEntries, useStudyLiveRefresh, type EntryType } from '../../api/entries'
 import {
+  ErasureRequestsApiError,
+  useCancelErasureRequest,
+  useCreateErasureRequest,
+  useParticipantErasureRequest,
+} from '../../api/erasureRequests'
+import {
   buildAdherenceView,
   entryRouteKey,
   participantLabel,
@@ -18,6 +24,7 @@ import {
   useRemoveParticipant,
   useStudy,
 } from '../../api/participants'
+import { useStudyRole } from '../../api/studies'
 import AdherenceMatrix from '../../components/participants/AdherenceMatrix'
 import PersonalCodeModal from '../../components/participants/PersonalCodeModal'
 import {
@@ -31,6 +38,7 @@ import {
   ArrowLeftIcon,
   LockIcon,
   TicketIcon,
+  TrashIcon,
   UserMinusIcon,
 } from '../../components/participants/icons'
 import { EyeIcon } from '../../components/icons'
@@ -45,6 +53,12 @@ const entryKindKeys: Record<EntryType, ParticipantsKey> = {
   choice: 'entryKind.choice',
 }
 
+function todayInput(): string {
+  const now = new Date()
+  const offset = now.getTimezoneOffset() * 60_000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10)
+}
+
 export default function ParticipantDetailPage() {
   const { studyId = '', participantId = '' } = useParams<{
     studyId: string
@@ -55,6 +69,8 @@ export default function ParticipantDetailPage() {
   const navState = location.state as { withdraw?: boolean; identity?: boolean } | null
   const [confirming, setConfirming] = useState(Boolean(navState?.withdraw))
   const [identityShown, setIdentityShown] = useState(Boolean(navState?.identity))
+  const [requesting, setRequesting] = useState(false)
+  const [receivedAt, setReceivedAt] = useState(todayInput)
 
   const participant = useParticipant(studyId, participantId)
   const adherence = useAdherence(studyId, participantId)
@@ -64,6 +80,10 @@ export default function ParticipantDetailPage() {
   const issueCode = useIssuePersonalCode(studyId)
   const removeParticipant = useRemoveParticipant(studyId)
   const recentEntries = useEntries(studyId, { participantId, limit: 5 })
+  const role = useStudyRole(studyId)
+  const erasureRequest = useParticipantErasureRequest(studyId, participantId, role.isMember)
+  const createRequest = useCreateErasureRequest(studyId, participantId)
+  const cancelRequest = useCancelErasureRequest(studyId, participantId)
   useStudyLiveRefresh(studyId, [participantsKeys.root])
 
   const listPath = `/estudos/${studyId}/participantes`
@@ -105,6 +125,14 @@ export default function ParticipantDetailPage() {
   const alias = participantLabel(item)
   const status = participantStatusMeta[participantDisplayState(item)]
   const canWithdraw = item.status === 'active' || item.status === 'pending_approval'
+  const pendingRequest = erasureRequest.data ?? null
+  const canRequest = role.canManage && canWithdraw && !pendingRequest
+  const requestError =
+    createRequest.error instanceof ErasureRequestsApiError
+      ? createRequest.error.code
+      : null
+  const cancelError =
+    cancelRequest.error instanceof ErasureRequestsApiError ? cancelRequest.error.code : null
   const view = adherence.data ? buildAdherenceView(adherence.data) : null
   const entriesCount = view ? view.totals.answered + view.freeCount : null
   const entriesLabel =
@@ -120,6 +148,19 @@ export default function ParticipantDetailPage() {
     removeParticipant.error instanceof ParticipantsApiError ? removeParticipant.error.code : null
   const issueError =
     issueCode.error instanceof ParticipantsApiError ? issueCode.error.code : null
+
+  function submitRequest() {
+    const day = receivedAt.trim()
+    if (!day) {
+      return
+    }
+    createRequest.mutate(`${day}T00:00:00Z`, {
+      onSuccess: () => {
+        setRequesting(false)
+        setReceivedAt(todayInput())
+      },
+    })
+  }
 
   return (
     <div className="pts-page">
@@ -152,6 +193,22 @@ export default function ParticipantDetailPage() {
               <EyeIcon />
               {identityShown ? t('action.hideIdentity') : t('action.seeIdentity')}
             </button>
+          ) : null}
+          {canRequest ? (
+            <div className="pts-withdraw-block">
+              <button
+                type="button"
+                className="btn"
+                aria-describedby="pts-erasure-help"
+                onClick={() => setRequesting(true)}
+              >
+                <TrashIcon />
+                {t('action.requestErasure')}
+              </button>
+              <p className="pts-help" id="pts-erasure-help">
+                {t('detail.erasureHelp')}
+              </p>
+            </div>
           ) : null}
           {canWithdraw ? (
             <div className="pts-withdraw-block">
@@ -291,6 +348,40 @@ export default function ParticipantDetailPage() {
         </div>
 
         <aside className="pts-detail-aside">
+          {pendingRequest ? (
+            <section className="card pts-side-card" aria-labelledby="pts-erasure-title">
+              <div className="pts-side-head">
+                <h2 className="h2" id="pts-erasure-title">
+                  {t('detail.erasureTitle')}
+                </h2>
+                <span className="pill wa">{t('detail.erasurePending')}</span>
+              </div>
+              <p className="pts-help">
+                {t('detail.erasureReceived', {
+                  date: formatDate(pendingRequest.received_at),
+                })}
+              </p>
+              {pendingRequest.requested_by_name ? (
+                <p className="pts-help">
+                  {t('detail.erasureRequestedBy', {
+                    name: pendingRequest.requested_by_name,
+                  })}
+                </p>
+              ) : null}
+              {role.isMember ? (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={cancelRequest.isPending}
+                  onClick={() => cancelRequest.mutate()}
+                >
+                  {t('detail.erasureCancel')}
+                </button>
+              ) : null}
+              {cancelError ? <p className="pts-error">{t(errorKey(cancelError))}</p> : null}
+            </section>
+          ) : null}
+
           <section className="card pts-side-card" aria-labelledby="pts-identity-title">
             <div className="pts-side-head">
               <h2 className="h2" id="pts-identity-title">
@@ -361,6 +452,57 @@ export default function ParticipantDetailPage() {
           </section>
         </aside>
       </div>
+
+      {requesting && canRequest ? (
+        <div className="pts-modal-backdrop">
+          <div
+            className="pts-modal pts-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pts-erasure-dialog-title"
+            aria-describedby="pts-erasure-dialog-body"
+          >
+            <h2 id="pts-erasure-dialog-title">
+              {t('detail.erasureDialogTitle', { id: alias })}
+            </h2>
+            <p id="pts-erasure-dialog-body">{t('detail.erasureDialogBody')}</p>
+            <label className="pts-field pts-field-narrow">
+              <span className="pts-label">{t('detail.erasureReceivedAt')}</span>
+              <input
+                className="pts-input"
+                type="date"
+                value={receivedAt}
+                onChange={(event) => setReceivedAt(event.target.value)}
+                disabled={createRequest.isPending}
+              />
+              <span className="pts-help">{t('detail.erasureReceivedAtHelp')}</span>
+            </label>
+            {requestError ? <p className="pts-error">{t(errorKey(requestError))}</p> : null}
+            <footer className="pts-modal-foot">
+              <button
+                type="button"
+                className="btn btn-d"
+                disabled={createRequest.isPending || !receivedAt}
+                onClick={submitRequest}
+              >
+                {createRequest.isPending
+                  ? t('detail.erasureSending')
+                  : t('detail.erasureSubmit')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setRequesting(false)
+                  createRequest.reset()
+                }}
+              >
+                {t('action.cancel')}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
 
       {confirming ? (
         <div className="pts-modal-backdrop">
