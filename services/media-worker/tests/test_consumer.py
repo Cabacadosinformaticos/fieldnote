@@ -82,7 +82,7 @@ class FakeStorage:
 class FakeRepository:
     def __init__(self) -> None:
         self.processed: list[tuple[UUID, str, int, str]] = []
-        self.failed: list[UUID] = []
+        self.failed: list[tuple[UUID, str]] = []
 
     def mark_processed(
         self,
@@ -94,8 +94,8 @@ class FakeRepository:
     ) -> None:
         self.processed.append((media_object_id, sha256, size_bytes, mime_type))
 
-    def mark_failed(self, media_object_id: UUID) -> None:
-        self.failed.append(media_object_id)
+    def mark_failed(self, media_object_id: UUID, *, reason: str) -> None:
+        self.failed.append((media_object_id, reason))
 
 
 def make_processor(
@@ -178,7 +178,7 @@ def test_permanent_processing_error_marks_failed(samples: Samples) -> None:
     with pytest.raises(MediaProcessingError):
         make_processor(storage, repository, process=failing_process).handle(job)
 
-    assert repository.failed == [MEDIA_OBJECT_ID]
+    assert repository.failed == [(MEDIA_OBJECT_ID, "corrupt stream")]
     assert repository.processed == []
     assert storage.uploads == []
 
@@ -191,7 +191,7 @@ def test_missing_object_marks_failed(samples: Samples) -> None:
     with pytest.raises(ObjectNotFoundError):
         make_processor(storage, repository).handle(job)
 
-    assert repository.failed == [MEDIA_OBJECT_ID]
+    assert repository.failed == [(MEDIA_OBJECT_ID, "missing")]
     assert repository.processed == []
 
 
@@ -218,7 +218,8 @@ def test_declared_and_detected_types_must_match(samples: Samples) -> None:
     with pytest.raises(MediaProcessingError, match="does not match"):
         make_processor(storage, repository, process=unreachable_process).handle(job)
 
-    assert repository.failed == [MEDIA_OBJECT_ID]
+    assert [item[0] for item in repository.failed] == [MEDIA_OBJECT_ID]
+    assert "does not match" in repository.failed[0][1]
     assert storage.uploads == []
 
 
@@ -268,15 +269,15 @@ class StubProcessor:
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
         self.handled: list[MediaJob] = []
-        self.failed: list[UUID] = []
+        self.failed: list[tuple[UUID, str]] = []
 
     def handle(self, job: MediaJob) -> None:
         self.handled.append(job)
         if self.error is not None:
             raise self.error
 
-    def fail(self, job: MediaJob) -> None:
-        self.failed.append(job.media_object_id)
+    def fail(self, job: MediaJob, *, reason: str) -> None:
+        self.failed.append((job.media_object_id, reason))
 
 
 def consume(
@@ -328,7 +329,7 @@ def test_last_attempt_marks_failed_and_rejects() -> None:
     processor = StubProcessor(StorageError("temporary"))
 
     assert consume(processor, payload(), delivery_count=4) == [("reject", 7, False)]
-    assert processor.failed == [MEDIA_OBJECT_ID]
+    assert processor.failed == [(MEDIA_OBJECT_ID, "temporary")]
 
 
 def test_invalid_message_is_rejected_without_reaching_the_processor() -> None:

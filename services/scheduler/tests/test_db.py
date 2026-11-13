@@ -85,6 +85,40 @@ def test_write_plan_is_idempotent(
     assert runs is not None and runs[0] == 2
 
 
+def test_write_plan_audits_each_finished_run(
+    conn: Connection,
+    make_study: Callable[..., UUID],
+    make_activity: Callable[..., UUID],
+    make_participant: Callable[..., UUID],
+) -> None:
+    study_id = make_study()
+    activity_id = make_activity(study_id)
+    participant_id = make_participant(study_id)
+    plan = plan_day(_study_day(study_id, activity_id, participant_id))
+
+    db.write_plan(conn, study_id, plan)
+
+    rows = conn.execute(
+        """
+        SELECT actor_type, actor_id, action, target, details, origin_client
+        FROM audit_log
+        WHERE action = 'plan_completed' AND target = %s
+        """,
+        (str(study_id),),
+    ).fetchall()
+    assert len(rows) == 1
+    actor_type, actor_id, action, target, details, origin_client = rows[0]
+    assert actor_type == "system"
+    assert actor_id is None
+    assert action == "plan_completed"
+    assert target == str(study_id)
+    assert origin_client == "scheduled_task"
+    assert details["planned"] == 1
+    assert details["unplanned"] == 0
+    assert details["search"] == "complete"
+    assert details["seconds"] >= 0
+
+
 def test_write_plan_never_overwrites_a_sent_prompt(
     conn: Connection,
     make_study: Callable[..., UUID],

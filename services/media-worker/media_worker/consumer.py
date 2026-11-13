@@ -64,7 +64,7 @@ class Repository(Protocol):
         mime_type: str,
     ) -> None: ...
 
-    def mark_failed(self, media_object_id: UUID) -> None: ...
+    def mark_failed(self, media_object_id: UUID, *, reason: str) -> None: ...
 
 
 ProcessFunction = Callable[[Path, Path], ProcessedMedia]
@@ -161,8 +161,8 @@ class MediaJobProcessor:
                         thumbnail_key(job.object_key),
                         processed.thumbnail_mime_type or "image/jpeg",
                     )
-        except (MediaProcessingError, ObjectNotFoundError):
-            self.fail(job)
+        except (MediaProcessingError, ObjectNotFoundError) as exc:
+            self.fail(job, reason=str(exc))
             raise
 
         self._repository.mark_processed(
@@ -172,8 +172,8 @@ class MediaJobProcessor:
             mime_type=processed.mime_type,
         )
 
-    def fail(self, job: MediaJob) -> None:
-        self._repository.mark_failed(job.media_object_id)
+    def fail(self, job: MediaJob, *, reason: str) -> None:
+        self._repository.mark_failed(job.media_object_id, reason=reason)
 
 
 class MediaConsumer:
@@ -269,7 +269,7 @@ class MediaConsumer:
                     exc,
                 )
                 try:
-                    self._processor.fail(job)
+                    self._processor.fail(job, reason=str(exc))
                 except Exception:
                     logger.exception(
                         "could not mark media object %s as failed",

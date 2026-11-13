@@ -15,6 +15,7 @@ from uuid import UUID
 
 import psycopg
 from psycopg import Connection
+from psycopg.types.json import Jsonb
 
 from .model import DayPlan
 from .settings import Settings
@@ -356,6 +357,25 @@ def insert_plan_run(
             planned,
             unplanned,
             plan.solve_ms,
+        ),
+    )
+    # FR-68: one audit row per finished run, written with the run in the same transaction. The
+    # actor is the system and the row never names a participant.
+    conn.execute(
+        """
+        INSERT INTO audit_log (actor_type, actor_id, action, target, details, origin_client)
+        VALUES ('system'::audit_actor_type, NULL, 'plan_completed', %s, %s, 'scheduled_task')
+        """,
+        (
+            str(study_id),
+            Jsonb(
+                {
+                    "planned": planned,
+                    "unplanned": unplanned,
+                    "seconds": round(plan.solve_ms / 1000, 1),
+                    "search": "complete" if plan.finished else "cut",
+                }
+            ),
         ),
     )
 
