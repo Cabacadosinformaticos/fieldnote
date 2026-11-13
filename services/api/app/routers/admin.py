@@ -36,7 +36,6 @@ from app.security.audit import record
 from app.security.deps import require_admin
 from app.services import admin as service
 from app.services import erasure as erasure_service
-from app.services import erasure_requests as erasure_requests_service
 from app.services import pool as pool_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -156,7 +155,7 @@ def list_audit_log(
     _admin: AdminUser,
     actor_type: AuditActorType | None = None,
     action: str | None = None,
-    q: str | None = None,
+    q: Annotated[str | None, Query(max_length=100)] = None,
     study_id: uuid.UUID | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
@@ -286,6 +285,7 @@ def list_erasures(
 TOTP_NOT_ENROLLED = "The administrator must enrol a TOTP authenticator first."
 TOTP_REQUIRED = "A TOTP code is required."
 TOTP_INVALID = "The TOTP code is not valid."
+ACCOUNT_LOCKED = "Too many failed sign-in attempts. Try again later."
 
 
 def _audit_erasure_failure(
@@ -305,6 +305,14 @@ def _audit_erasure_failure(
 def _require_totp(
     session: Session, admin: UserAccount, participant_id: uuid.UUID, code: str | None
 ) -> None:
+    # A wrong code follows the same path as a failed sign-in: counted, audited and locked after
+    # the same number of attempts, so the six digits cannot be guessed by repeated tries.
+    if service.is_locked(admin):
+        _audit_erasure_failure(session, admin, participant_id, "locked")
+        raise ApiError(429, "account_locked", ACCOUNT_LOCKED)
+    if admin.locked_until is not None:
+        # A lock that has expired starts a fresh count, as it does at sign-in.
+        service.clear_failed_totp(admin)
     if admin.totp_secret is None or admin.totp_confirmed_at is None:
         _audit_erasure_failure(session, admin, participant_id, "totp_enrolment_required")
         raise ApiError(403, "totp_enrolment_required", TOTP_NOT_ENROLLED)
@@ -312,8 +320,13 @@ def _require_totp(
         _audit_erasure_failure(session, admin, participant_id, "totp_missing")
         raise ApiError(401, "totp_required", TOTP_REQUIRED)
     if not totp.verify_code(admin.totp_secret, code):
-        _audit_erasure_failure(session, admin, participant_id, "bad_totp")
+        locked = service.register_failed_totp(admin)
+        _audit_erasure_failure(session, admin, participant_id, "locked" if locked else "bad_totp")
+        if locked:
+            raise ApiError(429, "account_locked", ACCOUNT_LOCKED)
         raise ApiError(401, "invalid_totp", TOTP_INVALID)
+    service.clear_failed_totp(admin)
+    session.commit()
 
 
 @router.post("/participants/{participant_id}/erasure", response_model=ErasureResultOut)
@@ -330,18 +343,8 @@ def erase_participant(
     an ``erasure_failed`` row in the audit log.
     """
     _require_totp(session, admin, participant_id, payload.totp_code if payload else None)
-    # Read the team's request before the erasure clears the participant link on it.
-    request = erasure_requests_service.pending_for_participant(session, participant_id)
+    # The erasure service also closes the team request of the participant, on every path.
     result = erasure_service.erase_participant_now(session, admin, participant_id)
-    if request is not None:
-        erasure_requests_service.mark_done(
-            session,
-            request.id,
-            admin,
-            participant_id=participant_id,
-            entries=result.entries,
-            files=result.files,
-        )
     return ErasureResultOut(
         participant_id=result.participant_id,
         entries_deleted=result.entries,
