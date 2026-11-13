@@ -195,10 +195,10 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change Account Role
-         * @description FR-41: change an account between researcher and administrator.
+         * Update Account
+         * @description FR-41: change an account's role, its name, or both.
          */
-        patch: operations["change_account_role_api_v1_admin_accounts__user_id__patch"];
+        patch: operations["update_account_api_v1_admin_accounts__user_id__patch"];
         trace?: never;
     };
     "/api/v1/admin/accounts/{user_id}/lock": {
@@ -281,6 +281,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/erasure-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Erasure Requests
+         * @description UC17: outside-the-app requests waiting for the administrator, with their counts.
+         */
+        get: operations["list_pending_erasure_requests_api_v1_admin_erasure_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/erasures": {
         parameters: {
             query?: never;
@@ -313,6 +333,10 @@ export interface paths {
         /**
          * Erase Participant
          * @description FR-44 and UC17: erase one participant from the live system, immediately.
+         *
+         *     The administrator confirms with a fresh TOTP code, verified against the secret of the signed-in
+         *     account with the same helper as the sign-in. A wrong or missing code erases nothing and leaves
+         *     an ``erasure_failed`` row in the audit log.
          */
         post: operations["erase_participant_api_v1_admin_participants__participant_id__erasure_post"];
         delete?: never;
@@ -1183,6 +1207,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/studies/{study_id}/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Exports */
+        get: operations["list_exports_api_v1_studies__study_id__exports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/studies/{study_id}/invite-codes": {
         parameters: {
             query?: never;
@@ -1335,6 +1376,34 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/studies/{study_id}/participants/{participant_id}/erasure-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Erasure Request
+         * @description The pending request of one participant, if the team already passed it on.
+         */
+        get: operations["get_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_get"];
+        put?: never;
+        /**
+         * Create Erasure Request
+         * @description The study owner records that the team decided to grant an outside-the-app request.
+         */
+        post: operations["create_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_post"];
+        /**
+         * Cancel Erasure Request
+         * @description The study owner withdraws a request passed on before the administrator acts.
+         */
+        delete: operations["cancel_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1579,6 +1648,8 @@ export interface components {
         AccountCreate: {
             /** Email */
             email: string;
+            /** Name */
+            name?: string | null;
             /** @default researcher */
             role: components["schemas"]["UserRole"];
         };
@@ -1604,6 +1675,8 @@ export interface components {
             locked_until: string | null;
             /** Mail Sent */
             mail_sent: boolean;
+            /** Name */
+            name: string | null;
             role: components["schemas"]["UserRole"];
             /**
              * State
@@ -1655,9 +1728,11 @@ export interface components {
             status: components["schemas"]["ParticipantStatus"];
             study: components["schemas"]["StudySummaryOut"];
         };
-        /** AccountRoleUpdate */
-        AccountRoleUpdate: {
-            role: components["schemas"]["UserRole"];
+        /** AccountUpdate */
+        AccountUpdate: {
+            /** Name */
+            name?: string | null;
+            role?: components["schemas"]["UserRole"] | null;
         };
         /** ActivityCreate */
         ActivityCreate: {
@@ -1931,6 +2006,12 @@ export interface components {
         };
         /** AdminStudyOut */
         AdminStudyOut: {
+            /** Active Participants */
+            active_participants: number;
+            /** Adherence Percentage */
+            adherence_percentage: number | null;
+            /** Adherence Period */
+            adherence_period: ("today" | "final") | null;
             /** Ends On */
             ends_on: string | null;
             /** Entries */
@@ -1944,6 +2025,7 @@ export interface components {
             owner_email: string | null;
             /** Participants */
             participants: number;
+            schedule_style: components["schemas"]["ScheduleStyle"];
             /** Starts On */
             starts_on: string | null;
             status: components["schemas"]["StudyStatus"];
@@ -1995,6 +2077,10 @@ export interface components {
             action: string;
             /** Actor Id */
             actor_id: string | null;
+            /** Actor Name */
+            actor_name: string | null;
+            /** Actor Study Title */
+            actor_study_title?: string | null;
             actor_type: components["schemas"]["AuditActorType"];
             /**
              * At
@@ -2007,6 +2093,12 @@ export interface components {
             } | null;
             /** Id */
             id: number;
+            /** Origin Browser */
+            origin_browser: string | null;
+            /** Origin Client */
+            origin_client: string | null;
+            /** Origin Ip */
+            origin_ip: string | null;
             /** Target */
             target: string | null;
         };
@@ -2016,6 +2108,10 @@ export interface components {
             items: components["schemas"]["AuditEventOut"][];
             /** Next Cursor */
             next_cursor: number | null;
+            /** Page Count */
+            page_count: number;
+            /** Total */
+            total: number;
         };
         /** AvailabilityIntervalIn */
         AvailabilityIntervalIn: {
@@ -2075,7 +2171,11 @@ export interface components {
         CompletedErasureOut: {
             /** Actor Id */
             actor_id: string | null;
+            /** Actor Name */
+            actor_name: string | null;
             actor_type: components["schemas"]["AuditActorType"];
+            /** Alias */
+            alias: string | null;
             /**
              * At
              * Format: date-time
@@ -2085,11 +2185,8 @@ export interface components {
             entries: number;
             /** Files */
             files: number;
-            /**
-             * Participant Id
-             * Format: uuid
-             */
-            participant_id: string;
+            /** Participant Id */
+            participant_id: string | null;
             /** Study Id */
             study_id: string | null;
             /** Study Title */
@@ -2253,6 +2350,11 @@ export interface components {
          * @enum {string}
          */
         EntryType: "text" | "photo" | "video" | "audio" | "scale" | "choice";
+        /** ErasureConfirmRequest */
+        ErasureConfirmRequest: {
+            /** Totp Code */
+            totp_code?: string | null;
+        };
         /** ErasureListOut */
         ErasureListOut: {
             /** Completed */
@@ -2266,6 +2368,67 @@ export interface components {
         ErasureRequest: {
             /** Confirmation */
             confirmation: string;
+        };
+        /** ErasureRequestCountsOut */
+        ErasureRequestCountsOut: {
+            /** Entries */
+            entries: number;
+            /** Entry Types */
+            entry_types: {
+                [key: string]: number;
+            };
+            /** Files */
+            files: number;
+            /** Has Identity */
+            has_identity: boolean;
+            /** Study Entries */
+            study_entries: number;
+            /** Study Participants */
+            study_participants: number;
+        };
+        /** ErasureRequestCreate */
+        ErasureRequestCreate: {
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+        };
+        /** ErasureRequestSummaryOut */
+        ErasureRequestSummaryOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Participant Alias */
+            participant_alias: string;
+            /** Participant Id */
+            participant_id: string | null;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /** Requested By */
+            requested_by: string | null;
+            /** Requested By Name */
+            requested_by_name: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "done" | "cancelled";
+            /**
+             * Study Id
+             * Format: uuid
+             */
+            study_id: string;
         };
         /** ErasureResultOut */
         ErasureResultOut: {
@@ -2294,6 +2457,56 @@ export interface components {
             /** Erasure Due At */
             erasure_due_at: string | null;
             status: components["schemas"]["ParticipantStatus"];
+        };
+        /** ExportHistoryItem */
+        ExportHistoryItem: {
+            /** Entry Count */
+            entry_count?: number | null;
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id: number;
+            /**
+             * Include Csv
+             * @default true
+             */
+            include_csv: boolean;
+            /**
+             * Include Identity
+             * @default false
+             */
+            include_identity: boolean;
+            /**
+             * Include Location
+             * @default false
+             */
+            include_location: boolean;
+            /**
+             * Include Media
+             * @default false
+             */
+            include_media: boolean;
+            /** Media Types */
+            media_types?: components["schemas"]["EntryType"][];
+            /**
+             * Scope
+             * @default all
+             */
+            scope: string;
+            /**
+             * When
+             * Format: date-time
+             */
+            when: string;
+            /** Who */
+            who: string;
+        };
+        /** ExportHistoryResponse */
+        ExportHistoryResponse: {
+            /** Items */
+            items?: components["schemas"]["ExportHistoryItem"][];
         };
         /**
          * FreeEntryActivityOut
@@ -2796,6 +3009,48 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** PendingErasureRequestOut */
+        PendingErasureRequestOut: {
+            /** Alias */
+            alias: string | null;
+            counts: components["schemas"]["ErasureRequestCountsOut"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Participant Alias */
+            participant_alias: string;
+            /** Participant Id */
+            participant_id: string | null;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /** Requested By */
+            requested_by: string | null;
+            /** Requested By Name */
+            requested_by_name: string | null;
+            requested_by_role: components["schemas"]["StudyRole"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "done" | "cancelled";
+            /**
+             * Study Id
+             * Format: uuid
+             */
+            study_id: string;
+            /** Study Title */
+            study_title: string;
+        };
         /** PersonalInviteCodeOut */
         PersonalInviteCodeOut: {
             /** Code */
@@ -3238,7 +3493,7 @@ export interface components {
             starts_on: string | null;
             status: components["schemas"]["StudyStatus"];
             /** Team */
-            team: string[];
+            team: components["schemas"]["StudyTeamMemberOut"][];
             /** Timezone */
             timezone: string;
             /** Title */
@@ -3411,6 +3666,8 @@ export interface components {
         StudyMemberOut: {
             /** Email */
             email: string;
+            /** Name */
+            name: string | null;
             role: components["schemas"]["StudyRole"];
             /**
              * User Id
@@ -3527,6 +3784,8 @@ export interface components {
         StudyResearcherOut: {
             /** Email */
             email: string;
+            /** Name */
+            name: string | null;
             role: components["schemas"]["StudyRole"];
             /**
              * User Id
@@ -3563,12 +3822,22 @@ export interface components {
             starts_on: string | null;
             status: components["schemas"]["StudyStatus"];
             /** Team */
-            team: string[];
+            team: components["schemas"]["StudyTeamMemberOut"][];
             /** Timezone */
             timezone: string;
             /** Title */
             title: string;
             today_free_entry_display: components["schemas"]["TodayFreeEntryDisplay"];
+        };
+        /**
+         * StudyTeamMemberOut
+         * @description A person on the study team, as the participant sees them.
+         */
+        StudyTeamMemberOut: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string | null;
         };
         /** StudyUpdate */
         StudyUpdate: {
@@ -3753,6 +4022,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Name */
+            name?: string | null;
             role: components["schemas"]["UserRole"];
         };
         /**
@@ -3808,6 +4079,8 @@ export interface components {
             locked: boolean;
             /** Locked Until */
             locked_until: string | null;
+            /** Name */
+            name: string | null;
             role: components["schemas"]["UserRole"];
             /**
              * State
@@ -4169,7 +4442,7 @@ export interface operations {
             };
         };
     };
-    change_account_role_api_v1_admin_accounts__user_id__patch: {
+    update_account_api_v1_admin_accounts__user_id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -4180,7 +4453,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AccountRoleUpdate"];
+                "application/json": components["schemas"]["AccountUpdate"];
             };
         };
         responses: {
@@ -4302,6 +4575,7 @@ export interface operations {
             query?: {
                 actor_type?: components["schemas"]["AuditActorType"] | null;
                 action?: string | null;
+                q?: string | null;
                 study_id?: string | null;
                 since?: string | null;
                 until?: string | null;
@@ -4330,6 +4604,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pending_erasure_requests_api_v1_admin_erasure_requests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingErasureRequestOut"][];
                 };
             };
         };
@@ -4375,7 +4669,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ErasureConfirmRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -6134,6 +6432,19 @@ export interface operations {
             query?: {
                 include_location?: boolean;
                 include_identity?: boolean;
+                include_media?: boolean;
+                media_type?: components["schemas"]["EntryType"][] | null;
+                include_csv?: boolean;
+                scope?: "all" | "filtered";
+                participant_id?: string | null;
+                activity_id?: string | null;
+                entry_type?: components["schemas"]["EntryType"] | null;
+                tag_id?: string | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                q?: string | null;
+                free_only?: boolean;
+                late_only?: boolean;
             };
             header?: never;
             path: {
@@ -6150,6 +6461,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_exports_api_v1_studies__study_id__exports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportHistoryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -6578,6 +6920,104 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AdherenceResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureRequestSummaryOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErasureRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureRequestSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

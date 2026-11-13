@@ -35,6 +35,18 @@
             "title": "Email",
             "type": "string"
           },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
             "$ref": "#/components/schemas/UserRole",
             "default": "researcher"
@@ -94,6 +106,17 @@
             "title": "Mail Sent",
             "type": "boolean"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
             "$ref": "#/components/schemas/UserRole"
           },
@@ -118,6 +141,7 @@
         "required": [
           "id",
           "email",
+          "name",
           "role",
           "state",
           "locked",
@@ -258,16 +282,32 @@
         "title": "AccountParticipationOut",
         "type": "object"
       },
-      "AccountRoleUpdate": {
+      "AccountUpdate": {
         "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
-            "$ref": "#/components/schemas/UserRole"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
-        "required": [
-          "role"
-        ],
-        "title": "AccountRoleUpdate",
+        "title": "AccountUpdate",
         "type": "object"
       },
       "ActivityCreate": {
@@ -1075,6 +1115,36 @@
       },
       "AdminStudyOut": {
         "properties": {
+          "active_participants": {
+            "title": "Active Participants",
+            "type": "integer"
+          },
+          "adherence_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adherence Percentage"
+          },
+          "adherence_period": {
+            "anyOf": [
+              {
+                "enum": [
+                  "today",
+                  "final"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adherence Period"
+          },
           "ends_on": {
             "anyOf": [
               {
@@ -1111,6 +1181,9 @@
             "title": "Participants",
             "type": "integer"
           },
+          "schedule_style": {
+            "$ref": "#/components/schemas/ScheduleStyle"
+          },
           "starts_on": {
             "anyOf": [
               {
@@ -1142,12 +1215,16 @@
           "id",
           "title",
           "status",
+          "schedule_style",
           "starts_on",
           "ends_on",
           "owner_email",
           "team",
           "participants",
-          "entries"
+          "active_participants",
+          "entries",
+          "adherence_percentage",
+          "adherence_period"
         ],
         "title": "AdminStudyOut",
         "type": "object"
@@ -1286,6 +1363,28 @@
             ],
             "title": "Actor Id"
           },
+          "actor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Name"
+          },
+          "actor_study_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Study Title"
+          },
           "actor_type": {
             "$ref": "#/components/schemas/AuditActorType"
           },
@@ -1310,6 +1409,39 @@
             "title": "Id",
             "type": "integer"
           },
+          "origin_browser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Browser"
+          },
+          "origin_client": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Client"
+          },
+          "origin_ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Ip"
+          },
           "target": {
             "anyOf": [
               {
@@ -1326,9 +1458,13 @@
           "id",
           "actor_type",
           "actor_id",
+          "actor_name",
           "action",
           "target",
           "details",
+          "origin_client",
+          "origin_ip",
+          "origin_browser",
           "at"
         ],
         "title": "AuditEventOut",
@@ -1353,11 +1489,21 @@
               }
             ],
             "title": "Next Cursor"
+          },
+          "page_count": {
+            "title": "Page Count",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
           }
         },
         "required": [
           "items",
-          "next_cursor"
+          "next_cursor",
+          "total",
+          "page_count"
         ],
         "title": "AuditLogPage",
         "type": "object"
@@ -1494,8 +1640,30 @@
             ],
             "title": "Actor Id"
           },
+          "actor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Name"
+          },
           "actor_type": {
             "$ref": "#/components/schemas/AuditActorType"
+          },
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
           },
           "at": {
             "format": "date-time",
@@ -1511,9 +1679,16 @@
             "type": "integer"
           },
           "participant_id": {
-            "format": "uuid",
-            "title": "Participant Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
           },
           "study_id": {
             "anyOf": [
@@ -1541,10 +1716,12 @@
         },
         "required": [
           "participant_id",
+          "alias",
           "study_id",
           "study_title",
           "actor_type",
           "actor_id",
+          "actor_name",
           "at",
           "entries",
           "files"
@@ -2040,6 +2217,24 @@
         "title": "EntryType",
         "type": "string"
       },
+      "ErasureConfirmRequest": {
+        "properties": {
+          "totp_code": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totp Code"
+          }
+        },
+        "title": "ErasureConfirmRequest",
+        "type": "object"
+      },
       "ErasureListOut": {
         "properties": {
           "completed": {
@@ -2088,6 +2283,146 @@
           "confirmation"
         ],
         "title": "ErasureRequest",
+        "type": "object"
+      },
+      "ErasureRequestCountsOut": {
+        "properties": {
+          "entries": {
+            "title": "Entries",
+            "type": "integer"
+          },
+          "entry_types": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Entry Types",
+            "type": "object"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "has_identity": {
+            "title": "Has Identity",
+            "type": "boolean"
+          },
+          "study_entries": {
+            "title": "Study Entries",
+            "type": "integer"
+          },
+          "study_participants": {
+            "title": "Study Participants",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entries",
+          "files",
+          "entry_types",
+          "has_identity",
+          "study_participants",
+          "study_entries"
+        ],
+        "title": "ErasureRequestCountsOut",
+        "type": "object"
+      },
+      "ErasureRequestCreate": {
+        "properties": {
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "received_at"
+        ],
+        "title": "ErasureRequestCreate",
+        "type": "object"
+      },
+      "ErasureRequestSummaryOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "participant_alias": {
+            "title": "Participant Alias",
+            "type": "string"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "requested_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Name"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "done",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "study_id": {
+            "format": "uuid",
+            "title": "Study Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "participant_id",
+          "participant_alias",
+          "study_id",
+          "requested_by",
+          "requested_by_name",
+          "received_at",
+          "created_at"
+        ],
+        "title": "ErasureRequestSummaryOut",
         "type": "object"
       },
       "ErasureResultOut": {
@@ -2177,6 +2512,98 @@
           "erasure_due_at"
         ],
         "title": "ExistingParticipationOut",
+        "type": "object"
+      },
+      "ExportHistoryItem": {
+        "properties": {
+          "entry_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Count"
+          },
+          "filter": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "include_csv": {
+            "default": true,
+            "title": "Include Csv",
+            "type": "boolean"
+          },
+          "include_identity": {
+            "default": false,
+            "title": "Include Identity",
+            "type": "boolean"
+          },
+          "include_location": {
+            "default": false,
+            "title": "Include Location",
+            "type": "boolean"
+          },
+          "include_media": {
+            "default": false,
+            "title": "Include Media",
+            "type": "boolean"
+          },
+          "media_types": {
+            "items": {
+              "$ref": "#/components/schemas/EntryType"
+            },
+            "title": "Media Types",
+            "type": "array"
+          },
+          "scope": {
+            "default": "all",
+            "title": "Scope",
+            "type": "string"
+          },
+          "when": {
+            "format": "date-time",
+            "title": "When",
+            "type": "string"
+          },
+          "who": {
+            "title": "Who",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "who",
+          "when"
+        ],
+        "title": "ExportHistoryItem",
+        "type": "object"
+      },
+      "ExportHistoryResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExportHistoryItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ExportHistoryResponse",
         "type": "object"
       },
       "FreeEntryActivityOut": {
@@ -3577,6 +4004,123 @@
         "title": "PasswordResetRequestOut",
         "type": "object"
       },
+      "PendingErasureRequestOut": {
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ErasureRequestCountsOut"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "participant_alias": {
+            "title": "Participant Alias",
+            "type": "string"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "requested_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Name"
+          },
+          "requested_by_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StudyRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "done",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "study_id": {
+            "format": "uuid",
+            "title": "Study Id",
+            "type": "string"
+          },
+          "study_title": {
+            "title": "Study Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "participant_id",
+          "participant_alias",
+          "study_id",
+          "requested_by",
+          "requested_by_name",
+          "received_at",
+          "created_at",
+          "alias",
+          "study_title",
+          "requested_by_role",
+          "counts"
+        ],
+        "title": "PendingErasureRequestOut",
+        "type": "object"
+      },
       "PersonalInviteCodeOut": {
         "properties": {
           "code": {
@@ -4893,7 +5437,7 @@
           },
           "team": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/StudyTeamMemberOut"
             },
             "title": "Team",
             "type": "array"
@@ -5438,6 +5982,17 @@
             "title": "Email",
             "type": "string"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
             "$ref": "#/components/schemas/StudyRole"
           },
@@ -5450,6 +6005,7 @@
         "required": [
           "user_id",
           "email",
+          "name",
           "role"
         ],
         "title": "StudyMemberOut",
@@ -5787,6 +6343,17 @@
             "title": "Email",
             "type": "string"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
             "$ref": "#/components/schemas/StudyRole"
           },
@@ -5799,6 +6366,7 @@
         "required": [
           "user_id",
           "email",
+          "name",
           "role"
         ],
         "title": "StudyResearcherOut",
@@ -5884,7 +6452,7 @@
           },
           "team": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/StudyTeamMemberOut"
             },
             "title": "Team",
             "type": "array"
@@ -5915,6 +6483,32 @@
           "today_free_entry_display"
         ],
         "title": "StudySummaryOut",
+        "type": "object"
+      },
+      "StudyTeamMemberOut": {
+        "description": "A person on the study team, as the participant sees them.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "StudyTeamMemberOut",
         "type": "object"
       },
       "StudyUpdate": {
@@ -6407,6 +7001,17 @@
             "title": "Id",
             "type": "string"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
             "$ref": "#/components/schemas/UserRole"
           }
@@ -6547,6 +7152,17 @@
             ],
             "title": "Locked Until"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
             "$ref": "#/components/schemas/UserRole"
           },
@@ -6571,6 +7187,7 @@
         "required": [
           "id",
           "email",
+          "name",
           "role",
           "state",
           "locked",
@@ -7144,8 +7761,8 @@
     },
     "/api/v1/admin/accounts/{user_id}": {
       "patch": {
-        "description": "FR-41: change an account between researcher and administrator.",
-        "operationId": "change_account_role_api_v1_admin_accounts__user_id__patch",
+        "description": "FR-41: change an account's role, its name, or both.",
+        "operationId": "update_account_api_v1_admin_accounts__user_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -7162,7 +7779,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AccountRoleUpdate"
+                "$ref": "#/components/schemas/AccountUpdate"
               }
             }
           },
@@ -7195,7 +7812,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Change Account Role",
+        "summary": "Update Account",
         "tags": [
           "admin"
         ]
@@ -7387,6 +8004,23 @@
           },
           {
             "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
             "name": "study_id",
             "required": false,
             "schema": {
@@ -7499,6 +8133,37 @@
         ]
       }
     },
+    "/api/v1/admin/erasure-requests": {
+      "get": {
+        "description": "UC17: outside-the-app requests waiting for the administrator, with their counts.",
+        "operationId": "list_pending_erasure_requests_api_v1_admin_erasure_requests_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PendingErasureRequestOut"
+                  },
+                  "title": "Response List Pending Erasure Requests Api V1 Admin Erasure Requests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pending Erasure Requests",
+        "tags": [
+          "erasure-requests"
+        ]
+      }
+    },
     "/api/v1/admin/erasures": {
       "get": {
         "description": "FR-44, FR-85: erasures scheduled from the app (read only) and those already run.",
@@ -7569,7 +8234,7 @@
     },
     "/api/v1/admin/participants/{participant_id}/erasure": {
       "post": {
-        "description": "FR-44 and UC17: erase one participant from the live system, immediately.",
+        "description": "FR-44 and UC17: erase one participant from the live system, immediately.\n\nThe administrator confirms with a fresh TOTP code, verified against the secret of the signed-in\naccount with the same helper as the sign-in. A wrong or missing code erases nothing and leaves\nan ``erasure_failed`` row in the audit log.",
         "operationId": "erase_participant_api_v1_admin_participants__participant_id__erasure_post",
         "parameters": [
           {
@@ -7583,6 +8248,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ErasureConfirmRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -10476,6 +11158,196 @@
               "title": "Include Identity",
               "type": "boolean"
             }
+          },
+          {
+            "in": "query",
+            "name": "include_media",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Media",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "media_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/EntryType"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Media Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_csv",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Csv",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "filtered"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "participant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Participant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "activity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Activity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entry_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EntryType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entry Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "free_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Free Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "late_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Late Only",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -10504,6 +11376,54 @@
           }
         ],
         "summary": "Export Study",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/v1/studies/{study_id}/exports": {
+      "get": {
+        "operationId": "list_exports_api_v1_studies__study_id__exports_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Exports",
         "tags": [
           "export"
         ]
@@ -11237,6 +12157,190 @@
         "summary": "Adherence",
         "tags": [
           "entries"
+        ]
+      }
+    },
+    "/api/v1/studies/{study_id}/participants/{participant_id}/erasure-request": {
+      "delete": {
+        "description": "The study owner withdraws a request passed on before the administrator acts.",
+        "operationId": "cancel_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Erasure Request",
+        "tags": [
+          "erasure-requests"
+        ]
+      },
+      "get": {
+        "description": "The pending request of one participant, if the team already passed it on.",
+        "operationId": "get_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErasureRequestSummaryOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Erasure Request Api V1 Studies  Study Id  Participants  Participant Id  Erasure Request Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Erasure Request",
+        "tags": [
+          "erasure-requests"
+        ]
+      },
+      "post": {
+        "description": "The study owner records that the team decided to grant an outside-the-app request.",
+        "operationId": "create_erasure_request_api_v1_studies__study_id__participants__participant_id__erasure_request_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "study_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Study Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ErasureRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErasureRequestSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Erasure Request",
+        "tags": [
+          "erasure-requests"
         ]
       }
     },
