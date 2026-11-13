@@ -4,14 +4,14 @@ import secrets
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Text, cast, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.errors import ApiError
 from app.models import (
-    AccountParticipation,
     AuditLog,
     Entry,
     ErasureRequest,
@@ -96,6 +96,20 @@ def _get_account(session: Session, user_id: uuid.UUID) -> UserAccount:
 def is_locked(user: UserAccount, now: datetime | None = None) -> bool:
     moment = now or datetime.now(UTC)
     return user.locked_until is not None and user.locked_until > moment
+
+
+def register_failed_totp(user: UserAccount) -> bool:
+    """Count a wrong erasure code like a failed sign-in; True when this attempt locks."""
+    user.failed_logins += 1
+    if user.failed_logins >= settings.login_max_failures:
+        user.locked_until = datetime.now(UTC) + timedelta(minutes=settings.login_lockout_minutes)
+        return True
+    return False
+
+
+def clear_failed_totp(user: UserAccount) -> None:
+    user.failed_logins = 0
+    user.locked_until = None
 
 
 def is_deactivated(user: UserAccount) -> bool:
@@ -380,7 +394,13 @@ def study_overview(session: Session) -> list[StudyOverview]:
 
 
 def _audit_search(term: str):
-    """Rows whose actor name or email, pseudonym, or study title match the term."""
+    """Rows whose actor name or email, pseudonym, or study title match the term.
+
+    The search never follows an alias or a study to every row of the participant account behind
+    it: that would let an administrator link the pseudonyms of one person across studies
+    (FR-104, NFR-77). A pseudonym matches only the rows of participants with that alias, and a
+    study title only the rows whose target or details name that study.
+    """
     escaped = term.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     pattern = f"%{escaped}%"
 
@@ -391,22 +411,10 @@ def _audit_search(term: str):
         or_(contains(func.lower(UserAccount.name)), contains(func.lower(UserAccount.email)))
     )
     participant_ids = select(Participant.id).where(contains(func.lower(Participant.alias)))
-    study_ids = select(Study.id).where(contains(func.lower(Study.title)))
     study_ids_text = select(cast(Study.id, Text)).where(contains(func.lower(Study.title)))
-    account_ids_by_alias = (
-        select(AccountParticipation.account_id)
-        .join(Participant, Participant.id == AccountParticipation.participant_id)
-        .where(contains(func.lower(Participant.alias)))
-    )
-    account_ids_by_study = select(AccountParticipation.account_id).where(
-        AccountParticipation.study_id.in_(study_ids)
-    )
     return or_(
         AuditLog.actor_id.in_(user_ids),
         AuditLog.actor_id.in_(participant_ids),
-        AuditLog.actor_id.in_(select(Participant.id).where(Participant.study_id.in_(study_ids))),
-        AuditLog.actor_id.in_(account_ids_by_alias),
-        AuditLog.actor_id.in_(account_ids_by_study),
         contains(func.lower(AuditLog.details.op("->>")("email"))),
         AuditLog.target.in_(study_ids_text),
         AuditLog.details.op("->>")("study_id").in_(study_ids_text),

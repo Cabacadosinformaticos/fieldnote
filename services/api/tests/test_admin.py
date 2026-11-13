@@ -8,9 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import (
+    AccountParticipation,
     Activity,
     AuditLog,
     Entry,
+    ParticipantAccount,
     PasswordResetToken,
     Prompt,
     RefreshToken,
@@ -718,8 +720,93 @@ def test_audit_log_searches_by_person_pseudonym_and_study(
     assert search("owner@example.org") == ["login"]
     assert search("unknown@example.org") == ["login_failed"]
     assert search("P-14") == ["erasure_requested"]
-    assert search("Pequenos") == ["erasure_requested", "study_updated"]
+    # A study title matches the rows that name the study, never the rows of its participants.
+    assert search("Pequenos") == ["study_updated"]
     assert search("nothing-matches") == []
+
+
+def test_audit_search_does_not_link_one_account_across_studies(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study(title="Estudo do sono")
+    other_study = make_study(title="Estudo da luz")
+    first = make_participant(study, alias="P-14")
+    second = make_participant(other_study, alias="Q-77")
+    account = ParticipantAccount(recovery_lookup="lookup-shared-account")
+    session.add(account)
+    session.flush()
+    session.add_all(
+        [
+            AccountParticipation(participant_id=first.id, account_id=account.id, study_id=study.id),
+            AccountParticipation(
+                participant_id=second.id, account_id=account.id, study_id=other_study.id
+            ),
+        ]
+    )
+    session.commit()
+    base = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+    _add_event(
+        session,
+        "entry_created",
+        at=base,
+        actor_type=AuditActorType.PARTICIPANT,
+        actor_id=first.id,
+    )
+    _add_event(
+        session,
+        "entry_created",
+        at=base + timedelta(minutes=1),
+        actor_type=AuditActorType.PARTICIPANT,
+        actor_id=second.id,
+    )
+    # An account row carries the account id, not a participant id, as the app records it.
+    _add_event(
+        session,
+        "account_signed_in",
+        at=base + timedelta(minutes=2),
+        actor_type=AuditActorType.PARTICIPANT,
+        actor_id=account.id,
+    )
+    _add_event(
+        session,
+        "study_updated",
+        at=base + timedelta(minutes=3),
+        target=str(other_study.id),
+        details={"study_id": str(other_study.id)},
+    )
+    headers = bearer_headers(admin)
+
+    def search(term: str) -> list[dict[str, object]]:
+        response = client.get(f"{ADMIN}/audit-log", params={"q": term}, headers=headers)
+        assert response.status_code == 200, response.text
+        return response.json()["items"]
+
+    by_alias = search("P-14")
+    assert [(row["action"], row["actor_id"]) for row in by_alias] == [
+        ("entry_created", str(first.id))
+    ]
+
+    by_study = search("Estudo da luz")
+    assert [row["action"] for row in by_study] == ["study_updated"]
+
+    assert search("Q-77")[0]["actor_id"] == str(second.id)
+    assert [row["action"] for row in search("Q-77")] == ["entry_created"]
+
+
+def test_audit_search_is_capped_at_100_characters(
+    client: TestClient, admin: UserAccount, bearer_headers
+) -> None:
+    response = client.get(
+        f"{ADMIN}/audit-log", params={"q": "a" * 101}, headers=bearer_headers(admin)
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
 
 
 def test_team_request_stores_the_address_and_browser_and_the_actor_name(
@@ -748,7 +835,7 @@ def test_team_request_stores_the_address_and_browser_and_the_actor_name(
     )
     assert event is not None
     assert event.origin_client == "portal"
-    assert event.origin_ip == "203.0.113.41"
+    assert event.origin_ip == "10.0.0.9"
     assert event.origin_browser == "Chrome"
 
     page = client.get(
@@ -757,7 +844,7 @@ def test_team_request_stores_the_address_and_browser_and_the_actor_name(
     row = page["items"][0]
     assert row["actor_name"] == "Carla Nunes"
     assert row["origin_client"] == "portal"
-    assert row["origin_ip"] == "203.0.113.41"
+    assert row["origin_ip"] == "10.0.0.9"
     assert row["origin_browser"] == "Chrome"
 
 
