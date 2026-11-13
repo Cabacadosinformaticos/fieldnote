@@ -93,7 +93,11 @@ def _validate_received_at(session: Session, study: Study, received_at: datetime)
         .order_by(AuditLog.id.desc())
         .limit(1)
     )
-    if created_at is not None and moment < _as_utc(created_at):
+    # The dialog asks for a day, so compare days: a request received on the day the study was
+    # created is valid whatever the hour of either.
+    if created_at is not None and (
+        moment.astimezone(zone).date() < _as_utc(created_at).astimezone(zone).date()
+    ):
         raise ApiError(422, "received_at_before_study", RECEIVED_BEFORE_STUDY)
 
 

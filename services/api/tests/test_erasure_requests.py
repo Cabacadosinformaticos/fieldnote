@@ -312,7 +312,7 @@ def test_received_at_cannot_be_before_the_study_was_created(
     refused = client.post(
         _url(study, participant),
         headers=bearer_headers(owner),
-        json={"received_at": (created_at - timedelta(hours=1)).isoformat()},
+        json={"received_at": (created_at - timedelta(days=1)).isoformat()},
     )
     assert refused.status_code == 422
     assert refused.json()["error"]["code"] == "received_at_before_study"
