@@ -191,6 +191,7 @@ def test_admin_erasure_removes_rows_files_and_audits_without_personal_data(
     assert audit.actor_id == admin.id
     assert audit.details == {
         "study_id": str(study.id),
+        "alias": "P-01",
         "entries": 1,
         "files": 4,
     }
@@ -434,12 +435,74 @@ def test_erasures_list_shows_scheduled_and_completed_ones(
     assert body["scheduled"][0]["requested_at"] is not None
     assert body["scheduled"][0]["due_at"] is not None
     assert body["completed"][0]["participant_id"] == str(erased_id)
+    assert body["completed"][0]["alias"] == "P-08"
     assert body["completed"][0]["study_id"] == str(study.id)
     assert body["completed"][0]["study_title"] == study.title
     assert body["completed"][0]["actor_type"] == "user"
     assert body["completed"][0]["actor_id"] == str(admin.id)
     assert body["completed"][0]["entries"] == 1
     assert body["completed"][0]["files"] == 2
+
+
+def test_erasures_list_names_a_system_erasure_by_its_alias_and_counts(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    bearer_headers,
+) -> None:
+    study = make_study(title="Pequenos-almoços em casa")
+    erased_id = uuid.uuid4()
+    record(
+        session,
+        None,
+        "participant_erased",
+        target=str(erased_id),
+        details={
+            "study_id": str(study.id),
+            "alias": "P-09",
+            "entries": 24,
+            "files": 6,
+        },
+    )
+    session.commit()
+
+    listing = client.get(f"{ADMIN}/erasures", headers=bearer_headers(admin))
+
+    assert listing.status_code == 200, listing.text
+    row = listing.json()["completed"][0]
+    assert row["participant_id"] == str(erased_id)
+    assert row["alias"] == "P-09"
+    assert row["study_title"] == "Pequenos-almoços em casa"
+    assert row["actor_type"] == "system"
+    assert row["entries"] == 24
+    assert row["files"] == 6
+
+
+def test_erasures_list_leaves_the_alias_empty_on_an_old_audit_row(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    bearer_headers,
+) -> None:
+    study = make_study()
+    erased_id = uuid.uuid4()
+    record(
+        session,
+        None,
+        "participant_erased",
+        target=str(erased_id),
+        details={"study_id": str(study.id), "entries": 0, "files": 0},
+    )
+    session.commit()
+
+    listing = client.get(f"{ADMIN}/erasures", headers=bearer_headers(admin))
+
+    assert listing.status_code == 200, listing.text
+    row = listing.json()["completed"][0]
+    assert row["alias"] is None
+    assert row["study_title"] == study.title
 
 
 def test_completed_erasures_are_paginated(
@@ -521,7 +584,12 @@ def test_job_erases_only_due_participants_and_runs_twice_safely(
     assert audit is not None
     assert audit.actor_type == AuditActorType.SYSTEM
     assert audit.actor_id is None
-    assert audit.details == {"study_id": str(study.id), "entries": 1, "files": 3}
+    assert audit.details == {
+        "study_id": str(study.id),
+        "alias": "P-01",
+        "entries": 1,
+        "files": 3,
+    }
 
     assert run_once(session) == 0
 

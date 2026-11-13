@@ -86,6 +86,7 @@ def complete_file_deletion(
     *,
     files: int,
     actor: UserAccount | None = None,
+    alias: str | None = None,
 ) -> bool:
     """Remove the pending marker and write ``participant_erased`` when this worker wins.
 
@@ -106,12 +107,22 @@ def complete_file_deletion(
     entries = pending.entries
     session.delete(pending)
     session.flush()
+    details: dict[str, object] = {
+        "study_id": str(study_id),
+        "entries": entries,
+        "files": files,
+    }
+    # The alias is a pseudonym, so the audit row may keep it to name the erasure after the
+    # participant row is gone. A retry after a storage failure no longer has the row to read it
+    # from, and the audit row then stays without it.
+    if alias:
+        details["alias"] = alias
     record(
         session,
         actor,
         ERASED_ACTION,
         target=str(participant_id),
-        details={"study_id": str(study_id), "entries": entries, "files": files},
+        details=details,
     )
     _close_team_request(session, participant_id, actor=actor, entries=entries, files=files)
     session.commit()
@@ -138,6 +149,7 @@ def erase_participant(
         return None
 
     study_id = locked.study_id
+    alias = locked.alias
     entries = _count_entries(session, participant_id)
     session.execute(
         delete(MediaObject).where(MediaObject.object_key.like(f"entries/{participant_id}/%"))
@@ -153,7 +165,7 @@ def erase_participant(
     session.commit()
 
     files = remover(participant_id)
-    complete_file_deletion(session, participant_id, files=files, actor=actor)
+    complete_file_deletion(session, participant_id, files=files, actor=actor, alias=alias)
     return ErasureResult(participant_id=participant_id, entries=entries, files=files)
 
 

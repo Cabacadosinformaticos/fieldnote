@@ -170,6 +170,7 @@ function PendingRequestCard({ request }: { request: PendingErasureRequest }) {
                 {t('erasure.kept.countsNoteDynamic', {
                   study: request.study_title,
                   participants: request.counts.study_participants,
+                  participantsAfter: Math.max(0, request.counts.study_participants - 1),
                   total: request.counts.study_entries,
                   remaining,
                 })}
@@ -220,12 +221,13 @@ function backupUntil(value: string): string {
 }
 
 function historyActor(item: CompletedErasure): string {
-  if (item.actor_name) {
-    return item.actor_name
+  if (item.actor_type === 'system') {
+    return t('erasure.historySystemActor')
   }
-  return item.actor_type === 'system'
-    ? t('erasure.historySystemActor')
-    : t('audit.actorUnknown')
+  if (item.actor_name) {
+    return t('erasure.historyActorName', { name: item.actor_name })
+  }
+  return t('erasure.historyActorUnknown')
 }
 
 export default function AdminErasurePage() {
@@ -595,7 +597,7 @@ export default function AdminErasurePage() {
                   <div>
                     <span className="ad-detail-title">
                       {t('erasure.historyItem', {
-                        alias: item.alias ?? shortId(item.participant_id),
+                        alias: item.alias ?? t('erasure.historyUnknownParticipant'),
                         study: item.study_title ?? '—',
                       })}
                     </span>
