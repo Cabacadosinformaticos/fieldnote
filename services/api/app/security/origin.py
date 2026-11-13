@@ -6,6 +6,7 @@ writes still records its origin. Nothing here is trusted for authorisation: the 
 the audit log.
 """
 
+import ipaddress
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
 
@@ -19,6 +20,9 @@ AUTOMATIC_TASK = "automatic_task"
 
 _APP_PATHS = ("/api/v1/participation", "/api/v1/account", "/api/v1/pool")
 _APP_SCHEMES = frozenset({"device", "account"})
+
+# A forwarded chain is a handful of addresses; anything longer is not a value Traefik produced.
+_MAX_FORWARDED_FOR_LENGTH = 512
 
 # Browsers in the order in which their token must be looked for, because Chrome and Edge also
 # send "Safari/" in their user agent.
@@ -87,11 +91,20 @@ def _is_ios(user_agent: str) -> bool:
 
 
 def _address(request: Request) -> str | None:
-    """The client address, taken from the first entry Traefik writes in X-Forwarded-For."""
+    """The address Traefik appended to X-Forwarded-For, or the peer of the connection.
+
+    Traefik replaces the header of an untrusted client, so a single entry is the peer. When a
+    chain of trusted proxies wrote the header, the entry Traefik appended is the last one; the
+    earlier entries are whatever those proxies received and are not trusted here. Only a parsed
+    IP address is stored, never the raw header text.
+    """
     forwarded = request.headers.get("x-forwarded-for", "")
-    first = forwarded.split(",")[0].strip()
-    if first:
-        return first
+    if len(forwarded) <= _MAX_FORWARDED_FOR_LENGTH:
+        candidate = forwarded.rsplit(",", 1)[-1].strip()
+        try:
+            return str(ipaddress.ip_address(candidate))
+        except ValueError:
+            pass
     return request.client.host if request.client is not None else None
 
 
