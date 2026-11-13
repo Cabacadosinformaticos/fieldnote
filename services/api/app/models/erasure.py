@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Text, Uuid, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -34,6 +44,12 @@ class ErasureRequest(Base):
     __table_args__ = (
         CheckConstraint(
             "status IN ('pending', 'done', 'cancelled')", name="ck_erasure_request_status_valid"
+        ),
+        Index(
+            "uq_erasure_request_pending_participant",
+            "participant_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
         ),
     )
 

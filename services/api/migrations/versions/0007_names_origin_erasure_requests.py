@@ -77,9 +77,23 @@ def upgrade() -> None:
             "status IN ('pending', 'done', 'cancelled')", name="ck_erasure_request_status_valid"
         ),
     )
+    # One pending request per participant, enforced by the database.
+    op.create_index(
+        "uq_erasure_request_pending_participant",
+        "erasure_request",
+        ["participant_id"],
+        unique=True,
+        postgresql_where=sa.text("status = 'pending'"),
+    )
+    # The audit search and the done list look rows up by actor and by target.
+    op.create_index("ix_audit_log_actor_id", "audit_log", ["actor_id"])
+    op.create_index("ix_audit_log_target", "audit_log", ["target"])
 
 
 def downgrade() -> None:
+    op.drop_index("ix_audit_log_target", table_name="audit_log")
+    op.drop_index("ix_audit_log_actor_id", table_name="audit_log")
+    op.drop_index("uq_erasure_request_pending_participant", table_name="erasure_request")
     op.drop_table("erasure_request")
     op.drop_column("audit_log", "origin_browser")
     op.drop_column("audit_log", "origin_ip")

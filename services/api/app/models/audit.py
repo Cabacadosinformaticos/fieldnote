@@ -15,9 +15,9 @@ class AuditLog(Base):
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     actor_type: Mapped[AuditActorType] = mapped_column(audit_actor_type)
     # Logical reference: the actor may be a deleted account or a participant that is later erased.
-    actor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
     action: Mapped[str] = mapped_column(Text)
-    target: Mapped[str | None] = mapped_column(Text)
+    target: Mapped[str | None] = mapped_column(Text, index=True)
     details: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     # Where the action came from: 'portal', 'app_android', 'app_ios', 'scheduled_task' or
     # 'automatic_task'. The address and the browser are kept only for team accounts, never for
