@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.erasure_job import run_once
 from app.models import (
     AccountParticipation,
@@ -20,6 +21,7 @@ from app.models import (
     ParticipantAccount,
     ParticipantIdentity,
     StudyAnswer,
+    UserAccount,
 )
 from app.models.enums import (
     AuditActorType,
@@ -282,6 +284,91 @@ def test_a_wrong_totp_code_refuses_the_erasure_and_audits_it(
     assert audit.actor_id == admin.id
     assert audit.target == str(participant.id)
     assert audit.details == {"reason": "bad_totp"}
+
+
+def test_repeated_wrong_codes_lock_the_admin_like_failed_sign_ins(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    calls = _delete_file_calls(monkeypatch)
+    headers = bearer_headers(admin)
+
+    for _ in range(settings.login_max_failures - 1):
+        response = _erase(client, admin, headers, participant.id, _wrong_code(admin))
+        assert response.status_code == 401
+        assert response.json()["error"]["code"] == "invalid_totp"
+
+    locking = _erase(client, admin, headers, participant.id, _wrong_code(admin))
+
+    assert locking.status_code == 429
+    assert locking.json()["error"]["code"] == "account_locked"
+    session.expire_all()
+    stored = session.get(UserAccount, admin.id)
+    assert stored is not None
+    assert stored.failed_logins == settings.login_max_failures
+    assert stored.locked_until is not None
+    assert stored.locked_until > datetime.now(UTC)
+    assert calls == []
+    assert session.get(Participant, participant.id) is not None
+
+
+def test_a_locked_admin_gets_the_sign_in_lock_error(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    calls = _delete_file_calls(monkeypatch)
+    admin.locked_until = datetime.now(UTC) + timedelta(minutes=5)
+    session.commit()
+
+    response = _erase(client, admin, bearer_headers(admin), participant.id, _code(admin))
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "account_locked"
+    assert calls == []
+    session.expire_all()
+    assert session.get(Participant, participant.id) is not None
+
+
+def test_a_correct_code_resets_the_failed_counter(
+    client: TestClient,
+    session: Session,
+    admin,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    participant = make_participant(study)
+    _delete_file_calls(monkeypatch)
+    headers = bearer_headers(admin)
+    for _ in range(2):
+        assert _erase(client, admin, headers, participant.id, _wrong_code(admin)).status_code == 401
+    session.expire_all()
+    assert session.get(UserAccount, admin.id).failed_logins == 2
+
+    erased = _erase(client, admin, headers, participant.id, _code(admin))
+
+    assert erased.status_code == 200, erased.text
+    session.expire_all()
+    stored = session.get(UserAccount, admin.id)
+    assert stored is not None
+    assert stored.failed_logins == 0
+    assert stored.locked_until is None
 
 
 def test_a_missing_totp_code_refuses_the_erasure_and_audits_it(

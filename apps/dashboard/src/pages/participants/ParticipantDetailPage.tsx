@@ -368,7 +368,7 @@ export default function ParticipantDetailPage() {
                   })}
                 </p>
               ) : null}
-              {role.isMember ? (
+              {role.canManage ? (
                 <button
                   type="button"
                   className="btn btn-sm"

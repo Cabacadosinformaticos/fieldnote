@@ -22,7 +22,7 @@ from app.errors import ApiError
 from app.models import Entry, ErasureFileDeletion, MediaObject, Participant, UserAccount
 from app.models.enums import ParticipantStatus
 from app.security.audit import record
-from app.services import storage
+from app.services import erasure_requests, storage
 
 ERASED_ACTION = "participant_erased"
 PARTICIPANT_NOT_FOUND = "The participant does not exist."
@@ -59,6 +59,27 @@ def _lock_participant(session: Session, participant_id: uuid.UUID) -> Participan
     )
 
 
+def _close_team_request(
+    session: Session,
+    participant_id: uuid.UUID,
+    *,
+    actor: UserAccount | None,
+    entries: int,
+    files: int,
+) -> None:
+    """Close the team request of the participant, whichever path finished the erasure."""
+    request = erasure_requests.pending_for_erased_participant(session, participant_id)
+    if request is not None:
+        erasure_requests.mark_done(
+            session,
+            request.id,
+            actor,
+            participant_id=participant_id,
+            entries=entries,
+            files=files,
+        )
+
+
 def complete_file_deletion(
     session: Session,
     participant_id: uuid.UUID,
@@ -70,7 +91,8 @@ def complete_file_deletion(
 
     Returns ``False`` when another worker already settled the files. The conditional delete is
     what makes exactly one ``participant_erased`` row per participant even when the job and the
-    administrator race each other.
+    administrator race each other. The team request of the participant, if there is one, is
+    closed here with the same counts and the same commit.
     """
     pending = session.scalar(
         select(ErasureFileDeletion)
@@ -91,6 +113,7 @@ def complete_file_deletion(
         target=str(participant_id),
         details={"study_id": str(study_id), "entries": entries, "files": files},
     )
+    _close_team_request(session, participant_id, actor=actor, entries=entries, files=files)
     session.commit()
     return True
 

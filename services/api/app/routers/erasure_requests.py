@@ -110,9 +110,9 @@ def cancel_erasure_request(
     study_id: uuid.UUID,
     participant_id: uuid.UUID,
     session: Annotated[Session, Depends(get_session)],
-    access: MemberAccess,
+    access: OwnerAccess,
 ) -> None:
-    """The team withdraws a request it had passed on before the administrator acts."""
+    """The study owner withdraws a request passed on before the administrator acts."""
     _study(session, study_id)
     _participant(session, study_id, participant_id)
     service.cancel_request(session, study_id, participant_id, access.user)

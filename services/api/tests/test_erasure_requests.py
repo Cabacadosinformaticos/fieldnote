@@ -1,10 +1,12 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.erasure_job import run_once
 from app.models import (
     AuditLog,
     Entry,
@@ -14,7 +16,7 @@ from app.models import (
     ParticipantIdentity,
     StudyMember,
 )
-from app.models.enums import EntryType, ParticipantStatus, StudyRole, UserRole
+from app.models.enums import AuditActorType, EntryType, ParticipantStatus, StudyRole, UserRole
 from app.security import totp
 from app.services import erasure_requests as service
 from app.services import storage
@@ -250,6 +252,171 @@ def test_request_is_refused_while_the_app_already_schedules_an_erasure(
     assert response.json()["error"]["code"] == "erasure_scheduled"
 
 
+def test_received_at_cannot_be_after_today_in_the_study(
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study()
+    owner = make_user(email="owner@example.org")
+    _add_member(session, study, owner, StudyRole.PRINCIPAL_INVESTIGATOR)
+    participant = make_participant(study)
+    zone = ZoneInfo(study.timezone)
+    local_today = datetime.now(UTC).astimezone(zone).date()
+    end_of_today = datetime.combine(local_today, time.max, tzinfo=zone)
+    tomorrow = datetime.combine(local_today + timedelta(days=1), time.min, tzinfo=zone)
+
+    refused = client.post(
+        _url(study, participant),
+        headers=bearer_headers(owner),
+        json={"received_at": tomorrow.isoformat()},
+    )
+    assert refused.status_code == 422
+    assert refused.json()["error"]["code"] == "received_at_in_future"
+
+    accepted = client.post(
+        _url(study, participant),
+        headers=bearer_headers(owner),
+        json={"received_at": end_of_today.isoformat()},
+    )
+    assert accepted.status_code == 201, accepted.text
+
+
+def test_received_at_cannot_be_before_the_study_was_created(
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study()
+    owner = make_user(email="owner@example.org")
+    _add_member(session, study, owner, StudyRole.PRINCIPAL_INVESTIGATOR)
+    participant = make_participant(study)
+    created_at = datetime.now(UTC) - timedelta(days=3)
+    session.add(
+        AuditLog(
+            actor_type=AuditActorType.USER,
+            actor_id=owner.id,
+            action="study_created",
+            target=str(study.id),
+            at=created_at,
+        )
+    )
+    session.commit()
+
+    refused = client.post(
+        _url(study, participant),
+        headers=bearer_headers(owner),
+        json={"received_at": (created_at - timedelta(hours=1)).isoformat()},
+    )
+    assert refused.status_code == 422
+    assert refused.json()["error"]["code"] == "received_at_before_study"
+
+    accepted = client.post(
+        _url(study, participant),
+        headers=bearer_headers(owner),
+        json={"received_at": (created_at + timedelta(hours=1)).isoformat()},
+    )
+    assert accepted.status_code == 201, accepted.text
+
+
+def test_a_race_on_the_unique_index_returns_the_same_409(
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    owner = make_user(email="owner@example.org")
+    _add_member(session, study, owner, StudyRole.PRINCIPAL_INVESTIGATOR)
+    participant = make_participant(study)
+    payload = {"received_at": datetime.now(UTC).isoformat()}
+    assert (
+        client.post(
+            _url(study, participant), headers=bearer_headers(owner), json=payload
+        ).status_code
+        == 201
+    )
+    # Another transaction inserts between the pre-check and this insert.
+    monkeypatch.setattr(service, "pending_request", lambda *_args, **_kwargs: None)
+
+    response = client.post(_url(study, participant), headers=bearer_headers(owner), json=payload)
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "erasure_request_pending"
+
+
+def test_the_erasure_job_closes_a_pending_request_with_the_counts(
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    owner = make_user(email="owner@example.org")
+    _add_member(session, study, owner, StudyRole.PRINCIPAL_INVESTIGATOR)
+    participant = make_participant(study, alias="P-20")
+    _entry(session, participant)
+    request = service.create_request(
+        session,
+        study.id,
+        participant.id,
+        owner,
+        datetime.now(UTC) - timedelta(days=1),
+    )
+    now = datetime.now(UTC)
+    participant.status = ParticipantStatus.ERASURE_SCHEDULED
+    participant.erasure_requested_at = now
+    participant.erasure_due_at = now - timedelta(minutes=1)
+    session.commit()
+    _no_files(monkeypatch)
+    participant_id = participant.id
+
+    assert run_once(session) == 1
+
+    session.expire_all()
+    stored = session.get(ErasureRequest, request.id)
+    assert stored is not None
+    assert stored.status == "done"
+    assert stored.participant_id is None
+    assert stored.entries == 1
+    assert stored.files == 0
+    assert stored.done_by is None
+    done = session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "erasure_request_done",
+            AuditLog.target == str(participant_id),
+        )
+    )
+    assert done is not None
+    assert done.actor_type == AuditActorType.SYSTEM
+    assert done.details is not None
+    assert done.details["request_id"] == str(request.id)
+
+    # The request is closed once, by the same guarded point that writes participant_erased.
+    assert run_once(session) == 0
+    assert (
+        len(
+            session.scalars(
+                select(AuditLog).where(
+                    AuditLog.action == "erasure_request_done",
+                    AuditLog.target == str(participant_id),
+                )
+            ).all()
+        )
+        == 1
+    )
+
+
 def test_a_participant_of_another_study_is_not_found(
     client: TestClient,
     session: Session,
@@ -275,7 +442,7 @@ def test_a_participant_of_another_study_is_not_found(
     assert response.json()["error"]["code"] == "participant_not_found"
 
 
-def test_the_team_can_cancel_a_pending_request(
+def test_only_the_study_owner_can_cancel_a_pending_request(
     client: TestClient,
     session: Session,
     make_user,
@@ -296,8 +463,20 @@ def test_the_team_can_cancel_a_pending_request(
     _add_member(session, other_study, outsider, StudyRole.PRINCIPAL_INVESTIGATOR)
     payload = {"received_at": datetime.now(UTC).isoformat()}
 
-    for actor in (co, member, owner, admin):
-        participant = make_participant(study, alias=f"P-{actor.email[0].upper()}")
+    for index, actor in enumerate((co, member, outsider)):
+        participant = make_participant(study, alias=f"P-{index}")
+        assert (
+            client.post(
+                _url(study, participant), headers=bearer_headers(owner), json=payload
+            ).status_code
+            == 201
+        )
+        response = client.delete(_url(study, participant), headers=bearer_headers(actor))
+        assert response.status_code == 403, response.text
+        assert service.pending_request(session, study.id, participant.id) is not None
+
+    for index, actor in enumerate((owner, admin), start=3):
+        participant = make_participant(study, alias=f"P-{index}")
         assert (
             client.post(
                 _url(study, participant), headers=bearer_headers(owner), json=payload
@@ -315,8 +494,6 @@ def test_the_team_can_cancel_a_pending_request(
         ).status_code
         == 201
     )
-    forbidden = client.delete(_url(study, participant), headers=bearer_headers(outsider))
-    assert forbidden.status_code == 403
     missing = client.delete(_url(study, participant), headers=bearer_headers(owner))
     assert missing.status_code == 204
     again = client.delete(_url(study, participant), headers=bearer_headers(owner))

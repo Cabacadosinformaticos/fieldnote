@@ -8,13 +8,16 @@ the erasure through the FR-44 path; this module only keeps the queue around it.
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
 from app.models import (
+    AuditLog,
     Entry,
     ErasureRequest,
     MediaObject,
@@ -35,6 +38,9 @@ PARTICIPANT_NOT_FOUND = "The participant does not exist in this study."
 REQUEST_NOT_FOUND = "There is no pending erasure request for this participant."
 REQUEST_EXISTS = "This participant already has a pending erasure request."
 ERASURE_SCHEDULED = "An erasure started in the app cannot be requested through the team."
+STUDY_NOT_FOUND = "The study does not exist."
+RECEIVED_IN_FUTURE = "The date the request was received cannot be in the future."
+RECEIVED_BEFORE_STUDY = "The date the request was received cannot be before the study was created."
 
 
 @dataclass(frozen=True)
@@ -55,6 +61,40 @@ class PendingRequest:
     requested_by_name: str | None
     requested_by_role: str | None
     counts: RequestCounts
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def _study_timezone(study: Study) -> ZoneInfo:
+    try:
+        return ZoneInfo(study.timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ZoneInfo("UTC")
+
+
+def _validate_received_at(session: Session, study: Study, received_at: datetime) -> None:
+    """Refuse a date after today in the study, or before the study itself existed."""
+    zone = _study_timezone(study)
+    end_of_today = datetime.combine(
+        datetime.now(UTC).astimezone(zone).date(), time.max, tzinfo=zone
+    ).astimezone(UTC)
+    moment = _as_utc(received_at)
+    if moment > end_of_today:
+        raise ApiError(422, "received_at_in_future", RECEIVED_IN_FUTURE)
+
+    created_at = session.scalar(
+        select(AuditLog.at)
+        .where(
+            AuditLog.action == "study_created",
+            AuditLog.target == str(study.id),
+        )
+        .order_by(AuditLog.id.desc())
+        .limit(1)
+    )
+    if created_at is not None and moment < _as_utc(created_at):
+        raise ApiError(422, "received_at_before_study", RECEIVED_BEFORE_STUDY)
 
 
 def _participant_for_update(
@@ -105,6 +145,11 @@ def create_request(
     user: UserAccount,
     received_at: datetime,
 ) -> ErasureRequest:
+    study = session.get(Study, study_id)
+    if study is None:
+        raise ApiError(404, "study_not_found", STUDY_NOT_FOUND)
+    _validate_received_at(session, study, received_at)
+
     participant = _participant_for_update(session, study_id, participant_id)
     if participant.status == ParticipantStatus.ERASURE_SCHEDULED:
         raise ApiError(409, "erasure_scheduled", ERASURE_SCHEDULED)
@@ -120,7 +165,13 @@ def create_request(
         status="pending",
     )
     session.add(request)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # A concurrent request slipped past the check; the partial unique index is the final
+        # word and the administrator sees the same 409 as for a second request.
+        session.rollback()
+        raise ApiError(409, "erasure_request_pending", REQUEST_EXISTS) from None
     record(
         session,
         user,
@@ -166,7 +217,7 @@ def cancel_request(
 def mark_done(
     session: Session,
     request_id: uuid.UUID,
-    admin: UserAccount,
+    actor: UserAccount | None,
     *,
     participant_id: uuid.UUID,
     entries: int,
@@ -174,9 +225,11 @@ def mark_done(
 ) -> ErasureRequest | None:
     """Close the pending request after FR-44 removed the participant.
 
-    The participant foreign key is ``ON DELETE SET NULL`` and the alias and counts are copied
-    into the request, so the row survives the erasure and the administrator's list still says
-    who was erased and what was removed.
+    ``actor`` is the administrator or ``None`` when the erasure job ran the erasure. The caller
+    owns the commit, so the request and the ``participant_erased`` row land together. The
+    participant foreign key is ``ON DELETE SET NULL`` and the alias and counts are copied into
+    the request, so the row survives the erasure and the administrator's list still says who
+    was erased and what was removed.
     """
     request = session.scalar(
         select(ErasureRequest).where(ErasureRequest.id == request_id).with_for_update()
@@ -187,12 +240,12 @@ def mark_done(
     done_at = datetime.now(UTC)
     request.status = "done"
     request.done_at = done_at
-    request.done_by = admin.id
+    request.done_by = actor.id if actor is not None else None
     request.entries = entries
     request.files = files
     record(
         session,
-        admin,
+        actor,
         DONE_ACTION,
         target=str(participant_id),
         details={
@@ -204,7 +257,36 @@ def mark_done(
             "files": files,
         },
     )
-    session.commit()
+    session.flush()
+    return request
+
+
+def pending_for_erased_participant(
+    session: Session, participant_id: uuid.UUID
+) -> ErasureRequest | None:
+    """The pending request of a participant whose row the erasure has already removed.
+
+    The participant foreign key has become null, so the request is found through the
+    ``erasure_request_created`` row, which targets the participant and carries the request id.
+    """
+    raw_request_id = session.scalar(
+        select(AuditLog.details.op("->>")("request_id"))
+        .where(
+            AuditLog.action == CREATED_ACTION,
+            AuditLog.target == str(participant_id),
+        )
+        .order_by(AuditLog.id.desc())
+        .limit(1)
+    )
+    if not isinstance(raw_request_id, str):
+        return None
+    try:
+        request_id = uuid.UUID(raw_request_id)
+    except ValueError:
+        return None
+    request = session.get(ErasureRequest, request_id)
+    if request is None or request.status != "pending":
+        return None
     return request
 
 
