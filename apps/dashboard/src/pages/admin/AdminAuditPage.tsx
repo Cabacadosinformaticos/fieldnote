@@ -64,76 +64,84 @@ function formatCount(value: number): string {
   return value.toLocaleString('pt-PT')
 }
 
-const auditActions: { code: string; labelKey: AdminKey }[] = [
-  { code: 'login', labelKey: 'audit.action.login' },
-  { code: 'login_failed', labelKey: 'audit.action.login_failed' },
-  { code: 'logout', labelKey: 'audit.action.logout' },
-  { code: 'refresh_reuse_detected', labelKey: 'audit.action.refresh_reuse_detected' },
-  { code: 'totp_enrolment', labelKey: 'audit.action.totp_enrolment' },
-  { code: 'totp_enrolment_confirmed', labelKey: 'audit.action.totp_enrolment_confirmed' },
-  { code: 'account_created', labelKey: 'audit.action.account_created' },
-  { code: 'account_link_sent', labelKey: 'audit.action.account_link_sent' },
-  { code: 'account_link_failed', labelKey: 'audit.action.account_link_failed' },
-  { code: 'account_role_changed', labelKey: 'audit.action.account_role_changed' },
-  { code: 'account_updated', labelKey: 'audit.action.account_updated' },
-  { code: 'account_locked', labelKey: 'audit.action.account_locked' },
-  { code: 'account_unlocked', labelKey: 'audit.action.account_unlocked' },
-  { code: 'account_deleted', labelKey: 'audit.action.account_deleted' },
-  { code: 'account_signed_in', labelKey: 'audit.action.account_signed_in' },
-  { code: 'account_method_added', labelKey: 'audit.action.account_method_added' },
-  { code: 'account_method_removed', labelKey: 'audit.action.account_method_removed' },
-  { code: 'unconfirmed_accounts_deleted', labelKey: 'audit.action.unconfirmed_accounts_deleted' },
-  { code: 'study_created', labelKey: 'audit.action.study_created' },
-  { code: 'study_updated', labelKey: 'audit.action.study_updated' },
-  { code: 'study_started', labelKey: 'audit.action.study_started' },
-  { code: 'study_closed', labelKey: 'audit.action.study_closed' },
-  { code: 'study_member_added', labelKey: 'audit.action.study_member_added' },
-  { code: 'study_member_removed', labelKey: 'audit.action.study_member_removed' },
-  { code: 'study_member_role_changed', labelKey: 'audit.action.study_member_role_changed' },
-  { code: 'study_question_created', labelKey: 'audit.action.study_question_created' },
-  { code: 'study_question_updated', labelKey: 'audit.action.study_question_updated' },
-  { code: 'study_question_deleted', labelKey: 'audit.action.study_question_deleted' },
-  { code: 'study_questions_reordered', labelKey: 'audit.action.study_questions_reordered' },
-  { code: 'study_code_created', labelKey: 'audit.action.study_code_created' },
-  { code: 'study_code_regenerated', labelKey: 'audit.action.study_code_regenerated' },
-  { code: 'study_code_entry', labelKey: 'audit.action.study_code_entry' },
-  { code: 'study_code_switched_off', labelKey: 'audit.action.study_code_switched_off' },
-  { code: 'study_code_switched_on', labelKey: 'audit.action.study_code_switched_on' },
-  { code: 'study_code_updated', labelKey: 'audit.action.study_code_updated' },
-  { code: 'tag_created', labelKey: 'audit.action.tag_created' },
-  { code: 'tag_deleted', labelKey: 'audit.action.tag_deleted' },
-  { code: 'activity_created', labelKey: 'audit.action.activity_created' },
-  { code: 'activity_updated', labelKey: 'audit.action.activity_updated' },
-  { code: 'activity_deleted', labelKey: 'audit.action.activity_deleted' },
-  { code: 'participant_added', labelKey: 'audit.action.participant_added' },
-  { code: 'participant_approved', labelKey: 'audit.action.participant_approved' },
-  { code: 'participant_declined', labelKey: 'audit.action.participant_declined' },
-  { code: 'participant_removed', labelKey: 'audit.action.participant_removed' },
-  { code: 'participant_invite_issued', labelKey: 'audit.action.participant_invite_issued' },
-  { code: 'participant_identity_read', labelKey: 'audit.action.participant_identity_read' },
-  { code: 'participant_erased', labelKey: 'audit.action.participant_erased' },
-  { code: 'entry_created', labelKey: 'audit.action.entry_created' },
-  { code: 'media_upload_url_issued', labelKey: 'audit.action.media_upload_url_issued' },
-  { code: 'media_url_issued', labelKey: 'audit.action.media_url_issued' },
-  { code: 'export', labelKey: 'audit.action.export' },
-  { code: 'erasure_requested', labelKey: 'audit.action.erasure_requested' },
-  { code: 'erasure_cancelled', labelKey: 'audit.action.erasure_cancelled' },
-  { code: 'erasure_request_created', labelKey: 'audit.action.erasure_request_created' },
-  { code: 'erasure_request_cancelled', labelKey: 'audit.action.erasure_request_cancelled' },
-  { code: 'erasure_request_done', labelKey: 'audit.action.erasure_request_done' },
-  { code: 'pool_invitations_sent', labelKey: 'audit.action.pool_invitations_sent' },
-  { code: 'password_reset_requested', labelKey: 'audit.action.password_reset_requested' },
-  { code: 'password_reset_completed', labelKey: 'audit.action.password_reset_completed' },
-  { code: 'password_changed', labelKey: 'audit.action.password_changed' },
-  { code: 'entry_tags_changed', labelKey: 'audit.action.entry_tags_changed' },
-  { code: 'media_retry_requested', labelKey: 'audit.action.media_retry_requested' },
-  { code: 'media_processing_failed', labelKey: 'audit.action.media_processing_failed' },
-  { code: 'plan_completed', labelKey: 'audit.action.plan_completed' },
-  { code: 'media_failed', labelKey: 'audit.action.media_failed' },
-  { code: 'erasure_failed', labelKey: 'audit.action.erasure_failed' },
+const auditActions: { codes: string[]; labelKey: AdminKey }[] = [
+  { codes: ['login'], labelKey: 'audit.action.login' },
+  { codes: ['login_failed'], labelKey: 'audit.action.login_failed' },
+  { codes: ['logout'], labelKey: 'audit.action.logout' },
+  { codes: ['refresh_reuse_detected'], labelKey: 'audit.action.refresh_reuse_detected' },
+  { codes: ['totp_enrolment'], labelKey: 'audit.action.totp_enrolment' },
+  { codes: ['totp_enrolment_confirmed'], labelKey: 'audit.action.totp_enrolment_confirmed' },
+  { codes: ['account_created'], labelKey: 'audit.action.account_created' },
+  { codes: ['account_link_sent'], labelKey: 'audit.action.account_link_sent' },
+  { codes: ['account_link_failed'], labelKey: 'audit.action.account_link_failed' },
+  { codes: ['account_role_changed'], labelKey: 'audit.action.account_role_changed' },
+  { codes: ['account_updated'], labelKey: 'audit.action.account_updated' },
+  { codes: ['account_locked'], labelKey: 'audit.action.account_locked' },
+  { codes: ['account_unlocked'], labelKey: 'audit.action.account_unlocked' },
+  { codes: ['account_deleted'], labelKey: 'audit.action.account_deleted' },
+  { codes: ['account_signed_in'], labelKey: 'audit.action.account_signed_in' },
+  { codes: ['account_method_added'], labelKey: 'audit.action.account_method_added' },
+  { codes: ['account_method_removed'], labelKey: 'audit.action.account_method_removed' },
+  { codes: ['unconfirmed_accounts_deleted'], labelKey: 'audit.action.unconfirmed_accounts_deleted' },
+  { codes: ['study_created'], labelKey: 'audit.action.study_created' },
+  { codes: ['study_updated'], labelKey: 'audit.action.study_updated' },
+  { codes: ['study_started'], labelKey: 'audit.action.study_started' },
+  { codes: ['study_closed'], labelKey: 'audit.action.study_closed' },
+  { codes: ['study_member_added'], labelKey: 'audit.action.study_member_added' },
+  { codes: ['study_member_removed'], labelKey: 'audit.action.study_member_removed' },
+  { codes: ['study_member_role_changed'], labelKey: 'audit.action.study_member_role_changed' },
+  { codes: ['study_question_created'], labelKey: 'audit.action.study_question_created' },
+  { codes: ['study_question_updated'], labelKey: 'audit.action.study_question_updated' },
+  { codes: ['study_question_deleted'], labelKey: 'audit.action.study_question_deleted' },
+  { codes: ['study_questions_reordered'], labelKey: 'audit.action.study_questions_reordered' },
+  { codes: ['study_code_created'], labelKey: 'audit.action.study_code_created' },
+  { codes: ['study_code_regenerated'], labelKey: 'audit.action.study_code_regenerated' },
+  { codes: ['study_code_entry'], labelKey: 'audit.action.study_code_entry' },
+  { codes: ['study_code_switched_off'], labelKey: 'audit.action.study_code_switched_off' },
+  { codes: ['study_code_switched_on'], labelKey: 'audit.action.study_code_switched_on' },
+  { codes: ['study_code_updated'], labelKey: 'audit.action.study_code_updated' },
+  { codes: ['tag_created'], labelKey: 'audit.action.tag_created' },
+  { codes: ['tag_deleted'], labelKey: 'audit.action.tag_deleted' },
+  { codes: ['activity_created'], labelKey: 'audit.action.activity_created' },
+  { codes: ['activity_updated'], labelKey: 'audit.action.activity_updated' },
+  { codes: ['activity_deleted'], labelKey: 'audit.action.activity_deleted' },
+  { codes: ['participant_added'], labelKey: 'audit.action.participant_added' },
+  { codes: ['participant_approved'], labelKey: 'audit.action.participant_approved' },
+  { codes: ['participant_declined'], labelKey: 'audit.action.participant_declined' },
+  { codes: ['participant_removed'], labelKey: 'audit.action.participant_removed' },
+  { codes: ['participant_invite_issued'], labelKey: 'audit.action.participant_invite_issued' },
+  { codes: ['participant_identity_read'], labelKey: 'audit.action.participant_identity_read' },
+  { codes: ['participant_erased'], labelKey: 'audit.action.participant_erased' },
+  { codes: ['entry_created'], labelKey: 'audit.action.entry_created' },
+  { codes: ['media_upload_url_issued'], labelKey: 'audit.action.media_upload_url_issued' },
+  { codes: ['media_url_issued'], labelKey: 'audit.action.media_url_issued' },
+  { codes: ['export'], labelKey: 'audit.action.export' },
+  { codes: ['erasure_requested'], labelKey: 'audit.action.erasure_requested' },
+  { codes: ['erasure_cancelled'], labelKey: 'audit.action.erasure_cancelled' },
+  { codes: ['erasure_request_created'], labelKey: 'audit.action.erasure_request_created' },
+  { codes: ['erasure_request_cancelled'], labelKey: 'audit.action.erasure_request_cancelled' },
+  { codes: ['erasure_request_done'], labelKey: 'audit.action.erasure_request_done' },
+  { codes: ['pool_invitations_sent'], labelKey: 'audit.action.pool_invitations_sent' },
+  { codes: ['password_reset_requested'], labelKey: 'audit.action.password_reset_requested' },
+  { codes: ['password_reset_completed'], labelKey: 'audit.action.password_reset_completed' },
+  { codes: ['password_changed'], labelKey: 'audit.action.password_changed' },
+  { codes: ['entry_tags_changed'], labelKey: 'audit.action.entry_tags_changed' },
+  { codes: ['media_retry_requested'], labelKey: 'audit.action.media_retry_requested' },
+  // Two codes describe the same outcome to the administrator and share one filter option.
+  { codes: ['media_processing_failed', 'media_failed'], labelKey: 'audit.action.media_failed' },
+  { codes: ['plan_completed'], labelKey: 'audit.action.plan_completed' },
+  { codes: ['erasure_failed'], labelKey: 'audit.action.erasure_failed' },
 ]
 
-const actionLabels = new Map(auditActions.map((item) => [item.code, item.labelKey]))
+const actionLabels = new Map(
+  auditActions.flatMap((item) =>
+    item.codes.map((code) => [code, item.labelKey] as const),
+  ),
+)
+
+function actionValue(item: { codes: string[] }): string {
+  return item.codes.join(',')
+}
 
 const failedActions = new Set(['login_failed', 'refresh_reuse_detected'])
 
@@ -312,6 +320,16 @@ function detailRows(event: AuditEvent, studyTitles: Map<string, string>): Detail
 }
 
 function targetLabel(event: AuditEvent, studyTitles: Map<string, string>): string {
+  if (event.target_kind && event.target_name) {
+    switch (event.target_kind) {
+      case 'account':
+        return t('audit.target.account', { name: event.target_name })
+      case 'study':
+        return event.target_name
+      case 'participant':
+        return t('audit.target.participant', { alias: event.target_name })
+    }
+  }
   const email = event.details?.email
   if (typeof email === 'string' && email.includes('@')) {
     return email
@@ -462,7 +480,7 @@ export default function AdminAuditPage() {
             >
               <option value="all">{t('audit.action.all')}</option>
               {auditActions.map((item) => (
-                <option key={item.code} value={item.code}>
+                <option key={actionValue(item)} value={actionValue(item)}>
                   {t(item.labelKey)}
                 </option>
               ))}

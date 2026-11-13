@@ -437,7 +437,13 @@ def list_audit(
     if actor_type is not None:
         conditions.append(AuditLog.actor_type == actor_type)
     if action:
-        conditions.append(AuditLog.action == action)
+        # One option of the filter may stand for more than one action code when the two mean
+        # the same thing to the administrator.
+        codes = [code.strip() for code in action.split(",") if code.strip()]
+        if len(codes) == 1:
+            conditions.append(AuditLog.action == codes[0])
+        elif codes:
+            conditions.append(AuditLog.action.in_(codes))
     if q and q.strip():
         conditions.append(_audit_search(q.strip()))
     if study_id is not None:
@@ -501,6 +507,46 @@ def actor_names(
             select(Participant.id, Participant.alias).where(Participant.id.in_(participant_ids))
         ):
             labels[(AuditActorType.PARTICIPANT, participant_id)] = alias or str(participant_id)[:8]
+    return labels
+
+
+def target_labels(session: Session, events: list[AuditLog]) -> dict[str, tuple[str, str]]:
+    """Resolve each raw target id to a kind and the name the screen shows.
+
+    The word before the name belongs to the dashboard dictionary, so the kind travels apart.
+    An account target is a team account, a study target is a study, and a participant target is
+    a pseudonym. The alias of an erased participant is read from the audit row itself, because
+    the participant row no longer exists.
+    """
+    targets = {
+        event.target
+        for event in events
+        if event.target is not None and _uuid_or_none(event.target) is not None
+    }
+    if not targets:
+        return {}
+    ids = {uuid.UUID(target) for target in targets}
+    labels: dict[str, tuple[str, str]] = {}
+
+    for user_id, name, email in session.execute(
+        select(UserAccount.id, UserAccount.name, UserAccount.email).where(UserAccount.id.in_(ids))
+    ):
+        display = name.strip() if name else ""
+        labels[str(user_id)] = ("account", display or email)
+    for study_id, title in session.execute(select(Study.id, Study.title).where(Study.id.in_(ids))):
+        labels[str(study_id)] = ("study", title)
+    for participant_id, alias in session.execute(
+        select(Participant.id, Participant.alias).where(Participant.id.in_(ids))
+    ):
+        if alias:
+            labels[str(participant_id)] = ("participant", alias)
+
+    for event in events:
+        if event.target in labels or not isinstance(event.details, dict):
+            continue
+        alias = event.details.get("alias")
+        if isinstance(alias, str) and alias.strip():
+            labels[event.target] = ("participant", alias.strip())
     return labels
 
 
@@ -597,6 +643,20 @@ def list_erasures(
             session, {request.id for request in done_requests}
         )
 
+    request_audits: dict[uuid.UUID, AuditLog] = {}
+    if request_participants:
+        audits = session.scalars(
+            select(AuditLog).where(
+                AuditLog.action == ERASED_ACTION,
+                AuditLog.target.in_(
+                    [str(participant_id) for participant_id in request_participants.values()]
+                ),
+            )
+        )
+        request_audits = {
+            uuid.UUID(audit.target): audit for audit in audits if audit.target is not None
+        }
+
     statement = select(AuditLog).where(AuditLog.action == ERASED_ACTION)
     if request_participants:
         statement = statement.where(
@@ -610,25 +670,40 @@ def list_erasures(
     has_more = len(rows) > limit
     events = rows[:limit]
 
-    completed = [
-        CompletedErasure(
-            participant_id=request_participants.get(request.id),
-            alias=request.participant_alias,
-            study_id=request.study_id,
-            actor_type=AuditActorType.USER,
-            actor_id=request.done_by,
-            at=_as_utc(request.done_at or request.created_at),
-            entries=request.entries or 0,
-            files=request.files or 0,
+    completed: list[CompletedErasure] = []
+    for request in done_requests:
+        participant_id = request_participants.get(request.id)
+        audit = request_audits.get(participant_id) if participant_id is not None else None
+        audit_details = (audit.details or {}) if audit is not None else {}
+        # The audit row of the erasure carries the real counts; the request keeps them too, but
+        # an older row may be missing them.
+        entries = (
+            _count(audit_details.get("entries"))
+            if "entries" in audit_details
+            else (request.entries or 0)
         )
-        for request in done_requests
-    ]
+        files = (
+            _count(audit_details.get("files")) if "files" in audit_details else (request.files or 0)
+        )
+        completed.append(
+            CompletedErasure(
+                participant_id=participant_id,
+                alias=request.participant_alias,
+                study_id=request.study_id,
+                actor_type=AuditActorType.USER,
+                actor_id=request.done_by,
+                at=_as_utc(request.done_at or request.created_at),
+                entries=entries,
+                files=files,
+            )
+        )
     for row in events:
         details = row.details or {}
+        alias = details.get("alias")
         completed.append(
             CompletedErasure(
                 participant_id=_uuid_or_none(row.target),
-                alias=None,
+                alias=alias.strip() if isinstance(alias, str) and alias.strip() else None,
                 study_id=_uuid_or_none(details.get("study_id")),
                 actor_type=row.actor_type,
                 actor_id=row.actor_id,

@@ -641,6 +641,88 @@ def test_audit_log_shows_the_alias_and_the_study_of_a_participant_actor(
     assert row["actor_study_title"] == "Pequenos-almoços em casa"
 
 
+def test_audit_log_resolves_the_target_of_each_kind(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+) -> None:
+    study = make_study(title="Viver o Jardim da Estrela")
+    account = make_user(email="carla@example.org")
+    account.name = "Carla Nunes"
+    participant = make_participant(study, alias="P-07")
+    erased_id = uuid.uuid4()
+    session.commit()
+    base = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+    _add_event(session, "login", at=base, target=str(account.id))
+    _add_event(session, "study_updated", at=base + timedelta(minutes=1), target=str(study.id))
+    _add_event(
+        session,
+        "participant_identity_read",
+        at=base + timedelta(minutes=2),
+        target=str(participant.id),
+    )
+    _add_event(
+        session,
+        "participant_erased",
+        at=base + timedelta(minutes=3),
+        target=str(erased_id),
+        details={"alias": "P-02"},
+    )
+    _add_event(session, "logout", at=base + timedelta(minutes=4), target=str(uuid.uuid4()))
+
+    response = client.get(f"{ADMIN}/audit-log", headers=bearer_headers(admin))
+
+    assert response.status_code == 200, response.text
+    rows = {row["action"]: row for row in response.json()["items"]}
+    assert (rows["login"]["target_kind"], rows["login"]["target_name"]) == (
+        "account",
+        "Carla Nunes",
+    )
+    assert (rows["study_updated"]["target_kind"], rows["study_updated"]["target_name"]) == (
+        "study",
+        "Viver o Jardim da Estrela",
+    )
+    assert (
+        rows["participant_identity_read"]["target_kind"],
+        rows["participant_identity_read"]["target_name"],
+    ) == ("participant", "P-07")
+    assert (
+        rows["participant_erased"]["target_kind"],
+        rows["participant_erased"]["target_name"],
+    ) == ("participant", "P-02")
+    # Nothing resolves this id, so the screen keeps the raw value.
+    assert rows["logout"]["target_kind"] is None
+    assert rows["logout"]["target_name"] is None
+
+
+def test_audit_log_one_filter_option_covers_two_action_codes(
+    client: TestClient,
+    session: Session,
+    admin: UserAccount,
+    bearer_headers,
+) -> None:
+    base = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+    _add_event(session, "media_failed", at=base)
+    _add_event(session, "media_processing_failed", at=base + timedelta(minutes=1))
+    _add_event(session, "login", at=base + timedelta(minutes=2))
+
+    response = client.get(
+        f"{ADMIN}/audit-log",
+        params={"action": "media_failed,media_processing_failed"},
+        headers=bearer_headers(admin),
+    )
+
+    assert response.status_code == 200, response.text
+    assert {row["action"] for row in response.json()["items"]} == {
+        "media_failed",
+        "media_processing_failed",
+    }
+
+
 def test_audit_log_paginates_with_a_cursor(
     client: TestClient, session: Session, admin: UserAccount, bearer_headers
 ) -> None:

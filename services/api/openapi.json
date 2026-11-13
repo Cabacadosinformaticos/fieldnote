@@ -1452,6 +1452,33 @@
               }
             ],
             "title": "Target"
+          },
+          "target_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "account",
+                  "study",
+                  "participant"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Kind"
+          },
+          "target_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Name"
           }
         },
         "required": [

@@ -78,6 +78,10 @@ class AuditEventOut(BaseModel):
     actor_study_title: str | None = None
     action: str
     target: str | None
+    # The target resolved to what it names, so the screen never shows a raw id when it can avoid
+    # it. The dashboard adds the word before the name from its own dictionary.
+    target_kind: Literal["account", "study", "participant"] | None = None
+    target_name: str | None = None
     details: dict[str, object] | None
     origin_client: str | None
     origin_ip: str | None

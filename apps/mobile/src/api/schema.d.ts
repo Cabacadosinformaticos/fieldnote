@@ -2101,6 +2101,10 @@ export interface components {
             origin_ip: string | null;
             /** Target */
             target: string | null;
+            /** Target Kind */
+            target_kind?: ("account" | "study" | "participant") | null;
+            /** Target Name */
+            target_name?: string | null;
         };
         /** AuditLogPage */
         AuditLogPage: {

@@ -118,6 +118,7 @@ const pt = {
   'studies.kpi.investigatorsNote': 'Contas com acesso a estudos',
   'studies.kpi.participantsNote': 'Somados todos os estudos',
   'studies.kpi.entriesNote': 'Total recebido em todos os estudos',
+  'studies.kpi.byStudyMany': 'em {count} estudos',
   'studies.col.study': 'Estudo',
   'studies.col.state': 'Estado',
   'studies.col.dates': 'Datas',
@@ -125,7 +126,7 @@ const pt = {
   'studies.col.participants': 'Participantes',
   'studies.col.entries': 'Registos',
   'studies.col.adherence': 'Adesão',
-  'studies.styleLabel': 'estilo',
+  'studies.styleLine': 'Estilo {style}',
   'studies.style.fixed': 'fixo',
   'studies.style.balanced': 'equilibrado',
   'studies.style.varied': 'variado',
@@ -251,6 +252,8 @@ const pt = {
   'audit.col.target': 'Alvo',
   'audit.col.detail': 'Detalhe',
   'audit.col.origin': 'Origem',
+  'audit.target.account': 'Conta de {name}',
+  'audit.target.participant': 'Participante {alias}',
   'audit.origin.none': 'Sem origem',
   'audit.origin.portal': 'Portal',
   'audit.origin.app_android': 'Aplicação Android',
@@ -329,7 +332,6 @@ const pt = {
   'audit.action.password_changed': 'Palavra-passe alterada',
   'audit.action.entry_tags_changed': 'Etiquetas do registo alteradas',
   'audit.action.media_retry_requested': 'Nova tentativa de media pedida',
-  'audit.action.media_processing_failed': 'Ficheiro com falha',
   'audit.action.plan_completed': 'Plano diário concluído',
   'audit.action.media_failed': 'Ficheiro com falha',
   'audit.action.erasure_failed': 'Apagamento recusado',
@@ -444,7 +446,7 @@ const pt = {
   'erasure.counts.none': 'Sem registos',
   'erasure.deleted.identityAbsent': 'Sem nome nem e-mail guardados.',
   'erasure.kept.countsNoteDynamic':
-    '{study} continua a indicar {participants} participantes. Os registos recebidos passam de {total} para {remaining}.',
+    '{study} passa de {participants} para {participantsAfter} participantes e os registos recebidos de {total} para {remaining}.',
   'erasure.type.textOne': '1 texto',
   'erasure.type.textMany': '{count} textos',
   'erasure.type.photoOne': '1 foto',
@@ -469,13 +471,13 @@ const pt = {
   'erasure.deleted.filesNote': 'As fotos, os vídeos e os áudios, com todas as cópias que o sistema guarda de cada um.',
   'erasure.deleted.link': 'Ligação ao estudo',
   'erasure.deleted.linkNote':
-    'O pseudónimo continua na lista do estudo com o estado Apagado, sem dados.',
+    'O pseudónimo sai da lista de participantes do estudo; só o registo de auditoria o mantém.',
   'erasure.kept.audit': 'Registos de auditoria',
   'erasure.kept.auditNote':
     'Ficam só com o pseudónimo, nunca o nome. Não podem ser alterados nem apagados.',
   'erasure.kept.counts': 'Contagens do estudo',
   'erasure.kept.countsNote':
-    'O estudo continua a indicar o número de participantes; os registos recebidos descem.',
+    'O número de participantes e os registos recebidos do estudo descem.',
   'erasure.kept.backups': 'Cópias de segurança',
   'erasure.kept.backupsNote':
     'Os dados saem delas em 7 dias. O texto de consentimento já diz isto.',
@@ -521,8 +523,11 @@ const pt = {
   'erasure.historyEmpty': 'Ainda não há apagamentos registados.',
   'erasure.historyItem': '{alias} · {study}',
   'erasure.historyMeta':
-    '{date}, {time} por {actor}. {entries} registos e {files} ficheiros. Sai das cópias de segurança até {until}.',
-  'erasure.historySystemActor': 'Sistema',
+    '{date}, {time} {actor}. {entries} registos e {files} ficheiros. Sai das cópias de segurança até {until}.',
+  'erasure.historyActorName': 'por {name}',
+  'erasure.historyActorUnknown': 'por pessoa não identificada',
+  'erasure.historySystemActor': 'pelo sistema, a pedido do participante na app',
+  'erasure.historyUnknownParticipant': 'Participante apagado',
 
   /* TOTP second step */
 

@@ -176,6 +176,7 @@ def list_audit_log(
     )
     names = service.actor_names(session, page.events)
     titles = service.actor_study_titles(session, page.events)
+    targets = service.target_labels(session, page.events)
     return AuditLogPage(
         items=[
             AuditEventOut(
@@ -192,6 +193,8 @@ def list_audit_log(
                 ),
                 action=event.action,
                 target=event.target,
+                target_kind=(targets.get(event.target, (None, None))[0] if event.target else None),
+                target_name=(targets.get(event.target, (None, None))[1] if event.target else None),
                 details=event.details,
                 origin_client=event.origin_client,
                 origin_ip=event.origin_ip,

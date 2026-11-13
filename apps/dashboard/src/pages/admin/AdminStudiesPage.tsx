@@ -82,10 +82,6 @@ function dateNote(study: AdminStudy): string {
   return t(stateMeta[study.status].noteKey)
 }
 
-function studyRef(id: string): string {
-  return id.slice(0, 8)
-}
-
 function joinPt(parts: string[]): string {
   if (parts.length <= 1) {
     return parts.join('')
@@ -98,16 +94,17 @@ function countLabel(count: number, one: AdminKey, other: AdminKey): string {
 }
 
 function byStudy(studies: AdminStudy[], value: (study: AdminStudy) => number): string {
-  return joinPt(
-    studies
-      .filter((study) => value(study) > 0)
-      .map((study) =>
-        t('studies.kpi.byStudy', {
-          count: value(study).toLocaleString('pt-PT'),
-          study: studyRef(study.id),
-        }),
-      ),
-  )
+  const withValues = studies.filter((study) => value(study) > 0)
+  if (withValues.length === 0) {
+    return ''
+  }
+  if (withValues.length === 1) {
+    return t('studies.kpi.byStudy', {
+      count: formatMetric(value(withValues[0])),
+      study: withValues[0].title,
+    })
+  }
+  return t('studies.kpi.byStudyMany', { count: withValues.length })
 }
 
 function memberName(member: AdminStudy['team'][number]): string {
@@ -237,8 +234,9 @@ export default function AdminStudiesPage() {
                     <div className="ad-study-identity">
                       <span className="ad-study-title">{study.title}</span>
                       <span className="ad-study-meta">
-                        <span className="ad-study-id ad-mono">{studyRef(study.id)}</span>
-                        {` · ${t('studies.styleLabel')} ${t(styleLabels[study.schedule_style])}`}
+                        {t('studies.styleLine', {
+                          style: t(styleLabels[study.schedule_style]),
+                        })}
                       </span>
                     </div>
 

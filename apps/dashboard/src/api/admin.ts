@@ -22,6 +22,8 @@ export type AuditActorType = components['schemas']['AuditActorType']
 export type AuditEvent = components['schemas']['AuditEventOut'] & {
   actor_name: string | null
   actor_study_title: string | null
+  target_kind: 'account' | 'study' | 'participant' | null
+  target_name: string | null
   origin_client: 'portal' | 'app_android' | 'app_ios' | 'scheduled_task' | 'automatic_task' | null
   origin_ip: string | null
   origin_browser: string | null
