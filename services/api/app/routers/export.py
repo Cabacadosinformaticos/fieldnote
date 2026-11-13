@@ -100,8 +100,9 @@ def export_study(
                 "entry_count": built.entry_count,
                 "scope": scope,
                 "filter": export_filter.audit_details() if export_filter is not None else None,
-                "include_location": include_location,
-                "include_identity": include_identity,
+                # Without the CSV files neither option reaches the zip, so neither is recorded.
+                "include_location": include_location and include_csv,
+                "include_identity": include_identity and include_csv,
                 "include_media": include_media,
                 "media_types": [kind.value for kind in selected_media],
                 "media_file_count": built.media_file_count,

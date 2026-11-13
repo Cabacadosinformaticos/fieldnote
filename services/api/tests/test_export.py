@@ -516,6 +516,89 @@ def test_filter_scope_applies_the_entries_filter_and_the_audit_records_it(
     assert audit.details["entry_count"] == 1
 
 
+def test_filtered_scope_keeps_only_the_answers_of_the_filtered_participants(
+    client: TestClient, session: Session, make_user, make_study, make_participant, bearer_headers
+) -> None:
+    study = make_study()
+    member = make_user()
+    _add_member(session, study, member)
+    first = make_participant(study, alias="P01")
+    second = make_participant(study, alias="P02")
+    activity = _make_activity(session, study)
+    _make_entry(session, first, activity)
+    _make_entry(session, second, activity, body="Other")
+    question = StudyQuestion(study_id=study.id, position=0, kind=QuestionKind.YES_NO, text="Agree?")
+    session.add(question)
+    session.commit()
+    for participant, answer in ((first, "yes"), (second, "no")):
+        session.add(
+            StudyAnswer(
+                participant_id=participant.id,
+                question_id=question.id,
+                question_text=question.text,
+                kind=question.kind,
+                answer=answer,
+            )
+        )
+    session.commit()
+
+    filtered = _export(
+        client,
+        study,
+        bearer_headers(member),
+        scope="filtered",
+        participant_id=str(first.id),
+    )
+
+    assert filtered.status_code == 200
+    _headers, answers = _rows(filtered.content, "study_answers.csv")
+    assert [(row["participant_alias"], row["answer"]) for row in answers] == [("P01", "yes")]
+
+    whole = _export(client, study, bearer_headers(member))
+    assert whole.status_code == 200
+    _headers, answers = _rows(whole.content, "study_answers.csv")
+    assert [row["participant_alias"] for row in answers] == ["P01", "P02"]
+
+
+def test_audit_does_not_claim_identity_or_location_without_the_csv(
+    client: TestClient,
+    session: Session,
+    make_user,
+    make_study,
+    make_participant,
+    bearer_headers,
+    monkeypatch,
+) -> None:
+    study = make_study()
+    owner = make_user()
+    _add_member(session, study, owner, StudyRole.PRINCIPAL_INVESTIGATOR)
+    participant = make_participant(study, alias="P01")
+    activity = _make_activity(session, study)
+    entry = _make_entry(session, participant, activity, entry_type=EntryType.PHOTO, body=None)
+    media = _make_media(session, entry)
+    _fake_storage(monkeypatch, {media.object_key: b"photo"})
+    session.add(ParticipantIdentity(participant_id=participant.id, name="Ana", email="ana@x.pt"))
+    session.commit()
+
+    response = _export(
+        client,
+        study,
+        bearer_headers(owner),
+        include_media="true",
+        include_csv="false",
+        include_identity="true",
+        include_location="true",
+        media_type="photo",
+    )
+
+    assert response.status_code == 200
+    assert "entries.csv" not in _names(response.content)
+    audit = session.scalars(select(AuditLog).where(AuditLog.action == "export")).one()
+    assert audit.details["include_csv"] is False
+    assert audit.details["include_identity"] is False
+    assert audit.details["include_location"] is False
+
+
 def test_unavailable_media_is_listed_with_its_reason(
     client: TestClient,
     session: Session,
@@ -602,7 +685,8 @@ def test_audit_records_the_scope_filter_media_types_and_csv_choice(
     assert response.status_code == 200
     audit = session.scalars(select(AuditLog).where(AuditLog.action == "export")).one()
     assert audit.details["scope"] == "filtered"
-    assert audit.details["filter"] == {"q": "walk", "free_only": True}
+    assert audit.details["filter"] == {"text_search": True, "free_only": True}
+    assert "walk" not in str(audit.details)
     assert audit.details["media_types"] == ["photo", "video"]
     assert audit.details["include_csv"] is False
     assert audit.details["include_media"] is True

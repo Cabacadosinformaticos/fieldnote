@@ -163,7 +163,8 @@ class ExportFilter:
         if self.date_to is not None:
             details["date_to"] = self.date_to.isoformat()
         if self.q is not None and self.q.strip():
-            details["q"] = self.q.strip()
+            # Whether a text search was used is enough; the text itself is not audit material.
+            details["text_search"] = True
         if self.free_only:
             details["free_only"] = True
         if self.late_only:
@@ -287,11 +288,28 @@ def _entry_rows(
     return result
 
 
-def _answer_rows(session: Session, study_id: uuid.UUID) -> list[list[object]]:
+def _answer_rows(
+    session: Session,
+    study_id: uuid.UUID,
+    participant_ids: set[uuid.UUID] | None = None,
+) -> list[list[object]]:
     return [
         [alias or "", answer.question_text, answer.kind.value, answer.answer]
         for answer, alias, _question in study_answer_rows(session, study_id)
+        if participant_ids is None or answer.participant_id in participant_ids
     ]
+
+
+def _filtered_participant_ids(session: Session, conditions: list) -> set[uuid.UUID]:
+    """The participants with at least one entry that matches the entries filter."""
+    return set(
+        session.scalars(
+            select(Entry.participant_id)
+            .join(Participant, Participant.id == Entry.participant_id)
+            .where(*conditions)
+            .distinct()
+        )
+    )
 
 
 def _extension(mime_type: str) -> str:
@@ -398,6 +416,9 @@ def build_export(
         if export_filter is not None
         else entry_conditions(study_id)
     )
+    answer_participants = (
+        _filtered_participant_ids(session, conditions) if export_filter is not None else None
+    )
     selected_media = (
         [kind for kind in MEDIA_ENTRY_TYPES if kind in media_types] if include_media else []
     )
@@ -437,7 +458,10 @@ def build_export(
                 )
                 archive.writestr(
                     "study_answers.csv",
-                    _write_csv(ANSWER_HEADERS, _answer_rows(session, study_id)).encode("utf-8"),
+                    _write_csv(
+                        ANSWER_HEADERS,
+                        _answer_rows(session, study_id, answer_participants),
+                    ).encode("utf-8"),
                 )
             for item in planned:
                 if item.reason is None:
