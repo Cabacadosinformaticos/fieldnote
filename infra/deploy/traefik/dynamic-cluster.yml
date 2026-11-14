@@ -20,6 +20,14 @@ http:
       entryPoints:
         - web
       service: garage
+    # Lowest priority, so the API and media routers win. Anything else, including the
+    # dashboard's client-side routes, is served by the API replicas.
+    dashboard:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      priority: 1
+      service: api
 
   services:
     api:

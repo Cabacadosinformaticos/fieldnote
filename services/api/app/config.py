@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     media_dashboard_endpoint: str = "http://127.0.0.1:8080"
     # Origin of the researcher dashboard, used to build recovery links sent by email.
     dashboard_base_url: str = "http://127.0.0.1:5173"
+    # Built dashboard served by the API replicas; absent in tests and local runs.
+    dashboard_dir: str = "dashboard"
 
     jwt_secret: str | None = None
     jwt_algorithm: str = "HS256"

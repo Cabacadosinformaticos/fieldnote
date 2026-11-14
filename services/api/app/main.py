@@ -1,9 +1,10 @@
 from http import HTTPStatus
+from pathlib import Path
 
 import pika
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException
 
@@ -35,8 +36,37 @@ def _error_code(status_code: int) -> str:
     return phrase.lower().replace(" ", "_").replace("'", "")
 
 
+def _dashboard_file(root: Path, path: str) -> Path | None:
+    """Resolve a request path inside the dashboard directory, refusing traversal."""
+    candidate = (root / path).resolve()
+    if (candidate == root or root in candidate.parents) and candidate.is_file():
+        return candidate
+    return None
+
+
+def _dashboard_response(path: str) -> Response | None:
+    """The built dashboard for a non-API GET, or None when it is not available."""
+    if path == "/api" or path.startswith("/api/"):
+        # Never shadow the API: an unknown API path keeps the API's own 404.
+        return None
+    root = Path(settings.dashboard_dir)
+    if not root.is_dir():
+        return None
+    if (relative := path.lstrip("/")) and (asset := _dashboard_file(root, relative)):
+        return FileResponse(asset)
+    index = root / "index.html"
+    return FileResponse(index) if index.is_file() else None
+
+
 @app.exception_handler(HTTPException)
-async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: HTTPException) -> Response:
+    # An unmatched GET that is not under /api is a client-side route of the dashboard.
+    if (
+        exc.status_code == 404
+        and request.method == "GET"
+        and (page := _dashboard_response(request.url.path))
+    ):
+        return page
     return JSONResponse(
         status_code=exc.status_code,
         content={

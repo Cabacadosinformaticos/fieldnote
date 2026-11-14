@@ -208,6 +208,8 @@ services:
     profiles: ["cluster", "node1"]
     build:
       context: ../../services/api
+      additional_contexts:
+        dashboard: ../../apps/dashboard
     container_name: migrate
     command: ["alembic", "upgrade", "head"]
     # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
@@ -234,6 +236,8 @@ services:
     profiles: ["cluster", "node1"]
     build:
       context: ../../services/api
+      additional_contexts:
+        dashboard: ../../apps/dashboard
     container_name: api1
     hostname: api1
     # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
@@ -283,6 +287,8 @@ services:
     profiles: ["cluster", "node1"]
     build:
       context: ../../services/api
+      additional_contexts:
+        dashboard: ../../apps/dashboard
     container_name: outbox-relay1
     hostname: outbox-relay1
     command: ["python", "-m", "app.outbox_relay"]
@@ -312,6 +318,8 @@ services:
     profiles: ["cluster", "node1"]
     build:
       context: ../../services/api
+      additional_contexts:
+        dashboard: ../../apps/dashboard
     container_name: erasure-job1
     hostname: erasure-job1
     command:
@@ -622,6 +630,8 @@ services:
     profiles: ["cluster", "node2"]
     build:
       context: ../../services/api
+      additional_contexts:
+        dashboard: ../../apps/dashboard
     container_name: api2
     hostname: api2
     # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
@@ -673,6 +683,8 @@ services:
     profiles: ["cluster", "node2"]
     build:
       context: ../../services/api
+      additional_contexts:
+        dashboard: ../../apps/dashboard
     container_name: outbox-relay2
     hostname: outbox-relay2
     command: ["python", "-m", "app.outbox_relay"]
@@ -920,6 +932,8 @@ services:
     profiles: ["cluster", "node3"]
     build:
       context: ../../services/api
+      additional_contexts:
+        dashboard: ../../apps/dashboard
     container_name: api3
     hostname: api3
     # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only

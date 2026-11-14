@@ -20,6 +20,8 @@ secrets:
 
 x-api-build: &api-build
   context: ../../services/api
+  additional_contexts:
+    dashboard: ../../apps/dashboard
 
 x-database-url: &database-url "postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
 x-rabbitmq-url: &rabbitmq-url "amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/"
