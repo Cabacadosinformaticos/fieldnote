@@ -14,7 +14,6 @@ import {
   formatDateTime,
   formatDay,
   formatHourMinute,
-  isUuid,
   shortId,
 } from '../../components/admin/format'
 import {
@@ -25,20 +24,6 @@ import {
 } from '../../components/admin/icons'
 import { t, type AdminKey } from '../../i18n/admin'
 import '../../styles/admin.css'
-
-const deletedItems: { titleKey: AdminKey; noteKey: AdminKey }[] = [
-  { titleKey: 'erasure.deleted.identity', noteKey: 'erasure.deleted.identityNote' },
-  { titleKey: 'erasure.deleted.entries', noteKey: 'erasure.deleted.entriesNote' },
-  { titleKey: 'erasure.deleted.files', noteKey: 'erasure.deleted.filesNote' },
-  { titleKey: 'erasure.deleted.link', noteKey: 'erasure.deleted.linkNote' },
-]
-
-const keptItems: { titleKey: AdminKey; noteKey: AdminKey }[] = [
-  { titleKey: 'erasure.kept.audit', noteKey: 'erasure.kept.auditNote' },
-  { titleKey: 'erasure.kept.counts', noteKey: 'erasure.kept.countsNote' },
-  { titleKey: 'erasure.kept.backups', noteKey: 'erasure.kept.backupsNote' },
-  { titleKey: 'erasure.kept.outside', noteKey: 'erasure.kept.outsideNote' },
-]
 
 const steps: { n: string; titleKey: AdminKey; noteKey: AdminKey }[] = [
   { n: '1', titleKey: 'erasure.steps.oneTitle', noteKey: 'erasure.steps.oneNote' },
@@ -235,7 +220,6 @@ export default function AdminErasurePage() {
   const eraseParticipant = useEraseParticipant()
   const pendingQuery = usePendingErasureRequests()
 
-  const [participantId, setParticipantId] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [success, setSuccess] = useState('')
@@ -247,24 +231,21 @@ export default function AdminErasurePage() {
   const selected =
     pendingRequests.find((request) => request.id === selectedId) ?? pendingRequests[0] ?? null
 
-  const id = participantId.trim()
-  const expected = selected ? (selected.alias ?? selected.participant_id) : id
-  const targetId = selected ? selected.participant_id : id
+  const expected = selected ? (selected.alias ?? selected.participant_id) : ''
   const canErase =
-    Boolean(targetId) &&
+    selected !== null &&
     confirmation.trim() === expected &&
     /^\d{6}$/.test(totpCode.trim()) &&
-    (selected !== null || isUuid(id)) &&
     !eraseParticipant.isPending
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canErase) {
+    if (!selected || !canErase) {
       return
     }
     setSuccess('')
     eraseParticipant.mutate(
-      { participantId: targetId, totpCode: totpCode.trim() },
+      { participantId: selected.participant_id, totpCode: totpCode.trim() },
       {
         onSuccess: (result) => {
           setSuccess(
@@ -273,7 +254,6 @@ export default function AdminErasurePage() {
               files: result.files_deleted,
             }),
           )
-          setParticipantId('')
           setConfirmation('')
           setTotpCode('')
           setSelectedId(null)
@@ -283,7 +263,6 @@ export default function AdminErasurePage() {
   }
 
   function handleCancel() {
-    setParticipantId('')
     setConfirmation('')
     setTotpCode('')
     setSelectedId(null)
@@ -386,84 +365,42 @@ export default function AdminErasurePage() {
           ))}
 
           {!pendingQuery.isPending && !pendingQuery.isError && pendingRequests.length === 0 ? (
-            <>
-              <section className="ad-pending-card" aria-labelledby="ad-pending-title">
-                <div className="ad-pending-head">
-                  <div className="ad-pending-copy">
-                    <span className="ad-eyebrow">{t('erasure.manual.label')}</span>
-                    <h2 id="ad-pending-title" className="ad-pending-title">
-                      {t('erasure.manual.title')}
-                    </h2>
-                    <span className="ad-cell-note">{t('erasure.manual.note')}</span>
-                  </div>
-                  <span className="ad-warning-pill">{t('erasure.manual.status')}</span>
-                </div>
-              </section>
-
-              <div className="ad-erasure-cards">
-                <section className="ad-erasure-card">
-                  <div className="ad-erasure-card-head">
-                    <span className="ad-icon-square is-danger">
-                      <TrashIcon />
-                    </span>
-                    <h2 className="ad-card-title">{t('erasure.deletedTitle')}</h2>
-                  </div>
-                  <ul className="ad-detail-list">
-                    {deletedItems.map((item) => (
-                      <li key={item.titleKey}>
-                        <span className="ad-detail-title">{t(item.titleKey)}</span>
-                        <span className="ad-detail-note">{t(item.noteKey)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                <section className="ad-erasure-card">
-                  <div className="ad-erasure-card-head">
-                    <span className="ad-icon-square is-primary">
-                      <ShieldCheckIcon width={18} height={18} />
-                    </span>
-                    <h2 className="ad-card-title">{t('erasure.keptTitle')}</h2>
-                  </div>
-                  <ul className="ad-detail-list">
-                    {keptItems.map((item) => (
-                      <li key={item.titleKey}>
-                        <span className="ad-detail-title">{t(item.titleKey)}</span>
-                        <span className="ad-detail-note">{t(item.noteKey)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              </div>
-            </>
+            <section className="ad-pending-card">
+              <p className="ad-cell-note">{t('erasure.pending.empty')}</p>
+            </section>
           ) : null}
 
-          <section className="ad-erasure-card">
-            <h2 className="ad-card-title">{t('erasure.afterTitle')}</h2>
-            <ol className="ad-steps">
-              {steps.map((step) => (
-                <li key={step.n}>
-                  <span className="ad-step-number">{step.n}</span>
-                  <span className="ad-detail-title">{t(step.titleKey)}</span>
-                  <span className="ad-detail-note">{t(step.noteKey)}</span>
-                </li>
-              ))}
-            </ol>
-          </section>
+          {selected ? (
+            <section className="ad-erasure-card">
+              <h2 className="ad-card-title">{t('erasure.afterTitle')}</h2>
+              <ol className="ad-steps">
+                {steps.map((step) => (
+                  <li key={step.n}>
+                    <span className="ad-step-number">{step.n}</span>
+                    <span className="ad-detail-title">{t(step.titleKey)}</span>
+                    <span className="ad-detail-note">{t(step.noteKey)}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
         </div>
 
-        <aside className="ad-erasure-aside" aria-label={t('erasure.confirm.title')}>
-          <section className="ad-confirm-card">
-            <div className="ad-confirm-heading">
-              <h2 className="ad-confirm-title">
-                <AlertTriangleIcon />
-                {t('erasure.confirm.title')}
-              </h2>
-              <p className="ad-confirm-body">{t('erasure.confirm.body')}</p>
-            </div>
+        <aside
+          className="ad-erasure-aside"
+          aria-label={selected ? t('erasure.confirm.title') : t('erasure.historyTitle')}
+        >
+          {selected ? (
+            <section className="ad-confirm-card">
+              <div className="ad-confirm-heading">
+                <h2 className="ad-confirm-title">
+                  <AlertTriangleIcon />
+                  {t('erasure.confirm.title')}
+                </h2>
+                <p className="ad-confirm-body">{t('erasure.confirm.body')}</p>
+              </div>
 
-            <form className="ad-confirm-form" onSubmit={handleSubmit}>
-              {selected ? (
+              <form className="ad-confirm-form" onSubmit={handleSubmit}>
                 <div className="ad-field">
                   <label className="ad-label" htmlFor="ad-erasure-request">
                     {t('erasure.pending.select')}
@@ -493,95 +430,72 @@ export default function AdminErasurePage() {
                     </span>
                   )}
                 </div>
-              ) : (
+
                 <div className="ad-field">
-                  <label className="ad-label" htmlFor="ad-erasure-id">
-                    {t('erasure.manual.id')}
+                  <label className="ad-label" htmlFor="ad-erasure-confirm">
+                    {t('erasure.confirm.alias', {
+                      alias: selected.alias ?? selected.participant_id,
+                    })}
                   </label>
                   <input
-                    id="ad-erasure-id"
+                    id="ad-erasure-confirm"
                     type="text"
                     className="ad-input ad-mono ad-input-alias"
-                    value={participantId}
-                    onChange={(event) => setParticipantId(event.target.value)}
-                    aria-describedby="ad-erasure-id-hint"
+                    value={confirmation}
+                    onChange={(event) => setConfirmation(event.target.value)}
                     autoComplete="off"
                     disabled={eraseParticipant.isPending}
                   />
-                  <span id="ad-erasure-id-hint" className="ad-hint">
-                    {t('erasure.manual.idHint')}
+                </div>
+
+                <div className="ad-field">
+                  <label className="ad-label" htmlFor="ad-erasure-totp">
+                    {t('erasure.confirm.totp')}
+                  </label>
+                  <input
+                    id="ad-erasure-totp"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    className="ad-input ad-mono ad-input-alias"
+                    value={totpCode}
+                    onChange={(event) => setTotpCode(event.target.value)}
+                    aria-describedby="ad-erasure-totp-hint"
+                    autoComplete="one-time-code"
+                    disabled={eraseParticipant.isPending}
+                  />
+                  <span id="ad-erasure-totp-hint" className="ad-hint">
+                    {t('erasure.confirm.totpHint')}
                   </span>
                 </div>
-              )}
 
-              <div className="ad-field">
-                <label className="ad-label" htmlFor="ad-erasure-confirm">
-                  {selected
-                    ? t('erasure.confirm.alias', {
-                        alias: selected.alias ?? selected.participant_id,
-                      })
-                    : t('erasure.confirm.repeat')}
-                </label>
-                <input
-                  id="ad-erasure-confirm"
-                  type="text"
-                  className="ad-input ad-mono ad-input-alias"
-                  value={confirmation}
-                  onChange={(event) => setConfirmation(event.target.value)}
-                  autoComplete="off"
-                  disabled={eraseParticipant.isPending}
-                />
-              </div>
+                {eraseParticipant.error ? (
+                  <p className="ad-form-error" role="alert">
+                    {erasureErrorText(eraseParticipant.error)}
+                  </p>
+                ) : null}
 
-              <div className="ad-field">
-                <label className="ad-label" htmlFor="ad-erasure-totp">
-                  {t('erasure.confirm.totp')}
-                </label>
-                <input
-                  id="ad-erasure-totp"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  className="ad-input ad-mono ad-input-alias"
-                  value={totpCode}
-                  onChange={(event) => setTotpCode(event.target.value)}
-                  aria-describedby="ad-erasure-totp-hint"
-                  autoComplete="one-time-code"
-                  disabled={eraseParticipant.isPending}
-                />
-                <span id="ad-erasure-totp-hint" className="ad-hint">
-                  {t('erasure.confirm.totpHint')}
-                </span>
-              </div>
+                {success ? (
+                  <p className="ad-success" role="status">
+                    {success}
+                  </p>
+                ) : null}
 
-              {eraseParticipant.error ? (
-                <p className="ad-form-error" role="alert">
-                  {erasureErrorText(eraseParticipant.error)}
-                </p>
-              ) : null}
+                <div className="ad-confirm-actions">
+                  <button type="submit" className="ad-danger-btn" disabled={!canErase}>
+                    <TrashIcon />
+                    {t('erasure.confirm.erase')}
+                  </button>
+                  <button type="button" className="ad-cancel-btn" onClick={handleCancel}>
+                    {t('erasure.confirm.cancel')}
+                  </button>
+                </div>
 
-              {success ? (
-                <p className="ad-success" role="status">
-                  {success}
-                </p>
-              ) : null}
-
-              <div className="ad-confirm-actions">
-                <button type="submit" className="ad-danger-btn" disabled={!canErase}>
-                  <TrashIcon />
-                  {t('erasure.confirm.erase')}
-                </button>
-                <button type="button" className="ad-cancel-btn" onClick={handleCancel}>
-                  {t('erasure.confirm.cancel')}
-                </button>
-              </div>
-
-              <p className="ad-confirm-note">
-                {selected ? t('erasure.confirm.pendingNote') : t('erasure.confirm.note')}
-              </p>
-            </form>
-          </section>
+                <p className="ad-confirm-note">{t('erasure.confirm.pendingNote')}</p>
+              </form>
+            </section>
+          ) : null}
 
           <section className="ad-history-card">
             <h2 className="ad-history-title">{t('erasure.historyTitle')}</h2>

@@ -421,13 +421,6 @@ const pt = {
   'erasure.app.empty': 'Não há apagamentos agendados.',
   'erasure.app.loading': 'A carregar os pedidos…',
   'erasure.app.loadError': 'Não foi possível carregar os pedidos de apagamento.',
-  'erasure.manual.label': 'Pedido recebido fora da app',
-  'erasure.manual.title': 'Apagar um participante agora',
-  'erasure.manual.status': 'Aguarda confirmação',
-  'erasure.manual.note':
-    'O pedido chegou por e-mail ou pela equipa do estudo. Confirme o identificador com a equipa: o apagamento é imediato e não se pode desfazer.',
-  'erasure.manual.id': 'Identificador do participante',
-  'erasure.manual.idHint': 'O UUID que a equipa do estudo enviou, por exemplo 0f8c…',
   'erasure.pending.eyebrow': 'Pedido por tratar, recebido fora da app',
   'erasure.pending.title': 'Participante {alias} do estudo {study}',
   'erasure.pending.status': 'Aguarda a administração',
@@ -439,6 +432,8 @@ const pt = {
   'erasure.pending.select': 'Pedido a tratar',
   'erasure.pending.loading': 'A carregar os pedidos recebidos fora da app…',
   'erasure.pending.loadError': 'Não foi possível carregar os pedidos recebidos fora da app.',
+  'erasure.pending.empty':
+    'Não há pedidos por tratar. Quando a equipa de um estudo pedir um apagamento, o pedido aparece aqui.',
   'erasure.counts.entryOne': '1 registo',
   'erasure.counts.entries': '{count} registos',
   'erasure.counts.fileOne': '1 ficheiro',
@@ -496,15 +491,11 @@ const pt = {
   'erasure.confirm.title': 'Confirmar o apagamento',
   'erasure.confirm.body':
     'Esta ação não se pode desfazer. Nem a administração consegue recuperar o que for apagado.',
-  'erasure.confirm.idBefore': 'Escreva o identificador do participante para confirmar',
-  'erasure.confirm.repeat': 'Repita o identificador',
   'erasure.confirm.alias': 'Escreva o pseudónimo {alias} para confirmar',
   'erasure.confirm.totp': 'Código TOTP da sua aplicação de autenticação',
   'erasure.confirm.totpHint': '6 dígitos. Muda de 30 em 30 segundos.',
   'erasure.confirm.erase': 'Apagar definitivamente',
   'erasure.confirm.cancel': 'Cancelar',
-  'erasure.confirm.note':
-    'O botão só fica ativo quando os dois identificadores coincidirem e o código TOTP tiver 6 dígitos. O apagamento fica registado na auditoria com a sua conta, nunca com o nome do participante.',
   'erasure.confirm.pendingNote':
     'O botão só fica ativo quando o pseudónimo coincidir e o código TOTP tiver 6 dígitos. O apagamento e o pedido tratado ficam registados na auditoria, com a sua conta e nunca com o nome do participante.',
   'erasure.confirm.success':
