@@ -61,6 +61,8 @@ networks:
         - subnet: 172.30.0.0/16
 
 volumes:
+  ts-gw1-state:
+  ts-gw2-state:
   etcd1-data:
   etcd2-data:
   etcd3-data:
@@ -413,6 +415,28 @@ services:
     networks:
       - cluster
 
+  # Tailscale entry of node 1: its own tailnet address, HTTPS with a ts.net certificate, in front of
+  # traefik1 (443), Mailpit (8443) and Grafana (10000). No auth key: on the first start the log
+  # prints a login link that the owner of the tailnet opens once; the state volume keeps the login.
+  ts-gw1:
+    profiles: ["cluster", "node1"]
+    image: tailscale/tailscale:v1.90.6
+    container_name: ts-gw1
+    hostname: fieldnote-gw1
+    environment:
+      TS_HOSTNAME: fieldnote-gw1
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_EXTRA_ARGS: --accept-dns=false
+    volumes:
+      - ts-gw1-state:/var/lib/tailscale
+      - ./tailscale/gw1.json:/config/serve.json:ro
+    restart: unless-stopped
+    networks:
+      - edge
+      - cluster
+
   # ---------------------------------------------------------------- node 2
   etcd2:
     profiles: ["cluster", "node2"]
@@ -671,6 +695,25 @@ services:
         # Both gateways answer to this alias, so the APIs reach object storage through
         # whichever gateway is up (Docker DNS drops a stopped container's record).
         aliases: [s3-gateway]
+
+  # Tailscale entry of node 2, in front of traefik2 only: the second address the clients fall back to.
+  ts-gw2:
+    profiles: ["cluster", "node2"]
+    image: tailscale/tailscale:v1.90.6
+    container_name: ts-gw2
+    hostname: fieldnote-gw2
+    environment:
+      TS_HOSTNAME: fieldnote-gw2
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_EXTRA_ARGS: --accept-dns=false
+    volumes:
+      - ts-gw2-state:/var/lib/tailscale
+      - ./tailscale/gw2.json:/config/serve.json:ro
+    restart: unless-stopped
+    networks:
+      - edge
 
   # ---------------------------------------------------------------- node 3
   etcd3:
