@@ -1107,8 +1107,9 @@ def _upload_photo(api: Api, participant: Participant, entry_id: str, payload: by
     )
     signed = urlsplit(upload["upload_url"])
     base = urlsplit(api.base_url)
-    port = signed.port or (443 if signed.scheme == "https" else 80)
-    target = f"{base.scheme}://{base.hostname}:{port}{signed.path}"
+    # The signed URL names the gateway as the phones see it (on a server, an HTTPS ts.net name);
+    # the seed reaches the same gateway at its local address and keeps the signed Host header.
+    target = f"{base.scheme}://{base.netloc}{signed.path}"
     if signed.query:
         target = f"{target}?{signed.query}"
     response = api.client.put(
