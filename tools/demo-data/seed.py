@@ -100,6 +100,8 @@ RESEARCHERS = (
     (CO_INVESTIGATOR, "co_investigator"),
     (MEMBER, "member"),
 )
+ADMIN_NAME = "Carla Nunes"
+
 RESEARCHERS_NAMES = {
     PRINCIPAL: "Inês Marques",
     CO_INVESTIGATOR: "Duarte Lopes",
@@ -620,6 +622,14 @@ def _account_passwords(api: Api, mailpit_url: str) -> dict[str, str]:
     accounts = api.admin("GET", "/admin/accounts")
     by_email = {account["email"]: account for account in accounts}
     passwords: dict[str, str] = {}
+    # The administrator of the mockups is Carla Nunes; name the seeding account the same way.
+    admin_account = by_email.get(api.admin_email or "")
+    if admin_account is not None and not admin_account.get("name"):
+        api.admin(
+            "PATCH",
+            f"/admin/accounts/{admin_account['id']}",
+            json={"name": ADMIN_NAME},
+        )
     for email, _role in RESEARCHERS:
         if email in by_email:
             if not by_email[email].get("name"):
