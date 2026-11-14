@@ -17,6 +17,10 @@ people and no text.
 
 - The development stack running (see `infra/deploy/README.md`), with the API reachable at
   `http://127.0.0.1:8080`. Use `127.0.0.1`, never `localhost`.
+- Or, on the server, the cluster stack (`infra/deploy/compose.cluster.yaml`, project
+  `fieldnote-cluster`) running with the `cluster` profile and `--target cluster`. The API gateway
+  is then `http://127.0.0.1:8090`, Mailpit `http://127.0.0.1:8026`, and the TOTP and scheduler
+  helpers run in `api1` and `scheduler1`.
 - `uv` on `PATH`. The project depends on `httpx`, `Pillow` and `psycopg` (the last one only
   for the `history` step).
 - `docker compose` on `PATH`. The administrator has TOTP enabled, so the `seed` step derives
@@ -24,11 +28,15 @@ people and no text.
   container, exactly like `infra/deploy/smoke.sh`. The `seed` step never reads or writes the
   database itself; only the explicit `history` and `reset` steps do. `reset` also runs the
   scheduler's own `plan_study` in the `scheduler` container, so that container must be up.
-- For `history`, the development PostgreSQL reachable at `127.0.0.1:5432`. Set
-  `SEED_DATABASE_URL` to its psycopg URL, for example
+- For `history`, `reset` and `reset --clean-audit`, PostgreSQL reachable on the loopback. Set
+  `SEED_DATABASE_URL` to its psycopg URL. On `dev` it must point at `127.0.0.1:5432`, for example
   `postgresql://fieldnote:fieldnote@127.0.0.1:5432/fieldnote` (the safe development value in
-  `services/api/app/config.py`). The variable is read from the environment only; the script
-  never reads `.env` files. The step refuses any host other than `127.0.0.1:5432`.
+  `services/api/app/config.py`). On `cluster` it is a libpq multi-host URL whose hosts are all
+  `127.0.0.1` on ports 5441, 5442 and 5443, with `target_session_attrs=read-write` so libpq
+  follows the Patroni leader:
+  `postgresql://fieldnote:<password>@127.0.0.1:5441,127.0.0.1:5442,127.0.0.1:5443/fieldnote?target_session_attrs=read-write`.
+  The password is the one in `infra/deploy/.env` on the server. The variable is read from the
+  environment only; the script never reads `.env` files. The step refuses any other host.
 
 ## Create the administrator once
 
@@ -84,24 +92,55 @@ Both `history` and `reset` write to the database directly, and they are meant fo
 only: they insert `prompt` rows and set `entry.prompt_id` in the development database. They
 never run against another host, never change the API data and do not touch migrations.
 
+`reset --yes --clean-audit` also clears `audit_log` before seeding. It truncates the table, or
+deletes its rows when the role the seed connects with cannot truncate it, and then writes one
+`system` row with action `audit_log_cleared` and the number of rows removed, so the log itself
+shows that it was cleared. This is a demonstration-only step: in a real deployment the audit log
+is never cleared.
+
 The researcher logins are written to `_private/entregas/entrega-2/dev-logins.md`, which Git
-excludes, and never to a tracked file.
+excludes, and never to a tracked file. On the server use `--logins-file` to write them somewhere
+outside the checkout instead.
 
 Open the dashboard at `http://127.0.0.1:5173` (override with `FIELDNOTE_DASHBOARD_URL`) and sign
 in as `ines.marques@fieldnote.test`.
+
+## Cluster
+
+Run the same steps from the server with `--target cluster`. The script then reads
+`infra/deploy/compose.cluster.yaml` with the `cluster` profile, derives the TOTP code in `api1`,
+asks `scheduler1` to plan today, and defaults to the gateway on `http://127.0.0.1:8090` and
+Mailpit on `http://127.0.0.1:8026` (both can still be overridden with `--base-url` and
+`--mailpit-url` or `SEED_MAILPIT_URL`):
+
+```bash
+cd tools/demo-data
+printf '%s\n' 'ChangeMe!2026' |
+  SEED_DATABASE_URL='postgresql://fieldnote:<password>@127.0.0.1:5441,127.0.0.1:5442,127.0.0.1:5443/fieldnote?target_session_attrs=read-write' \
+  uv run seed.py reset --yes --clean-audit --target cluster \
+    --logins-file /srv/fieldnote/dev-logins.md \
+    --admin-email demo-admin@fieldnote.test --admin-password-stdin
+```
+
+The `<password>` is the database password in `infra/deploy/.env` on the server; never commit it.
+The three PostgreSQL ports are published on the loopback only, for this seed.
 
 ## Options
 
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `step` | `seed` | `seed` fills the stack through the API; `history` writes past prompts directly to the database; `reset` deletes every study, then seeds, fills the past and plans today |
-| `--base-url` | `http://127.0.0.1:8080` | API through the gateway |
+| `--target` | `dev` | `dev` uses `compose.yaml` with `api` and `scheduler`; `cluster` uses `compose.cluster.yaml` with `api1` and `scheduler1` |
+| `--base-url` | `http://127.0.0.1:8080` (`8090` on cluster) | API through the gateway |
+| `--mailpit-url` | `http://127.0.0.1:8025` (`8026` on cluster) | Local Mailpit API used to read the account links; `SEED_MAILPIT_URL` overrides it |
 | `--admin-email` | required for `seed` and `reset` | Administrator that owns the setup calls |
 | `--admin-password-stdin` | off | Read the administrator password from standard input |
 | `--end-in-days` | `1` | Days from today to the end of the study; it always starts 12 days before today |
 | `--participants` | `22` | Participants in the study (at least 4) |
 | `--seed` | `20261006` | Seed for the generated data and the prompt times of `history` |
-| `--yes` | off | `reset` only: confirm deleting every study in the development database |
+| `--logins-file` | `_private/entregas/entrega-2/dev-logins.md` | Path of the researcher logins file; use it to keep the file outside the checkout on the server |
+| `--yes` | off | `reset` only: confirm deleting every study and, with `--clean-audit`, clearing the audit log |
+| `--clean-audit` | off | `reset` only: delete every `audit_log` row before seeding and leave one `audit_log_cleared` row (demonstration only) |
 
 `history` and `reset` also read `SEED_DATABASE_URL` from the environment as described above.
 

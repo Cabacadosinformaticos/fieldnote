@@ -20,6 +20,14 @@ study, fills its past days and asks the scheduler to plan today, all in one comm
 
     SEED_DATABASE_URL=postgresql://user:password@127.0.0.1:5432/fieldnote \\
         uv run seed.py reset --yes --admin-email <email> --admin-password-stdin
+
+``--target cluster`` runs the same steps against ``infra/deploy/compose.cluster.yaml`` (project
+``fieldnote-cluster``, services ``api1`` and ``scheduler1``, gateway on 8090, Mailpit on 8026).
+The database URL then lists the three Patroni members on the loopback:
+
+    SEED_DATABASE_URL='postgresql://user:password@127.0.0.1:5441,127.0.0.1:5442,\\
+127.0.0.1:5443/fieldnote?target_session_attrs=read-write' \\
+        uv run seed.py reset --yes --target cluster --admin-email <email> --admin-password-stdin
 """
 
 from __future__ import annotations
@@ -42,13 +50,14 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, timezone, tzinfo
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 import psycopg
 from PIL import Image, ImageDraw
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 API_ROOT = "/api/v1"
 STUDY_TITLE = "Viver o Jardim da Estrela"
@@ -265,6 +274,20 @@ SEED_FREE_ENTRY_LIMIT = 20
 DATABASE_URL_VARIABLE = "SEED_DATABASE_URL"
 DEFAULT_MAILPIT_URL = "http://127.0.0.1:8025"
 LOCAL_MAIL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+TARGETS = ("dev", "cluster")
+DEFAULT_BASE_URLS = {"dev": "http://127.0.0.1:8080", "cluster": "http://127.0.0.1:8090"}
+DEFAULT_MAILPIT_URLS = {"dev": DEFAULT_MAILPIT_URL, "cluster": "http://127.0.0.1:8026"}
+COMPOSE_FILES = {
+    "dev": Path("infra") / "deploy" / "compose.yaml",
+    "cluster": Path("infra") / "deploy" / "compose.cluster.yaml",
+}
+COMPOSE_PROFILES = {"dev": "dev", "cluster": "cluster"}
+API_SERVICES = {"dev": "api", "cluster": "api1"}
+SCHEDULER_SERVICES = {"dev": "scheduler", "cluster": "scheduler1"}
+DATABASE_WORDS = {"dev": "development", "cluster": "cluster"}
+# The Patroni members publish PostgreSQL on the loopback for the seed only.
+CLUSTER_DATABASE_PORTS = frozenset({5441, 5442, 5443})
 PARTICIPANT_STATUSES = ("active", "withdrawn", "removed")  # the states the researcher views count
 
 # The demonstration is always on day 13 of 14: the study began 12 days ago and ends tomorrow.
@@ -336,8 +359,9 @@ def _account_link(mailpit_url: str, email: str, timeout: float = 20.0) -> str:
 class Api:
     """Thin JSON client. Administrator calls re-authenticate once on a 401."""
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, target: str = "dev") -> None:
         self.base_url = _normalise_base_url(base_url)
+        self.target = target
         self.client = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(60.0))
         self.admin_token: str | None = None
         self.admin_email: str | None = None
@@ -449,9 +473,9 @@ class Api:
 
     def _totp_code(self) -> str:
         if self.totp_secret is not None:
-            return _totp_for_secret(self.totp_secret)
+            return _totp_for_secret(self.totp_secret, self.target)
         assert self.admin_email is not None
-        return _totp_for_account(self.admin_email)
+        return _totp_for_account(self.admin_email, self.target)
 
     def admin(
         self, method: str, path: str, *, expected: tuple[int, ...] = (200,), **kwargs: Any
@@ -524,23 +548,24 @@ def _error_code(response: httpx.Response) -> str | None:
     return error.get("code") if isinstance(error, dict) else None
 
 
-def _compose_file() -> Path:
-    path = _repo_root() / "infra" / "deploy" / "compose.yaml"
+def _compose_file(target: str) -> Path:
+    relative = COMPOSE_FILES[target]
+    path = _repo_root() / relative
     if not path.is_file():
         raise SeedError(
-            "The TOTP code needs docker compose: infra/deploy/compose.yaml was not found."
+            f"The TOTP code needs docker compose: {relative.as_posix()} was not found."
         )
     return path
 
 
-def _compose_exec(python_code: str, *arguments: str, service: str = "api") -> str:
+def _compose_exec(python_code: str, *arguments: str, target: str, service: str) -> str:
     command = [
         "docker",
         "compose",
         "-f",
-        str(_compose_file()),
+        str(_compose_file(target)),
         "--profile",
-        "dev",
+        COMPOSE_PROFILES[target],
         "exec",
         "-T",
         service,
@@ -562,14 +587,16 @@ def _compose_exec(python_code: str, *arguments: str, service: str = "api") -> st
     return output
 
 
-def _totp_for_secret(secret: str) -> str:
+def _totp_for_secret(secret: str, target: str) -> str:
     return _compose_exec(
         "import sys; from app.security import totp; print(totp.generate_code(sys.argv[1]))",
         secret,
+        target=target,
+        service=API_SERVICES[target],
     )
 
 
-def _totp_for_account(email: str) -> str:
+def _totp_for_account(email: str, target: str) -> str:
     # The administrator is already enrolled, so the secret is read from its row and the code is
     # generated by the API's own helper. Nothing is written.
     return _compose_exec(
@@ -585,6 +612,8 @@ def _totp_for_account(email: str) -> str:
         "print(totp.generate_code(account.totp_secret))\n"
         "session.close()\n",
         email,
+        target=target,
+        service=API_SERVICES[target],
     )
 
 
@@ -1340,7 +1369,7 @@ def _study_timezone(name: str, day: date) -> tzinfo:
         return UTC
 
 
-def _database_url() -> str:
+def _database_url(target: str) -> str:
     value = os.environ.get(DATABASE_URL_VARIABLE, "").strip()
     if not value:
         raise SeedError(
@@ -1349,6 +1378,8 @@ def _database_url() -> str:
         )
     if value.startswith("postgresql+psycopg://"):
         value = "postgresql://" + value.removeprefix("postgresql+psycopg://")
+    if target == "cluster":
+        return _cluster_database_url(value)
     parts = urlsplit(value)
     if parts.hostname != "127.0.0.1" or parts.port != 5432:
         raise SeedError(
@@ -1358,9 +1389,38 @@ def _database_url() -> str:
     return value
 
 
+def _cluster_database_url(value: str) -> str:
+    netloc = urlsplit(value).netloc.rsplit("@", 1)[-1]
+    hosts = [item for item in netloc.split(",") if item]
+    if not hosts:
+        raise _cluster_database_error()
+    for item in hosts:
+        host, separator, port_text = item.partition(":")
+        try:
+            port = int(port_text)
+        except ValueError:
+            raise _cluster_database_error() from None
+        if not separator or host != "127.0.0.1" or port not in CLUSTER_DATABASE_PORTS:
+            raise _cluster_database_error()
+    attributes = parse_qs(urlsplit(value).query).get("target_session_attrs", [])
+    if not attributes or attributes[0].lower() != "read-write":
+        raise SeedError(
+            f"{DATABASE_URL_VARIABLE} must include target_session_attrs=read-write so the "
+            "leader is chosen."
+        )
+    return value
+
+
+def _cluster_database_error() -> SeedError:
+    return SeedError(
+        f"{DATABASE_URL_VARIABLE} must point only at the cluster databases published on "
+        "127.0.0.1:5441, 127.0.0.1:5442 and 127.0.0.1:5443, never at another host."
+    )
+
+
 def _database_label(url: str) -> str:
     parts = urlsplit(url)
-    return f"{parts.hostname}:{parts.port}{parts.path}"
+    return f"{parts.netloc.rsplit('@', 1)[-1]}{parts.path}"
 
 
 def _load_history(connection: psycopg.Connection) -> HistoryContext:
@@ -1793,10 +1853,10 @@ def _write_history(connection: psycopg.Connection, seed: int) -> None:
     print(f"  past entries still free: {still_free}")
 
 
-def _run_history(seed: int) -> int:
-    url = _database_url()
+def _run_history(seed: int, target: str) -> int:
+    url = _database_url(target)
     label = _database_label(url)
-    print(f"Writing past prompts directly to the development database at {label}")
+    print(f"Writing past prompts directly to the {DATABASE_WORDS[target]} database at {label}")
     try:
         with psycopg.connect(url, connect_timeout=5, row_factory=dict_row) as connection:
             _write_history(connection, seed)
@@ -1805,7 +1865,9 @@ def _run_history(seed: int) -> int:
     return 0
 
 
-def _dev_logins_path() -> Path:
+def _dev_logins_path(override: str | None) -> Path:
+    if override:
+        return Path(override).expanduser()
     if DEV_LOGINS_RELATIVE_PATH.parts[0] != "_private":
         raise SeedError("The logins file must stay inside _private.")
     return _repo_root() / DEV_LOGINS_RELATIVE_PATH
@@ -1822,9 +1884,8 @@ def _previous_logins(path: Path) -> dict[str, str]:
     return passwords
 
 
-def _write_dev_logins(passwords: dict[str, str], admin_email: str) -> None:
+def _write_dev_logins(passwords: dict[str, str], admin_email: str, path: Path) -> None:
     """Write the logins to the untracked file, keeping the passwords of existing accounts."""
-    path = _dev_logins_path()
     previous = _previous_logins(path)
     lines = [
         "# Contas de teste do ambiente de desenvolvimento (só locais, dados de demonstração)",
@@ -1848,10 +1909,10 @@ def _write_dev_logins(passwords: dict[str, str], admin_email: str) -> None:
     print(f"Logins escritos em {path} (fora do Git)")
 
 
-def _delete_studies(confirmed: bool) -> None:
-    url = _database_url()
+def _delete_studies(confirmed: bool, target: str) -> None:
+    url = _database_url(target)
     label = _database_label(url)
-    print(f"Looking for studies in the development database at {label}")
+    print(f"Looking for studies in the {DATABASE_WORDS[target]} database at {label}")
     try:
         with psycopg.connect(url, connect_timeout=5, row_factory=dict_row) as connection:
             titles = [
@@ -1872,7 +1933,41 @@ def _delete_studies(confirmed: bool) -> None:
         raise SeedError(f"Cannot delete studies at {label}: {exc}") from exc
 
 
-def _plan_today() -> None:
+def _clean_audit_log(confirmed: bool, target: str) -> None:
+    """Delete the audit log of the demonstration and leave one row saying it was cleared."""
+    if not confirmed:
+        raise SeedError("Refusing to clear the audit log: pass --yes to confirm.")
+    url = _database_url(target)
+    label = _database_label(url)
+    print(f"Clearing the audit log in the {DATABASE_WORDS[target]} database at {label}")
+    try:
+        with psycopg.connect(url, connect_timeout=5, row_factory=dict_row) as connection:
+            role = connection.execute("SELECT current_user AS role").fetchone()["role"]
+            removed = connection.execute("SELECT count(*) AS count FROM audit_log").fetchone()[
+                "count"
+            ]
+            can_truncate = connection.execute(
+                "SELECT has_table_privilege(current_user, 'audit_log', 'TRUNCATE') AS allowed"
+            ).fetchone()["allowed"]
+            if can_truncate:
+                connection.execute("TRUNCATE audit_log")
+                method = "TRUNCATE"
+            else:
+                connection.execute("DELETE FROM audit_log")
+                method = "DELETE"
+            connection.execute(
+                "INSERT INTO audit_log (actor_type, action, details, origin_client) "
+                "VALUES ('system'::audit_actor_type, 'audit_log_cleared', %s, 'automatic_task')",
+                (Jsonb({"removed": removed, "method": method.lower()}),),
+            )
+            print(
+                f"  role {role}: {method} removed {removed} rows and wrote audit_log_cleared"
+            )
+    except psycopg.Error as exc:
+        raise SeedError(f"Cannot clear the audit log at {label}: {exc}") from exc
+
+
+def _plan_today(target: str) -> None:
     """Plan today through the scheduler's own service, in its container.
 
     The service has no HTTP trigger, and the leader only plans on startup, at the planning
@@ -1902,15 +1997,17 @@ def _plan_today() -> None:
         "))\n",
         STUDY_TITLE,
         today,
-        service="scheduler",
+        target=target,
+        service=SCHEDULER_SERVICES[target],
     )
     print(f"  scheduler: {output}")
 
 
 def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) -> int:
-    api = Api(arguments.base_url)
+    api = Api(arguments.base_url, arguments.target)
     api.admin_email = arguments.admin_email.strip().lower()
     api.admin_password = password
+    logins_path = _dev_logins_path(arguments.logins_file)
     try:
         print(f"Signing in to {api.base_url} as {api.admin_email}")
         api.login_admin()
@@ -1918,7 +2015,7 @@ def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) 
         existing = _find_study(api)
         if existing is not None:
             _print_existing(api, existing, dashboard_url)
-            _write_dev_logins({}, api.admin_email)
+            _write_dev_logins({}, api.admin_email, logins_path)
             return 0
 
         print("Creating the researcher accounts")
@@ -1960,20 +2057,22 @@ def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) 
 
         entries = _list_entries(api, study_id)
         _print_summary(api, study_id, entries, passwords, dashboard_url)
-        _write_dev_logins(passwords, api.admin_email)
+        _write_dev_logins(passwords, api.admin_email, logins_path)
         return 0
     finally:
         api.close()
 
 
 def _run_reset(arguments: argparse.Namespace, password: str, dashboard_url: str) -> int:
-    _delete_studies(arguments.yes)
+    _delete_studies(arguments.yes, arguments.target)
+    if arguments.clean_audit:
+        _clean_audit_log(arguments.yes, arguments.target)
     status = _run_seed(arguments, password, dashboard_url)
     if status != 0:
         return status
-    _run_history(arguments.seed)
+    _run_history(arguments.seed, arguments.target)
     print("Asking the scheduler to plan today")
-    _plan_today()
+    _plan_today(arguments.target)
     return 0
 
 
@@ -1990,11 +2089,23 @@ def main(argv: list[str] | None = None) -> int:
         "directly to the development database; reset deletes every study, seeds, fills the "
         "past and plans today",
     )
-    parser.add_argument("--base-url", default="http://127.0.0.1:8080")
+    parser.add_argument(
+        "--target",
+        choices=TARGETS,
+        default="dev",
+        help="stack to fill: dev (compose.yaml) or cluster (compose.cluster.yaml) "
+        "(default: %(default)s)",
+    )
+    parser.add_argument(
+        "--base-url",
+        default=None,
+        help="API through the gateway (default: 8080 on dev, 8090 on cluster)",
+    )
     parser.add_argument(
         "--mailpit-url",
-        default=os.environ.get("SEED_MAILPIT_URL", DEFAULT_MAILPIT_URL),
-        help="local Mailpit API used to read the account links (default: %(default)s)",
+        default=None,
+        help="local Mailpit API used to read the account links "
+        "(default: 8025 on dev, 8026 on cluster, or SEED_MAILPIT_URL)",
     )
     parser.add_argument("--admin-email")
     parser.add_argument("--admin-password-stdin", action="store_true")
@@ -2007,15 +2118,36 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--participants", type=int, default=22)
     parser.add_argument("--seed", type=int, default=20261006)
     parser.add_argument(
+        "--logins-file",
+        default=None,
+        help="write the researcher logins to this path instead of "
+        "_private/entregas/entrega-2/dev-logins.md",
+    )
+    parser.add_argument(
         "--yes",
         action="store_true",
-        help="confirm that reset may delete every study in the development database",
+        help="confirm that reset may delete every study and, with --clean-audit, "
+        "clear the audit log",
+    )
+    parser.add_argument(
+        "--clean-audit",
+        action="store_true",
+        help="reset only: delete every audit_log row before seeding and write one "
+        "audit_log_cleared row (demonstration only)",
     )
     arguments = parser.parse_args(argv)
+    if arguments.base_url is None:
+        arguments.base_url = DEFAULT_BASE_URLS[arguments.target]
+    if arguments.mailpit_url is None:
+        arguments.mailpit_url = os.environ.get(
+            "SEED_MAILPIT_URL", DEFAULT_MAILPIT_URLS[arguments.target]
+        )
+    if arguments.clean_audit and arguments.step != "reset":
+        parser.error("--clean-audit is only valid with the reset step")
 
     if arguments.step == "history":
         try:
-            return _run_history(arguments.seed)
+            return _run_history(arguments.seed, arguments.target)
         except SeedError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1

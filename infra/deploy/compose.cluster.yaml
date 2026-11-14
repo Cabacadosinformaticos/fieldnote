@@ -130,6 +130,9 @@ services:
       PATRONI_NAME: pg1
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg1:5432
       PATRONI_RESTAPI_CONNECT_ADDRESS: pg1:8008
+    ports:
+      # Loopback only, for the demo seed (tools/demo-data/seed.py). Never exposed off the host.
+      - "127.0.0.1:5441:5432"
     volumes:
       - pg1-data:/var/lib/postgresql/data
     depends_on:
@@ -517,6 +520,9 @@ services:
       PATRONI_NAME: pg2
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg2:5432
       PATRONI_RESTAPI_CONNECT_ADDRESS: pg2:8008
+    ports:
+      # Loopback only, for the demo seed (tools/demo-data/seed.py). Never exposed off the host.
+      - "127.0.0.1:5442:5432"
     volumes:
       - pg2-data:/var/lib/postgresql/data
     depends_on:
@@ -819,6 +825,9 @@ services:
       PATRONI_NAME: pg3
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg3:5432
       PATRONI_RESTAPI_CONNECT_ADDRESS: pg3:8008
+    ports:
+      # Loopback only, for the demo seed (tools/demo-data/seed.py). Never exposed off the host.
+      - "127.0.0.1:5443:5432"
     volumes:
       - pg3-data:/var/lib/postgresql/data
     depends_on:

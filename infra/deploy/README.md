@@ -157,8 +157,12 @@ docker compose -f compose.cluster.yaml exec garage1 /garage status
 | Prometheus, node3 | http://127.0.0.1:9091 |
 | Grafana, node3 | http://127.0.0.1:3001 |
 
-These are the only published ports. PostgreSQL, etcd, RabbitMQ AMQP, Garage S3
-and the Garage admin API are reachable only inside the project network.
+The three Patroni members also publish PostgreSQL on the loopback only, for the
+demonstration seed (`tools/demo-data/seed.py history` and `reset`): `127.0.0.1:5441`
+(pg1), `127.0.0.1:5442` (pg2) and `127.0.0.1:5443` (pg3). They are never reachable
+off the server; `SEED_DATABASE_URL` lists all three with `target_session_attrs=read-write`
+so libpq follows the leader. Apart from those loopback ports, etcd, RabbitMQ AMQP,
+Garage S3 and the Garage admin API are reachable only inside the project network.
 
 Prometheus and Grafana run on node 3 only and are not replicated. Losing them
 hides the metrics during a demonstration but does not affect the service. The
