@@ -428,7 +428,11 @@ section describes the guidance given to participants.
 ## Audit log
 
 `audit_log` records logins, exports, issued media URLs, reads of `participant_identity`, changes to
-studies, erasures and system jobs, with the type of actor: user, participant or system. The log is
+studies, erasures and system jobs, with the type of actor: user, participant or system. Each row also
+keeps where it came from: the portal, the participant app or a system task. For team accounts it
+keeps the IP address and the browser as well, to investigate a misused account. For participants it
+keeps neither: an address next to the pseudonym could identify the person, and the log is not erased
+with the participant's data (decided on 8 November 2026). The log is
 append only. The services write to it with a database role that has `INSERT` on the table and no
 `UPDATE` or `DELETE`. This protects the log against a compromised service, not against a database
 administrator, who can change anything.

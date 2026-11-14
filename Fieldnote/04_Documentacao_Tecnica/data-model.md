@@ -235,7 +235,7 @@ Three changes adopted after the interviews of October 2026 (R09) add data. None 
 
 | Entity | Purpose |
 |---|---|
-| `user_account` | Administrators and researchers. Passwords stored as Argon2id hashes, failed login counter and lockout time, TOTP secret for administrators and the time its first code confirmed it |
+| `user_account` | Administrators and researchers, with an optional display `name` shown to the team, the administration and the participants of their studies. Passwords stored as Argon2id hashes, failed login counter and lockout time, TOTP secret for administrators and the time its first code confirmed it |
 | `refresh_token` | Refresh tokens of dashboard sessions, stored as hashes, grouped by family; superseded tokens are kept until the family expires, for reuse detection |
 | `study`, `study_member` | A study, its time zone, prompt limits and schedule style (fixed, balanced or varied), the random `device_salt` used for the device check, and the researchers who can see it, as owner or collaborator |
 | `activity` | What participants are asked to record, the entry types it accepts (one or more, so the participant can choose, for example photo or text), the expected effort per entry in minutes (`expected_minutes`), whether location is requested, whether free entries are allowed and how many per day, the rules for when to ask and, when it accepts the scale type, the response scale (`options`: type, number of points, labels of the two ends and an optional middle label) |
@@ -257,7 +257,8 @@ Three changes adopted after the interviews of October 2026 (R09) add data. None 
 | `plan_run` | One run of the scheduler for a study and a day: whether it finished or was cut by the time limit, nodes expanded, prompts planned and unplanned, solve time, and when it ran |
 | `media_object` | A file in object storage attached to an entry, with its checksum and status: `pending` from the moment an upload URL is issued, then `uploaded`, `processed` or `failed` |
 | `tag`, `entry_tag` | Labels researchers attach to entries to organise them |
-| `audit_log` | Relevant actions by users, participants and the system: logins, exports, changes to studies, erasures (requested and cancelled by the participant in the app, and run by the system), batches of pool invitations, account events (creation, sign-in on a new phone, change of method, deletion), cleanup jobs. Append only, kept for the duration of the course |
+| `audit_log` | Relevant actions by users, participants and the system: logins, exports, changes to studies, erasures (requested and cancelled by the participant in the app, and run by the system), batches of pool invitations, account events (creation, sign-in on a new phone, change of method, deletion), cleanup jobs. Append only, kept for the duration of the course. Each row also keeps its origin: `origin_client` (portal, Android or iOS app, scheduled or automatic task) and, only for team accounts, `origin_ip` and `origin_browser`; a participant's address is never stored, so the log stays pseudonymous |
+| `erasure_request` | An erasure asked outside the app and passed by the research team to the administrator (UC17): `study_id`, `participant_id`, `requested_by`, `received_at` (when the participant asked), `created_at`, `status` (`pending`, `done` or `cancelled`), `done_at`, `done_by`. It is marked done when the administrator erases the participant (FR-44) |
 | `outbox_event` | Events waiting to be published to the broker. Published events are deleted after 7 days |
 | `leader_lease` | The lease that decides which scheduler replica is active |
 
