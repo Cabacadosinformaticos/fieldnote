@@ -71,3 +71,14 @@ def test_missing_dashboard_directory_keeps_unknown_paths_at_404(
 
     assert response.status_code == 404
     assert response.json() == {"error": {"code": "not_found", "message": "Not Found"}}
+
+
+def test_asset_is_served_with_a_relative_directory(
+    dashboard: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The image sets the default "dashboard", relative to the working directory.
+    monkeypatch.chdir(dashboard.parent)
+    monkeypatch.setattr(main.settings, "dashboard_dir", dashboard.name)
+    response = client.get("/assets/app.js")
+    assert response.status_code == 200
+    assert "fieldnote" in response.text

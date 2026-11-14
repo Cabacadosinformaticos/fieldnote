@@ -49,7 +49,8 @@ def _dashboard_response(path: str) -> Response | None:
     if path == "/api" or path.startswith("/api/"):
         # Never shadow the API: an unknown API path keeps the API's own 404.
         return None
-    root = Path(settings.dashboard_dir)
+    # Resolved, so a relative setting compares with the resolved file paths below.
+    root = Path(settings.dashboard_dir).resolve()
     if not root.is_dir():
         return None
     if (relative := path.lstrip("/")) and (asset := _dashboard_file(root, relative)):
