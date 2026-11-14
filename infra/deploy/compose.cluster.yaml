@@ -210,6 +210,11 @@ services:
       context: ../../services/api
     container_name: migrate
     command: ["alembic", "upgrade", "head"]
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -231,6 +236,11 @@ services:
       context: ../../services/api
     container_name: api1
     hostname: api1
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -276,6 +286,11 @@ services:
     container_name: outbox-relay1
     hostname: outbox-relay1
     command: ["python", "-m", "app.outbox_relay"]
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -307,6 +322,11 @@ services:
           python -m app.erasure_job || true
           sleep "$$ERASURE_JOB_INTERVAL_SECONDS"
         done
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
       ERASURE_JOB_INTERVAL_SECONDS: ${ERASURE_JOB_INTERVAL_SECONDS:-300}
@@ -325,6 +345,11 @@ services:
       context: ../../services/scheduler
     container_name: scheduler1
     hostname: scheduler1
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -350,6 +375,11 @@ services:
           python -m backup run || true
           sleep "$$BACKUP_INTERVAL_SECONDS"
         done
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
       FIELDNOTE_S3_ENDPOINT: http://garage1:3900
@@ -560,6 +590,11 @@ services:
       context: ../../services/media-worker
     container_name: media-worker2
     hostname: media-worker2
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -589,6 +624,11 @@ services:
       context: ../../services/api
     container_name: api2
     hostname: api2
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -636,6 +676,11 @@ services:
     container_name: outbox-relay2
     hostname: outbox-relay2
     command: ["python", "-m", "app.outbox_relay"]
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -661,6 +706,11 @@ services:
       context: ../../services/scheduler
     container_name: scheduler2
     hostname: scheduler2
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -838,6 +888,11 @@ services:
       context: ../../services/media-worker
     container_name: media-worker3
     hostname: media-worker3
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:
@@ -867,6 +922,11 @@ services:
       context: ../../services/api
     container_name: api3
     hostname: api3
+    # Secrets of a real deployment (JWT, email encryption key, public URLs). The file exists only
+    # on the server; without it the services keep their development defaults.
+    env_file:
+      - path: ./api.env
+        required: false
     environment:
       <<: *api-environment
     depends_on:

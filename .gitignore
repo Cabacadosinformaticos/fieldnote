@@ -42,3 +42,6 @@ Thumbs.db
 Fieldnote/04_Documentacao_Tecnica/diagrams/*.mmd
 Fieldnote/04_Documentacao_Tecnica/diagrams/*.puml
 Fieldnote/04_Documentacao_Tecnica/diagrams/*.py
+
+# Secrets of a server deployment of the cluster.
+infra/deploy/api.env
