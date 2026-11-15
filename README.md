@@ -104,7 +104,7 @@ peer yet; `apps/mobile/.npmrc` sets the flag for you).
 
 ```bash
 cd services/api && uv run pytest -q            # 361 tests; needs the dev stack (PostgreSQL on 127.0.0.1:5432)
-cd services/scheduler && uv run pytest -q      # 429 tests
+cd services/scheduler && uv run pytest -q      # 429 tests; also needs the dev stack
 cd services/media-worker && uv run pytest -q   # 37 tests
 cd services/backup && uv run pytest -q         # 12 tests
 cd tools/loadgen && uv run pytest -q           # 11 tests
