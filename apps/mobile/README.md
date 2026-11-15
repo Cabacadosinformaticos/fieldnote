@@ -1,6 +1,6 @@
 # Fieldnote mobile app
 
-Expo app for study participants. The screens are static for now; no API calls yet.
+Expo app for study participants. It talks to the API through the two gateways and keeps entries in an offline queue until they reach the server.
 
 ## Run on the Android emulator
 

@@ -195,14 +195,12 @@ assertions.
   database probe) and say `entries lost: not measured`. Running the load
   generator against every scenario would make each run much slower and would
   need an administrator account each time.
-- **`/health` is still a stub.** The API's `/api/v1/health` and
-  `/api/v1/health/ready` endpoints currently return 200 without touching
-  PostgreSQL or RabbitMQ. The fault model expects them to fail while the
-  database has no primary or while a replica is isolated; that is not true yet.
-  The scripts therefore also run `pg_isready` and a real `psycopg` `select 1`
-  from an API container, and `fs7` proves the partition with that direct
-  database probe. The gateway samples are still printed, so the divergence is
-  visible in the output.
+- **Two health endpoints.** `/api/v1/health` only says that the process
+  answers. `/api/v1/health/ready` answers 503 when the replica cannot reach the
+  database primary or any broker, and the gateways route on it, so a replica
+  cut off from the cluster stops receiving requests. The scripts also run
+  `pg_isready` and a real `psycopg` `select 1` from an API container, and `fs7`
+  proves the partition with that direct database probe.
 - **Crash helper.** For the primary, sync replica and broker, `crash_stop`
   sends `SIGKILL` and temporarily sets the container's restart policy to `no`,
   so the failure lasts long enough for Patroni/RabbitMQ to react. `crash_start`
