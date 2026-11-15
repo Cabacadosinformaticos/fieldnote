@@ -35,9 +35,14 @@ Distribuída para Mobile Ethnography e Diary Studies").
 
 Working prototype for the second delivery. The API, the scheduler, the media worker, the
 researcher dashboard and the participant app run against the development stack and against the
-three-node cluster. Push notifications through Expo still need the Firebase key in the Expo
-project, and the camera and microphone are tested only on the emulator. The work plan, with owners
-and dates for every task, is in the
+three-node cluster, which is deployed on a server and reached through two Tailscale gateways with
+HTTPS. Ten of the eleven failure scenarios of the fault model pass (nine on the server, plus the
+restore of the encrypted backup on the development stack); the eleventh, a phone in airplane mode,
+still has to be run with a phone. The scheduler is evaluated with a reproducible suite
+(`services/scheduler/evaluation/results.md`). Push notifications through Expo still need the
+Firebase key in the Expo project, and the camera and microphone are tested only on the emulator.
+The app is built for Android only. Rate limiting and the cleanup of abandoned uploads are not
+implemented. The work plan, with owners and dates for every task, is in the
 [Fieldnote - Master Plan](https://github.com/users/Cabacadosinformaticos/projects/7) project.
 
 | Delivery | Presentation | Submission | Scope |
@@ -90,10 +95,11 @@ bash infra/deploy/smoke.sh                        # prints SMOKE OK
 
 The three-node cluster (Patroni and etcd, RabbitMQ quorum queues, Garage with three zones, three
 API replicas and two gateways on ports 8090 and 8092) starts with
-`docker compose -f infra/deploy/compose.cluster.yaml --profile cluster up -d --wait`. The failure
-scenarios of the fault model are scripts in `infra/chaos/`, and `tools/loadgen` sends entries from
-simulated phones and reports any lost or duplicated entry. Details: `infra/deploy/README.md` and
-`infra/chaos/README.md`.
+`docker compose -f infra/deploy/compose.cluster.yaml --profile cluster up -d --build --wait`. The
+two Tailscale gateway containers need a one-time login on a new host; see `infra/deploy/README.md`.
+The failure scenarios of the fault model are scripts in `infra/chaos/`, and `tools/loadgen` sends
+entries from simulated phones and reports any lost or duplicated entry. Details:
+`infra/deploy/README.md` and `infra/chaos/README.md`.
 
 ## Architecture in brief
 
@@ -116,7 +122,20 @@ The artificial intelligence component plans when to send each activity to each p
 constraint satisfaction problem ([scheduler](Fieldnote/04_Documentacao_Tecnica/scheduler.md)),
 approved by the Artificial Intelligence lecturer on 1 October 2026.
 Security measures are in [security](Fieldnote/04_Documentacao_Tecnica/security.md), and the
-failures that will be demonstrated in the [fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md).
+failures, with how each is detected and recovered, in the [fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md).
+
+Measured on the server with the scripts in `infra/chaos/`:
+
+| Failure | Result |
+|---|---|
+| Database leader killed | New leader in 23.8 s |
+| Gateway 1 stopped under traffic from 10 simulated phones | Clients switch to gateway 2; 0 of 120 entries lost |
+| Storage node killed during photo uploads | 0 of 45 entries lost |
+| Active scheduler killed | Standby takes over in 15.2 s, no duplicate plan |
+
+On generated studies of 10, 50 and 100 participants the scheduler breaks no constraint, while
+fixed-hour prompting at 100 participants puts 173 prompts above the slot cap and breaks 246
+minimum gaps. On 300 small studies it matched an exhaustive search every time.
 
 ## Technology stack
 
@@ -143,17 +162,17 @@ Security lecturers.
 
 | Document | Contents |
 |---|---|
-| [Descriptive report](Fieldnote/01_Memoria_Descritiva/memoria.md) | Summary, context, process, team |
+| [Descriptive report](Fieldnote/01_Memoria_Descritiva/memoria.md) | Summary, context, process, results, reflection |
 | [Research](Fieldnote/06_Dados_Investigacao/README.md) | Research context (UNIDCOM/IADE), diary studies, mobile ethnography, existing platforms, prompt timing, fault tolerance, privacy, network access, how the research changed the design, interviews with researchers and designers, response scales, accessibility, and visualising entries |
 | [Architecture](Fieldnote/04_Documentacao_Tecnica/architecture.md) | Components, deployment, consistency decisions |
-| [Fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md) | Guarantees, detection, recovery, demonstration scenarios |
+| [Fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md) | Guarantees, detection, recovery, test scenarios |
 | [Data model](Fieldnote/04_Documentacao_Tecnica/data-model.md) | Entities, participant identity, design notes |
 | [Domain model](Fieldnote/04_Documentacao_Tecnica/domain-model.md) | UML class diagram of the domain and activity diagram of a study |
 | [Requirements](Fieldnote/04_Documentacao_Tecnica/requirements/requirements.md) | Functional, non-functional and development requirements, traceability matrix |
 | [Use cases](Fieldnote/04_Documentacao_Tecnica/requirements/use-cases.md) | Textual descriptions of every use case |
 | [Personas and scenarios](Fieldnote/04_Documentacao_Tecnica/requirements/personas-and-scenarios.md) | Fictional personas and user scenarios |
 | [Scheduler](Fieldnote/04_Documentacao_Tecnica/scheduler.md) | Constraint satisfaction formulation and evaluation |
-| [Security](Fieldnote/04_Documentacao_Tecnica/security.md) | Assets and planned measures |
+| [Security](Fieldnote/04_Documentacao_Tecnica/security.md) | Assets and measures |
 | [Mockups](Fieldnote/05_Artefactos/mockups/README.md) | The 68 screens of the app and the portal |
 | [Figures](Fieldnote/02_Imagens/captions.md) | Every figure with its caption |
 
