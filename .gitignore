@@ -45,3 +45,7 @@ Fieldnote/04_Documentacao_Tecnica/diagrams/*.py
 
 # Secrets of a server deployment of the cluster.
 infra/deploy/api.env
+!infra/chaos/results/**/*.log
+
+# Local files written by the tools (demo logins)
+.local/

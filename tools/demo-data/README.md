@@ -106,8 +106,8 @@ deletes its rows when the role the seed connects with cannot truncate it, and th
 shows that it was cleared. This is a demonstration-only step: in a real deployment the audit log
 is never cleared.
 
-The researcher logins are written to `_private/entregas/entrega-2/dev-logins.md`, which Git
-excludes, and never to a tracked file. On the server use `--logins-file` to write them somewhere
+The researcher logins are written to `.local/dev-logins.md`, which Git
+ignores, and never to a tracked file. On the server use `--logins-file` to write them somewhere
 outside the checkout instead.
 
 Open the dashboard at `http://127.0.0.1:5173` (override with `FIELDNOTE_DASHBOARD_URL`) and sign
@@ -146,7 +146,7 @@ The three PostgreSQL ports are published on the loopback only, for this seed.
 | `--end-in-days` | `1` | Days from today to the end of the study; it always starts 12 days before today |
 | `--participants` | `22` | Participants in the study (at least 4) |
 | `--seed` | `20261006` | Seed for the generated data and the prompt times of `history` |
-| `--logins-file` | `_private/entregas/entrega-2/dev-logins.md` | Path of the researcher logins file; use it to keep the file outside the checkout on the server |
+| `--logins-file` | `.local/dev-logins.md` | Path of the researcher logins file; use it to keep the file outside the checkout on the server |
 | `--yes` | off | `reset` only: confirm deleting every study and, with `--clean-audit`, clearing the audit log |
 | `--clean-audit` | off | `reset` only: delete every `audit_log` row before seeding and leave one `audit_log_cleared` row (demonstration only) |
 

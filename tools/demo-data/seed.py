@@ -457,7 +457,7 @@ PARTICIPANT_STATUSES = ("active", "withdrawn", "removed")  # the states the rese
 # The demonstration is always on day 13 of 14: the study began 12 days ago and ends tomorrow.
 DEMO_DAYS_BEFORE_TODAY = 12
 DEMO_END_IN_DAYS = 1
-DEV_LOGINS_RELATIVE_PATH = Path("_private") / "entregas" / "entrega-2" / "dev-logins.md"
+DEV_LOGINS_RELATIVE_PATH = Path(".local") / "dev-logins.md"
 
 
 class SeedError(RuntimeError):
@@ -2128,8 +2128,8 @@ def _run_history(
 def _dev_logins_path(override: str | None) -> Path:
     if override:
         return Path(override).expanduser()
-    if DEV_LOGINS_RELATIVE_PATH.parts[0] != "_private":
-        raise SeedError("The logins file must stay inside _private.")
+    if DEV_LOGINS_RELATIVE_PATH.parts[0] != ".local":
+        raise SeedError("The logins file must stay inside .local, which Git ignores.")
     return _repo_root() / DEV_LOGINS_RELATIVE_PATH
 
 
@@ -2480,7 +2480,7 @@ def main(argv: list[str] | None = None) -> int:
         "--logins-file",
         default=None,
         help="write the researcher logins to this path instead of "
-        "_private/entregas/entrega-2/dev-logins.md",
+        ".local/dev-logins.md",
     )
     parser.add_argument(
         "--yes",
