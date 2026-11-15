@@ -607,7 +607,7 @@ Main success scenario:
 
 Extensions:
 
-- 3a. The minimum gap does not fit in the window: the dashboard warns, and the prompts become `unplanned` with the reason `min_gap_infeasible`.
+- 3a. The minimum gap does not fit in the window: the dashboard warns, and the search leaves some of the prompts `unplanned` with the reason `min_gap_infeasible`.
 - 5a. The expected effort of a day is high: the dashboard shows it so that the researcher can reduce it. It sets no limit.
 - 2a. The researcher selects the scale type: the researcher defines the response scale (FR-111). The type is numbers (2 to 11 points, including 0 to 10), faces (3 or 5 points), text labels (3, 5 or 7 points) or a slider from 0 to 100. The researcher sets the number of points (not for the slider), the labels of the two ends and, for an odd number of points, an optional middle label. No scale is preset. The dashboard shows what the participant will see and says that the answers are ordinal, to be compared with medians and percentages and not with means.
 
@@ -626,8 +626,8 @@ Postconditions: The activity is stored with its entry types, location flag and s
 Main success scenario:
 
 1. The scheduler builds one variable for each prompt to plan, with domains of 15-minute slots inside the availability and the activity window. The availability of a participant on the plan date is the union of the intervals whose weekdays include that date, or the whole activity window when the participant chose "any time" (FR-46).
-2. It applies node consistency and AC-3 over the minimum-gap constraints, then adds "not planned" to every domain.
-3. It searches with backtracking, MRV, LCV and forward checking, honouring `max_prompts_per_day` and `max_prompts_per_slot`.
+2. It applies node consistency, runs AC-3 over the minimum-gap constraints, which only reports the prompts that clash and removes nothing, and adds "not planned" to every domain.
+3. It searches with backtracking, MRV, LCV and forward checking, honouring `max_prompts_per_day`, `max_prompts_per_slot` and the weighted slot capacity of the platform, which starts from the load that the other running studies already have on that date.
 4. It scores valid plans with the study's schedule style and keeps the best one.
 5. It stops when the search is complete or after 10 s per study.
 6. It stores the prompts, with `unplanned_reason` for each prompt left unplanned, and the dashboard shows the result.
@@ -636,7 +636,7 @@ Main success scenario:
 Extensions:
 
 - 5a. The time limit cuts the search: the best plan found is kept, the run is recorded as cut and prompts at "not planned" get the reason `search_cut`.
-- 6a. A prompt was removed before the search: `outside_availability` or `min_gap_infeasible`. A prompt over the daily limit gets `daily_cap`, and one left out by the slot limit gets `slot_cap`.
+- 6a. A prompt was removed before the search: `outside_availability`, or `min_gap_infeasible` when the sent prompts leave it no slot. When two prompts of a participant clash, the search decides which one is left out and gives it `min_gap_infeasible`. A prompt over the daily limit gets `daily_cap`, and one left out by the slot limit or the weighted capacity gets `slot_cap`.
 - 1a. A replan for one participant during the day: only that participant's remaining prompts are searched again, with sent prompts fixed.
 - 1b. The leader fails during planning: the lease expires after 15 s and the standby takes over in under 20 s, then plans again from the stored state. The unique key on `prompt` prevents duplicates.
 

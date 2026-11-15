@@ -20,16 +20,48 @@ study's time zone; a study has a single time zone in this version.
 | Element | Definition |
 |---|---|
 | Variables | One per prompt to plan: (participant, activity, occurrence), with as many occurrences as the activity's `prompts_per_day`. A study with 50 participants and 3 prompts per day has 150 variables |
-| Domains | 15-minute slots inside the participant's declared availability and the activity's window. From 08:00 to 22:00 that is at most 56 values, usually fewer. After node consistency and AC-3, every domain gets one more value, "not planned" (⊥) |
+| Domains | 15-minute slots inside the participant's declared availability and the activity's window. From 08:00 to 22:00 that is at most 56 values, usually fewer. After node consistency, every domain gets one more value, "not planned" (⊥) |
 | Binary constraints | Two prompts to the same participant are at least `min_gap_minutes` apart. When two activities have different gaps, the larger one applies |
-| Global constraints | Per participant, no more than the study's `max_prompts_per_day`. Per slot, no more than the study's `max_prompts_per_slot` across all participants, to spread the upload load |
+| Global constraints | Per participant, no more than the study's `max_prompts_per_day`. Per slot, no more than the study's `max_prompts_per_slot` across all participants, to spread the upload load. Per slot, a weighted load of at most `slot_capacity` units, summed across every running study (see Weighted slot capacity) |
 | Soft preferences | Set per study by the researcher: varied (cover different parts of the day and avoid repeating yesterday's slot), fixed (keep each participant's slots the same every day) or balanced. The literature does not settle which gives better data: varied times sample the whole day, fixed times were associated with higher compliance (see `06_Dados_Investigacao/04-prompt-timing-and-scheduling.md`) |
 
 The hard constraints (binary and global) decide which plans are valid. The soft preferences give
 each valid plan a score, and the solver keeps the best plan it finds within a time limit.
 
-`max_prompts_per_slot` limits one study. Two studies running at the same time can still add up
-in the same slot; a global budget across studies is future work.
+`max_prompts_per_slot` limits one study and counts every prompt as one. The weighted slot
+capacity below adds a limit across studies.
+
+### Weighted slot capacity
+
+A video prompt loads the server more than a text prompt, and two studies running at the same time
+can add up in the same slot. The platform sets one capacity per 15-minute slot, in weighted units,
+with the environment variable `FIELDNOTE_SLOT_CAPACITY` (default 40). Each activity has a weight,
+taken from its entry types:
+
+| Entry type | Weight |
+|---|---|
+| `video` | 5 |
+| `photo`, `audio` | 2 |
+| `text`, `scale`, `choice` | 1 |
+
+An activity with several entry types weighs as its heaviest one, because the participant may choose
+any of them. The constraint is that, in every slot, the sum of the weights of the planned prompts
+does not exceed `slot_capacity`. It is a global constraint of the same CSP, handled like the others:
+a weighted counter per slot kept on the trail, root propagation, forward checking and LCV. Because
+weights differ, forward checking tests each unassigned prompt against its own weight, not a single
+limit per slot. An activity whose weight is above the capacity has no slot left and goes to ⊥.
+
+When the scheduler plans a study, it loads the prompts that the other running studies already have
+for the same date, planned or sent, converts their times to the study's time zone and starts the
+slot counters from that load (`external_slot_load`). Replanning a participant does the same. Studies
+are planned one after the other by the leader, so the first study gets what it asks for and the next
+ones fit around it. This is a greedy split across studies, not a joint optimum.
+
+`max_prompts_per_slot`, the API, the dashboard and the app are unchanged.
+
+Not done: the `media.process` RabbitMQ queue is not an input, because plans are made the day before
+and the queue length at sending time is not known; and a single CSP over all running studies, which
+would plan them together instead of in sequence. Both are future work.
 
 ### Soft preference score
 
@@ -72,16 +104,19 @@ The team implements the algorithms instead of calling a solver library, to show 
 in the course:
 
 1. Node consistency when the domains are built, which applies the availability and the activity
-   window. Then AC-3 over the binary minimum-gap constraints, to remove slots that can never be
-   part of a valid plan. After both steps, ⊥ is added to every domain.
+   window. Then AC-3 over the binary minimum-gap constraints, which finds the pairs of prompts of
+   one participant that clash. It removes no value and marks no prompt (see AC-3 and ⊥). ⊥ is added
+   to every domain.
 2. Backtracking search with the MRV heuristic (plan first the prompt with the fewest valid slots
    left, not counting ⊥; ties go to the participant with more prompts still to plan) and LCV
    ordering of values (try first the slot that removes the fewest
-   options from other prompts, with ties broken by the soft score, and ⊥ last).
+   options from other prompts, with ties broken by the soft score, and ⊥ last). The count includes
+   the options removed by the weighted capacity.
 3. Forward checking after each assignment of a slot. For the binary constraints it removes the
    slots too close to the assigned one. For the global constraints it keeps a counter per
    participant and per slot. When a slot counter reaches its limit, that slot is removed from the
-   unassigned prompts. When a participant counter reaches its limit, only ⊥ is left for that
+   unassigned prompts. The weighted load of a slot is checked per prompt: the slot is removed
+   from each unassigned prompt whose weight no longer fits in the remaining capacity. When a participant counter reaches its limit, only ⊥ is left for that
    participant's remaining prompts.
 4. Anytime behaviour: the search keeps the best plan found so far and replaces it only when a
    plan is better in the lexicographic order (planned prompts, then soft score). It stops when it
@@ -96,6 +131,26 @@ that still have a real slot in their domain, and the score so far plus the maxim
 remaining prompt and each participant can still add. A branch is cut only when this pair cannot
 beat the best plan's pair, that is, when its planned bound is lower, or equal with a score bound
 that is not higher. Whether to include it is decided in implementation.
+
+### AC-3 and ⊥
+
+A revision of AC-3 removes a slot of prompt A when no slot of prompt B is compatible with it. That
+assumes B is planned. With ⊥ in every domain, B may be left unplanned, and then the slot of A is
+valid again. Pruning domains this way, and dropping from the search every prompt whose domain
+becomes empty, would let the order of the AC-3 queue, not the objective, decide which prompt goes to
+⊥. Example, one participant, daily cap 2 and slot cap 1: activity a (gap 0, 09:15-09:30), b (gap 0,
+09:30-09:45) and c (gap 30, 09:15-09:30). a and b fit together, but each clashes with c. Pruning a
+and b against c would plan only c (1 prompt), while the optimum drops c and plans a and b
+(2 prompts). This example is a test in `tests/test_optimality.py`, beside the tests that compare
+`plan_day` with an exhaustive search on small studies.
+
+AC-3 therefore only reports the clashing prompts. A prompt that does not fit even alone (no slot left
+against the prompts already sent, or no slot at all) goes to ⊥ before the search, and those cases
+are caught before AC-3 runs. So AC-3 prunes nothing, and the search decides which of two clashing
+prompts is left unplanned. With ⊥ in every domain every arc is trivially consistent, so this is a
+negative result: AC-3 is implemented and kept for the ablation, and it does not reduce the search.
+A possible use is a lower bound for branch and bound: the clash pairs found by AC-3 give a matching
+that bounds from below the number of unplanned prompts. This is not implemented.
 
 ### What the end of the search proves
 
@@ -123,13 +178,14 @@ A prompt that is not planned becomes `unplanned`, with a reason stored in
 | Reason (`unplanned_reason`) | Where it is detected |
 |---|---|
 | The window is outside the participant's availability (`outside_availability`) | The domain is empty at node consistency, before the search |
-| The minimum gap does not fit in the window, for example two prompts 3 hours apart in a 2-hour window (`min_gap_infeasible`) | AC-3 empties the domain, before the search |
+| The minimum gap leaves no slot, for example two prompts 3 hours apart in a 2-hour window, or a slot taken by a prompt already sent (`min_gap_infeasible`) | Before the search, when the gap against sent prompts empties the domain. Otherwise forward checking, when the gap removes the last slot, and the search leaves the prompt at ⊥ |
 | The daily limit of the participant is reached (`daily_cap`) | Forward checking leaves only ⊥ once the participant's counter reaches `max_prompts_per_day` |
-| The slot cap leaves no room (`slot_cap`) | The search chooses ⊥ for the prompt in a plan that finished before the time limit |
+| The slot cap or the weighted slot capacity leaves no room (`slot_cap`) | The search chooses ⊥ for the prompt in a plan that finished before the time limit |
 | The search was cut by the time limit (`search_cut`) | The prompt is at ⊥ in the best plan found, but the search did not finish, so a slot may exist |
 
-Prompts with the first two reasons are removed from the problem before the search. When a study is
-created, the dashboard suggests a slot cap from the number of participants and their availability,
+A prompt with the first reason is removed from the problem before the search, and so is one whose
+whole domain is emptied by the prompts already sent. When two prompts of a participant clash, the
+search decides which one is left out. When a study is created, the dashboard suggests a slot cap from the number of participants and their availability,
 so the slot cap case is rare.
 
 ## Running the scheduler with two replicas
@@ -142,31 +198,42 @@ The worst case is one notification sent twice during a takeover, which the fault
 
 ## Evaluation
 
-The scheduler will be tested with generated studies of 10, 50 and 100 participants. Each run
-records the random seed of the generator, so results can be reproduced.
+The evaluation suite runs from `services/scheduler`:
 
-For comparability and reproducibility, the evaluation and ablation runs use a fixed node budget
-(for example 1 million nodes) instead of the wall-clock limit, and record whether each run
-finished or was cut. With the same instance, seed and tie-breaking order, the search visits the
-same nodes in any machine, and only the time changes.
+```text
+uv run python -m scheduler.evaluation_suite [--quick] [--out DIR]
+```
 
-| Measure | Target |
+The full run takes about 5 minutes. It writes `services/scheduler/evaluation/results.md` (the
+tables, with a caption on the units and the settings of each one) and `results.json` (the raw
+numbers). Every number is deterministic for the same command, except wall-clock times, which are in
+`timings_ms` and in the columns marked machine-dependent. Generated studies record the seed. Runs
+use a fixed node budget instead of the wall-clock limit, and each table says whether the run
+finished or was cut. A cut run reports the best plan found, not a proven optimum.
+
+| Measure | Where in `results.md` |
 |---|---|
-| Hard constraint violations in any returned plan | Zero |
-| Prompts left `unplanned` | Reported for each study size, with the reason |
-| Solve time | Measured for each study size |
-| Nodes expanded and backtracks | Measured for each study size |
-| Delivery delay | Difference between planned, shown and opened times (`prompt.shown_at`, `prompt.opened_at`), measured with the team's own phones |
-| Load spread | Largest number of prompts in one slot, compared with the baseline |
-| Soft score | Compared with the baseline |
+| Hard constraint violations in any returned plan | Baseline: zero for the scheduler, counted for the fixed-hours baseline |
+| Prompts left `unplanned`, planned count and soft score | Baseline, scale, robustness |
+| Load spread: peak prompts per slot, weighted peak and variance, slots over the caps | Load, two studies sharing the capacity |
+| Fairness: planned prompts per participant (minimum, maximum, Gini) | Fairness |
+| Coverage of the parts of the day over 7 days | Coverage |
+| Distance to the optimum, against an exact exhaustive search with pruning, on 300 small studies | Quality |
+| Nodes, backtracks and time for budgets from 1000 to 1 million nodes | Scale |
+| Spread of the results over 10 seeds | Robustness |
+| Contribution of each technique, at 6, 10 and 100 participants over seeds 1 to 5 | Ablation |
 
-The baseline is the same hours for every participant, as many diary tools do. It differs from the
+Delivery delay (the difference between planned, shown and opened times, `prompt.shown_at`,
+`prompt.opened_at`) is not part of the suite. It needs the team's own phones.
+
+The baseline is the same hours for every participant, as many diary tools do. It ignores the slot
+cap and the minimum gap on purpose, and its violations are counted. It differs from the
 researcher's "fixed" style, where each participant keeps their own slots from day to day and all
 constraints are respected.
 
 ### Ablation study
 
-The same instances are solved by five variants of the algorithm, each adding one technique to the
+The same instances are solved by six variants of the algorithm, each adding one technique to the
 previous one:
 
 1. Plain backtracking.
@@ -174,11 +241,13 @@ previous one:
 3. Plus MRV.
 4. Plus LCV.
 5. Plus AC-3.
+6. Plus branch and bound.
 
-For each variant the study measures nodes expanded, backtracks and time, with the same node budget
-for all variants, and records whether each run finished. The results show what each technique
-contributes. AC-3 may remove few values when the windows are wide, because it does not see the slot
-cap, and the results report that as measured.
+For each variant the study records nodes expanded, backtracks, planned prompts, score and whether
+each run finished, with the same node budget for all variants. The older single-instance
+comparison of the first five variants is `uv run python -m scheduler.evaluate`. AC-3 does not see
+the slot cap, and since the change described above it prunes nothing, so "plus AC-3" gives the same
+numbers as "plus LCV". The results report that as measured.
 
 ## Scope limits
 
@@ -193,4 +262,7 @@ cap, and the results report that as measured.
   arrives or the prompt is answered (see the architecture).
 - The scheduler plans; it does not learn from past answers. Predicting the chance of an answer
   from each participant's history is listed as future work.
-- Planning is per study and per day, which keeps each problem small enough for backtracking.
+- Planning is per study and per day, which keeps each problem small enough for backtracking. The
+  weighted capacity couples the studies only through the load already planned, in sequence.
+- In most generated runs at 50 and 100 participants the node budget cuts the search, so the plans
+  are the best found and not proven optimal. `results.md` states which runs finished.
