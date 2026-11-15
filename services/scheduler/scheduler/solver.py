@@ -16,6 +16,7 @@ from datetime import date, tzinfo
 from typing import Final
 
 from .domains import (
+    FULL_SLOT_MASK,
     PART_MASKS,
     SLOT_MINUTES,
     ac3,
@@ -154,6 +155,7 @@ class _Variable:
     key: PromptKey
     gap: int
     domain: int
+    weight: int = 1
 
 
 @dataclass
@@ -173,6 +175,7 @@ def solve_study(
     fixed_prompts: Iterable[FixedPrompt] = (),
     participant_id: str | None = None,
     other_slot_prompts: Iterable[FixedPrompt] = (),
+    external_slot_load: Mapping[int, int] | None = None,
     options: SearchOptions | None = None,
     node_limit: int | None = DEFAULT_NODE_LIMIT,
     time_limit_seconds: float | None = None,
@@ -184,6 +187,9 @@ def solve_study(
     participant, one per prompt, with the study-wide slot cap as a global constraint. The node
     budget applies to the whole search. ``time_limit_seconds`` is an optional safety net, off by
     default; when it cuts the run the result says so in ``cut_reason``.
+
+    ``external_slot_load`` is the weighted load already used per slot by the other running
+    studies; it only applies when the study sets ``slot_capacity``.
     """
     del seed  # ordering is deterministic; the argument is kept for run provenance
     options = options or SearchOptions()
@@ -220,6 +226,15 @@ def solve_study(
         slot = slot_of_prompt(prompt, study_day.study.time_zone)
         slot_counts[slot] = slot_counts.get(slot, 0) + 1
 
+    slot_capacity = study_day.study.slot_capacity
+    weighted_slot_load: dict[int, int] = {}
+    if slot_capacity is not None:
+        weighted_slot_load = dict(external_slot_load or {})
+        for prompt in (*fixed, *other):
+            slot = slot_of_prompt(prompt, study_day.study.time_zone)
+            weight = activities_by_id[prompt.activity_id].weight
+            weighted_slot_load[slot] = weighted_slot_load.get(slot, 0) + weight
+
     history = study_day.history
     prepared = _prepare(
         activities,
@@ -229,6 +244,7 @@ def solve_study(
         history,
         fixed,
         slot_counts,
+        weighted_slot_load,
         options,
     )
     deadline = None if time_limit_seconds is None else time.monotonic() + time_limit_seconds
@@ -236,6 +252,8 @@ def solve_study(
         prepared.variables,
         daily_counts=prepared.daily_counts,
         slot_counts=prepared.slot_counts,
+        weighted_slot_load=weighted_slot_load,
+        slot_capacity=slot_capacity,
         covered_parts=prepared.covered_parts,
         recent_parts=prepared.recent_parts,
         yesterday=prepared.yesterday,
@@ -269,6 +287,7 @@ def solve_participant(
     study: StudyConfig,
     fixed_prompts: Sequence[FixedPrompt] = (),
     slot_counts: Mapping[int, int] | None = None,
+    external_slot_load: Mapping[int, int] | None = None,
     history: History | None = None,
     seed: int = 0,
     node_limit: int | None = DEFAULT_NODE_LIMIT,
@@ -280,7 +299,8 @@ def solve_participant(
     ``slot_counts`` must include the prompts of the other participants and the fixed prompts of
     this participant; when omitted, it is built from ``fixed_prompts``. ``deadline`` is an
     absolute ``time.monotonic()`` value and is an optional safety net; the default is a node
-    budget.
+    budget. ``external_slot_load`` is the weighted load of the other running studies; the
+    weighted capacity counters only add the fixed prompts of this participant to it.
     """
     del seed
     options = options or SearchOptions()
@@ -297,6 +317,14 @@ def solve_participant(
         for prompt in fixed:
             slot = slot_of_prompt(prompt, study.time_zone)
             slot_counts[slot] = slot_counts.get(slot, 0) + 1
+    slot_capacity = study.slot_capacity
+    weighted_slot_load: dict[int, int] = {}
+    if slot_capacity is not None:
+        weighted_slot_load = dict(external_slot_load or {})
+        for prompt in fixed:
+            slot = slot_of_prompt(prompt, study.time_zone)
+            weight = activities_by_id[prompt.activity_id].weight
+            weighted_slot_load[slot] = weighted_slot_load.get(slot, 0) + weight
     history = history or History()
     prepared = _prepare(
         activities,
@@ -306,12 +334,15 @@ def solve_participant(
         history,
         fixed,
         slot_counts,
+        weighted_slot_load,
         options,
     )
     search = _Search(
         prepared.variables,
         daily_counts=prepared.daily_counts,
         slot_counts=prepared.slot_counts,
+        weighted_slot_load=weighted_slot_load,
+        slot_capacity=slot_capacity,
         covered_parts=prepared.covered_parts,
         recent_parts=prepared.recent_parts,
         yesterday=prepared.yesterday,
@@ -378,6 +409,7 @@ def _prepare(
     history: History,
     fixed_prompts: Sequence[FixedPrompt],
     slot_counts: Mapping[int, int],
+    weighted_slot_load: Mapping[int, int],
     options: SearchOptions,
 ) -> _Prepared:
     activities_by_id = {activity.id: activity for activity in activities}
@@ -441,7 +473,15 @@ def _prepare(
                         )
                     )
                     continue
-                variables.append(_Variable(participant.id, key, activity.min_gap_minutes, domain))
+                variables.append(
+                    _Variable(
+                        participant.id,
+                        key,
+                        activity.min_gap_minutes,
+                        domain,
+                        activity.weight,
+                    )
+                )
 
     _apply_root_global_constraints(
         variables,
@@ -449,6 +489,8 @@ def _prepare(
         study.max_prompts_per_day,
         daily_counts,
         slot_counts,
+        weighted_slot_load,
+        study.slot_capacity,
         reasons,
     )
 
@@ -466,12 +508,27 @@ def _prepare(
     )
 
 
+def _slots_without_room(
+    weight: int, weighted_slot_load: Mapping[int, int], slot_capacity: int
+) -> int:
+    """The slots whose load leaves less than ``weight`` units of capacity."""
+    if weight > slot_capacity:
+        return FULL_SLOT_MASK
+    mask = 0
+    for slot, load in weighted_slot_load.items():
+        if load + weight > slot_capacity:
+            mask |= 1 << slot
+    return mask
+
+
 def _apply_root_global_constraints(
     variables: list[_Variable],
     max_prompts_per_slot: int,
     max_prompts_per_day: int,
     daily_counts: dict[str, int],
     slot_counts: Mapping[int, int],
+    weighted_slot_load: Mapping[int, int],
+    slot_capacity: int | None,
     reasons: list[SolvedAssignment],
 ) -> None:
     """Apply the counters of the fixed prompts before the search (root propagation)."""
@@ -487,6 +544,16 @@ def _apply_root_global_constraints(
                 domains[index] ^= bit
                 if domains[index] == 0 and blocked[index] is None:
                     blocked[index] = UnplannedReason.SLOT_CAP
+
+    if slot_capacity is not None:
+        for index, variable in enumerate(variables):
+            if not domains[index]:
+                continue
+            domains[index] &= ~_slots_without_room(
+                variable.weight, weighted_slot_load, slot_capacity
+            )
+            if domains[index] == 0 and blocked[index] is None:
+                blocked[index] = UnplannedReason.SLOT_CAP
 
     capped = {
         participant_id
@@ -555,6 +622,7 @@ _T_SCORE: Final = 2
 _T_PART: Final = 3
 _T_DAILY: Final = 4
 _T_SLOT: Final = 5
+_T_WEIGHT: Final = 6
 
 
 class _Search:
@@ -566,6 +634,8 @@ class _Search:
         *,
         daily_counts: Mapping[str, int],
         slot_counts: Mapping[int, int],
+        weighted_slot_load: Mapping[int, int],
+        slot_capacity: int | None,
         covered_parts: Mapping[str, set[int]],
         recent_parts: Mapping[str, frozenset[int]],
         yesterday: Mapping[tuple[str, PromptKey], int],
@@ -580,11 +650,14 @@ class _Search:
         self.participants = tuple(variable.participant_id for variable in variables)
         self.keys = tuple(variable.key for variable in variables)
         self.gaps = [variable.gap for variable in variables]
+        self.weights = [variable.weight for variable in variables]
         self.domains = [variable.domain for variable in variables]
         self.assignment = [UNASSIGNED] * len(variables)
         self.blocked: list[UnplannedReason | None] = [None] * len(variables)
         self.daily_counts = dict(daily_counts)
         self.slot_counts = dict(slot_counts)
+        self.weighted_counts = dict(weighted_slot_load)
+        self.slot_capacity = slot_capacity
         self.covered_parts = {
             participant_id: set(parts) for participant_id, parts in covered_parts.items()
         }
@@ -678,6 +751,8 @@ class _Search:
                 self.covered_parts[entry[1]].discard(entry[2])
             elif tag == _T_DAILY:
                 self.daily_counts[entry[1]] -= 1
+            elif tag == _T_WEIGHT:
+                self.weighted_counts[entry[1]] = entry[2]
             else:  # _T_SLOT
                 self.slot_counts[entry[1]] = entry[2]
 
@@ -748,6 +823,9 @@ class _Search:
         removed_count = 0
         reaches_daily_cap = self.daily_counts.get(participant, 0) + 1 >= self.max_daily
         reaches_slot_cap = self.slot_counts.get(slot_index, 0) + 1 >= self.max_slot
+        weighted_after = None
+        if self.slot_capacity is not None:
+            weighted_after = self.weighted_counts.get(slot_index, 0) + self.weights[index]
         bit = 1 << slot_index
         for other, value in enumerate(self.assignment):
             if value != UNASSIGNED:
@@ -763,6 +841,10 @@ class _Search:
                 gap = max(self.gaps[index], self.gaps[other])
                 removed |= domain & forbidden_mask_for_slot(slot_index, gap)
             if reaches_slot_cap:
+                removed |= domain & bit
+            if weighted_after is not None and weighted_after + self.weights[other] > (
+                self.slot_capacity
+            ):
                 removed |= domain & bit
             removed_count += removed.bit_count()
         return removed_count
@@ -837,6 +919,10 @@ class _Search:
             return False
         if self.slot_counts.get(slot_index, 0) >= self.max_slot:
             return False
+        if self.slot_capacity is not None and (
+            self.weighted_counts.get(slot_index, 0) + self.weights[index] > self.slot_capacity
+        ):
+            return False
         for other, value in enumerate(self.assignment):
             if value < 0 or self.participants[other] != participant:
                 continue
@@ -864,6 +950,10 @@ class _Search:
         previous_slot = self.slot_counts.get(value, 0)
         self.trail.append((_T_SLOT, value, previous_slot))
         self.slot_counts[value] = previous_slot + 1
+        if self.slot_capacity is not None:
+            previous_weight = self.weighted_counts.get(value, 0)
+            self.trail.append((_T_WEIGHT, value, previous_weight))
+            self.weighted_counts[value] = previous_weight + self.weights[index]
         self.trail.append((_T_DAILY, participant))
         self.daily_counts[participant] = self.daily_counts.get(participant, 0) + 1
 
@@ -882,6 +972,14 @@ class _Search:
             bit = 1 << value
             for other, other_value in enumerate(self.assignment):
                 if other_value == UNASSIGNED:
+                    self._remove_mask(other, bit, UnplannedReason.SLOT_CAP)
+        if self.slot_capacity is not None:
+            load = self.weighted_counts[value]
+            bit = 1 << value
+            for other, other_value in enumerate(self.assignment):
+                if other_value != UNASSIGNED:
+                    continue
+                if load + self.weights[other] > self.slot_capacity:
                     self._remove_mask(other, bit, UnplannedReason.SLOT_CAP)
         if self.daily_counts[participant] >= self.max_daily:
             for other, other_value in enumerate(self.assignment):

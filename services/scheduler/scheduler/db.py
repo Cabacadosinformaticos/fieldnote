@@ -37,10 +37,14 @@ class StudyRow:
 class ActivityRow:
     id: UUID
     study_id: UUID
+    entry_types: tuple[str, ...]
     prompts_per_day: int
     min_gap_minutes: int
     window_start: time
     window_end: time
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "entry_types", tuple(self.entry_types))
 
 
 @dataclass(frozen=True)
@@ -104,6 +108,17 @@ class LeaseRow:
     expires_at: datetime | None
 
 
+@dataclass(frozen=True)
+class ExternalPromptRow:
+    study_id: UUID
+    activity_id: UUID
+    entry_types: tuple[str, ...]
+    scheduled_at: datetime
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "entry_types", tuple(self.entry_types))
+
+
 def connect(settings: Settings) -> Connection:
     return psycopg.connect(
         settings.libpq_database_url,
@@ -144,7 +159,8 @@ def load_study(conn: Connection, study_id: UUID) -> StudyRow | None:
 def load_activities(conn: Connection, study_id: UUID) -> list[ActivityRow]:
     rows = conn.execute(
         """
-        SELECT id, study_id, prompts_per_day, min_gap_minutes, window_start, window_end
+        SELECT id, study_id, entry_types, prompts_per_day, min_gap_minutes, window_start,
+               window_end
         FROM activity
         WHERE study_id = %s
         ORDER BY id
@@ -152,6 +168,32 @@ def load_activities(conn: Connection, study_id: UUID) -> list[ActivityRow]:
         (study_id,),
     ).fetchall()
     return [ActivityRow(*row) for row in rows]
+
+
+def load_other_study_prompts(
+    conn: Connection, study_id: UUID, start: datetime, end: datetime
+) -> list[ExternalPromptRow]:
+    """Prompts of the other running studies planned or sent in ``[start, end)``.
+
+    The window is absolute time; the caller chooses it from its own study's day and converts
+    each timestamp, so studies in different time zones still share one weighted slot capacity.
+    """
+    rows = conn.execute(
+        """
+        SELECT a.study_id, p.activity_id, a.entry_types, p.scheduled_at
+        FROM prompt p
+        JOIN activity a ON a.id = p.activity_id
+        JOIN study s ON s.id = a.study_id
+        WHERE a.study_id <> %s
+          AND s.status = 'running'
+          AND p.status IN ('planned', 'sent')
+          AND p.scheduled_at >= %s
+          AND p.scheduled_at < %s
+        ORDER BY p.scheduled_at, p.id
+        """,
+        (study_id, start, end),
+    ).fetchall()
+    return [ExternalPromptRow(*row) for row in rows]
 
 
 def load_active_participants(conn: Connection, study_id: UUID) -> list[ParticipantRow]:
@@ -520,6 +562,7 @@ __all__ = [
     "AvailabilityRow",
     "AvailabilityStateRow",
     "DuePromptRow",
+    "ExternalPromptRow",
     "HistoryPromptRow",
     "LeaseRow",
     "ParticipantRow",
@@ -537,6 +580,7 @@ __all__ = [
     "load_availability_state",
     "load_due_prompts",
     "load_history",
+    "load_other_study_prompts",
     "load_planned_dates",
     "load_prompts_on",
     "load_running_studies",

@@ -335,6 +335,7 @@ services:
     environment:
       FIELDNOTE_ENVIRONMENT: ${FIELDNOTE_ENVIRONMENT:-development}
       FIELDNOTE_DATABASE_URL: *database-url
+      FIELDNOTE_SLOT_CAPACITY: "40"
     depends_on:
       migrate:
         condition: service_completed_successfully

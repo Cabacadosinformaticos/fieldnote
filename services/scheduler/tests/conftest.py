@@ -149,6 +149,7 @@ def make_activity(conn: Connection) -> Callable[..., UUID]:
         min_gap_minutes: int = 0,
         window_start: time = time(8),
         window_end: time = time(12),
+        entry_types: list[str] | None = None,
     ) -> UUID:
         activity_id = uuid4()
         conn.execute(
@@ -162,7 +163,7 @@ def make_activity(conn: Connection) -> Callable[..., UUID]:
                 activity_id,
                 study_id,
                 "Test activity",
-                ["text"],
+                entry_types or ["text"],
                 prompts_per_day,
                 window_start,
                 window_end,

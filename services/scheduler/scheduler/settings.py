@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     plan_time_limit_seconds: float = Field(default=10.0, gt=0)
     send_batch_size: int = Field(default=100, ge=1, le=100)
 
+    # Platform-wide weighted load allowed in one 15-minute slot, summed over every running
+    # study. ``None`` switches the constraint off.
+    slot_capacity: int | None = Field(default=40, ge=1)
+
     log_level: str = "INFO"
 
     @field_validator("log_level")

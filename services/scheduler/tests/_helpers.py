@@ -7,7 +7,7 @@ bug in the implementation, not to repeat it.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import date, datetime, time, tzinfo
 from itertools import product
 
@@ -41,6 +41,7 @@ def make_study(
     style: ScheduleStyle = ScheduleStyle.VARIED,
     max_prompts_per_day: int = 10,
     max_prompts_per_slot: int = 10,
+    slot_capacity: int | None = None,
     history: History | None = None,
 ) -> StudyDay:
     return StudyDay(
@@ -49,6 +50,7 @@ def make_study(
             schedule_style=style,
             max_prompts_per_day=max_prompts_per_day,
             max_prompts_per_slot=max_prompts_per_slot,
+            slot_capacity=slot_capacity,
         ),
         plan_date=plan_date,
         activities=activities,
@@ -63,12 +65,14 @@ def make_activity(
     min_gap_minutes: int = 0,
     start: time = time(8),
     end: time = time(12),
+    entry_types: tuple[str, ...] = ("text",),
 ) -> Activity:
     return Activity(
         id=activity_id,
         prompts_per_day=prompts_per_day,
         min_gap_minutes=min_gap_minutes,
         window=TimeWindow(start=start, end=end),
+        entry_types=entry_types,
     )
 
 
@@ -162,7 +166,12 @@ def oracle_score(study_day: StudyDay, planned: Iterable[object]) -> float:
     return score
 
 
-def assert_valid_plan(study_day: StudyDay, plan: DayPlan) -> None:
+def assert_valid_plan(
+    study_day: StudyDay,
+    plan: DayPlan,
+    *,
+    external_slot_load: Mapping[int, int] | None = None,
+) -> None:
     """Check every hard constraint against the input using the independent oracles above."""
     activities = {activity.id: activity for activity in study_day.activities}
     participants = {participant.id: participant for participant in study_day.participants}
@@ -224,6 +233,15 @@ def assert_valid_plan(study_day: StudyDay, plan: DayPlan) -> None:
     )
     assert all(count <= study.max_prompts_per_slot for count in per_slot.values())
 
+    weighted = Counter(external_slot_load or {})
+    for prompt in plan.planned:
+        slot = _minute_of_day(prompt.scheduled_at, study.time_zone) // SLOT_MINUTES
+        weighted[slot] += activities[prompt.activity_id].weight
+    if study.slot_capacity is not None:
+        assert all(load <= study.slot_capacity for load in weighted.values()), (
+            f"weighted slot capacity violated: {sorted(weighted.items())}"
+        )
+
     assert plan.score >= 0
     assert plan.score == oracle_score(study_day, plan.planned)
     assert plan.nodes_expanded >= 0
@@ -258,7 +276,10 @@ def timeline_reasons(plan: DayPlan) -> list[tuple[str, str, int, UnplannedReason
 
 
 def brute_force_best(
-    study_day: StudyDay, fixed_prompts: tuple[FixedPrompt, ...] = ()
+    study_day: StudyDay,
+    fixed_prompts: tuple[FixedPrompt, ...] = (),
+    *,
+    external_slot_load: Mapping[int, int] | None = None,
 ) -> tuple[int, float]:
     """Enumerate every tiny assignment and return the optimal (planned count, score)."""
     fixed_keys = {
@@ -293,7 +314,7 @@ def brute_force_best(
                         ),
                     )
                 )
-        if not _valid_assignment(study_day, planned):
+        if not _valid_assignment(study_day, planned, external_slot_load):
             continue
         score = oracle_score(study_day, planned)
         candidate = len(planned), score
@@ -303,16 +324,27 @@ def brute_force_best(
     return best
 
 
-def _valid_assignment(study_day: StudyDay, planned: list[FixedPrompt | _PlannedView]) -> bool:
+def _valid_assignment(
+    study_day: StudyDay,
+    planned: list[FixedPrompt | _PlannedView],
+    external_slot_load: Mapping[int, int] | None = None,
+) -> bool:
     activities = {activity.id: activity for activity in study_day.activities}
     daily: Counter[str] = Counter()
     slots: Counter[int] = Counter()
+    weighted: Counter[int] = Counter(external_slot_load or {})
     for prompt in planned:
         daily[prompt.participant_id] += 1
-        slots[_minute_of_day(prompt.scheduled_at, study_day.study.time_zone) // SLOT_MINUTES] += 1
+        slot = _minute_of_day(prompt.scheduled_at, study_day.study.time_zone) // SLOT_MINUTES
+        slots[slot] += 1
+        weighted[slot] += activities[prompt.activity_id].weight
     if any(count > study_day.study.max_prompts_per_day for count in daily.values()):
         return False
     if any(count > study_day.study.max_prompts_per_slot for count in slots.values()):
+        return False
+    if study_day.study.slot_capacity is not None and any(
+        load > study_day.study.slot_capacity for load in weighted.values()
+    ):
         return False
     for index, left in enumerate(planned):
         for right in planned[index + 1 :]:

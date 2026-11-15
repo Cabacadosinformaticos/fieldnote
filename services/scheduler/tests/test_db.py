@@ -256,6 +256,91 @@ def test_lease_takeover_and_expiry(conn: Connection) -> None:
     assert db.acquire_lease(conn, "scheduler", "replica-a", 60) is not None
 
 
+def test_load_activities_carries_the_entry_types(
+    conn: Connection,
+    make_study: Callable[..., UUID],
+    make_activity: Callable[..., UUID],
+) -> None:
+    study_id = make_study()
+    activity_id = make_activity(study_id, entry_types=["photo", "video"])
+
+    rows = db.load_activities(conn, study_id)
+
+    assert [row.id for row in rows] == [activity_id]
+    assert rows[0].entry_types == ("photo", "video")
+
+
+def test_load_other_study_prompts_keeps_only_planned_and_sent_of_running_studies(
+    conn: Connection,
+    make_study: Callable[..., UUID],
+    make_activity: Callable[..., UUID],
+    make_participant: Callable[..., UUID],
+    insert_prompt: Callable[..., UUID],
+) -> None:
+    load_study = make_study()
+    load_activity = make_activity(load_study, entry_types=["photo", "video"])
+    load_participant = make_participant(load_study)
+    own_study = make_study()
+    own_activity = make_activity(own_study)
+    own_participant = make_participant(own_study)
+    closed_study = make_study(status="closed")
+    closed_activity = make_activity(closed_study)
+    closed_participant = make_participant(closed_study)
+
+    start = datetime(2026, 11, 2, 0, 0, tzinfo=UTC)
+    end = datetime(2026, 11, 3, 0, 0, tzinfo=UTC)
+    insert_prompt(
+        load_participant,
+        load_activity,
+        plan_date=PLAN_DATE,
+        scheduled_at=datetime(2026, 11, 2, 8, 0, tzinfo=UTC),
+    )
+    insert_prompt(
+        load_participant,
+        load_activity,
+        plan_date=PLAN_DATE,
+        occurrence=1,
+        scheduled_at=datetime(2026, 11, 2, 9, 0, tzinfo=UTC),
+        status="sent",
+    )
+    insert_prompt(
+        load_participant,
+        load_activity,
+        plan_date=PLAN_DATE,
+        occurrence=2,
+        status="unplanned",
+    )
+    insert_prompt(
+        load_participant,
+        load_activity,
+        plan_date=PLAN_DATE,
+        occurrence=3,
+        scheduled_at=datetime(2026, 11, 3, 0, 30, tzinfo=UTC),
+    )
+    insert_prompt(
+        own_participant,
+        own_activity,
+        plan_date=PLAN_DATE,
+        scheduled_at=datetime(2026, 11, 2, 8, 0, tzinfo=UTC),
+    )
+    insert_prompt(
+        closed_participant,
+        closed_activity,
+        plan_date=PLAN_DATE,
+        scheduled_at=datetime(2026, 11, 2, 8, 0, tzinfo=UTC),
+    )
+
+    rows = db.load_other_study_prompts(conn, own_study, start, end)
+
+    assert [row.activity_id for row in rows] == [load_activity, load_activity]
+    assert {row.study_id for row in rows} == {load_study}
+    assert all(row.entry_types == ("photo", "video") for row in rows)
+    assert [row.scheduled_at for row in rows] == [
+        datetime(2026, 11, 2, 8, 0, tzinfo=UTC),
+        datetime(2026, 11, 2, 9, 0, tzinfo=UTC),
+    ]
+
+
 def _statuses(conn: Connection, prompt_ids: list[UUID]) -> dict[UUID, str]:
     rows = conn.execute(
         "SELECT id, status FROM prompt WHERE id = ANY(%s)", (prompt_ids,)

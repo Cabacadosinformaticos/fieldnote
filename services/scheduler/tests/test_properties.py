@@ -1,7 +1,9 @@
+from collections import Counter
 from dataclasses import replace
 
 import pytest
 
+from scheduler.domains import slot_index_of
 from scheduler.generator import generate_study
 from scheduler.model import CutReason
 from scheduler.plan import plan_day
@@ -55,3 +57,27 @@ def test_different_seeds_still_produce_valid_plans() -> None:
 
     for seed in (0, 1, 2):
         assert_valid_plan(study_day, plan_day(study_day, seed=seed, node_limit=2_000))
+
+
+@pytest.mark.parametrize("seed", range(30))
+@pytest.mark.parametrize("slot_capacity", (5, 9, 15))
+def test_generated_plans_never_exceed_the_weighted_slot_capacity(
+    seed: int, slot_capacity: int
+) -> None:
+    study_day = generate_study(
+        seed,
+        participant_count=2 + seed % 4,
+        activity_count=1 + seed % 3,
+        with_history=bool(seed % 2),
+        slot_capacity=slot_capacity,
+    )
+
+    plan = plan_day(study_day, seed=seed, node_limit=2_000)
+
+    assert_valid_plan(study_day, plan)
+    activities = {activity.id: activity for activity in study_day.activities}
+    weighted: Counter[int] = Counter()
+    for prompt in plan.planned:
+        slot = slot_index_of(prompt.scheduled_at, study_day.study.time_zone)
+        weighted[slot] += activities[prompt.activity_id].weight
+    assert all(load <= slot_capacity for load in weighted.values())

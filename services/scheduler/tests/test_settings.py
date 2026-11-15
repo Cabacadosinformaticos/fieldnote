@@ -38,3 +38,19 @@ def test_invalid_values_are_rejected() -> None:
         Settings(lease_ttl_seconds=10, lease_renew_seconds=10)
     with pytest.raises(ValidationError):
         Settings(plan_hour=24)
+
+
+def test_slot_capacity_defaults_to_forty_and_can_be_disabled() -> None:
+    url = "postgresql+psycopg://fieldnote:fieldnote@127.0.0.1:5432/fieldnote"
+    assert Settings(database_url=url).slot_capacity == 40
+    assert Settings(database_url=url, slot_capacity=None).slot_capacity is None
+    with pytest.raises(ValidationError):
+        Settings(database_url=url, slot_capacity=0)
+
+
+def test_slot_capacity_reads_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FIELDNOTE_SLOT_CAPACITY", "7")
+    settings = Settings(
+        database_url="postgresql+psycopg://fieldnote:fieldnote@127.0.0.1:5432/fieldnote"
+    )
+    assert settings.slot_capacity == 7

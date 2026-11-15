@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, time, timedelta
 
 from .domains import minute_to_time
 from .model import (
+    ENTRY_TYPE_WEIGHTS,
     Activity,
     AvailabilityInterval,
     HistoricalPrompt,
@@ -31,12 +32,14 @@ def generate_study(
     activity_count: int = 4,
     plan_date: date | None = None,
     with_history: bool = True,
+    slot_capacity: int | None = None,
 ) -> StudyDay:
     """Build a reproducible study from ``seed``.
 
     The generator varies the schedule style, the limits, the number of prompts, the windows,
     the gaps, the availability intervals (including "any time") and, when asked, yesterday's
-    plan and the parts of the day covered in the last three days.
+    plan and the parts of the day covered in the last three days. Entry types come from their
+    own random stream, so the other draws, and every existing expected value, stay the same.
     """
     if participant_count < 0:
         raise ValueError("participant_count must not be negative")
@@ -49,7 +52,10 @@ def generate_study(
     span = max(1, participant_count)
     max_prompts_per_slot = rng.randint(1, max(1, span // 4 + 1))
 
-    activities = tuple(_generate_activity(rng, index) for index in range(activity_count))
+    entry_type_rng = random.Random(f"{seed}-entry-types")
+    activities = tuple(
+        _generate_activity(rng, entry_type_rng, index) for index in range(activity_count)
+    )
     participants = tuple(
         _generate_participant(rng, index, plan_date) for index in range(participant_count)
     )
@@ -62,6 +68,7 @@ def generate_study(
         max_prompts_per_day=max_prompts_per_day,
         max_prompts_per_slot=max_prompts_per_slot,
         time_zone=UTC,
+        slot_capacity=slot_capacity,
     )
     return StudyDay(
         study=study,
@@ -72,18 +79,23 @@ def generate_study(
     )
 
 
-def _generate_activity(rng: random.Random, index: int) -> Activity:
+def _generate_activity(rng: random.Random, entry_type_rng: random.Random, index: int) -> Activity:
     start_hour = rng.choice((7, 8, 8, 9, 9))
     end_hour = rng.choice((19, 20, 21, 22))
     if end_hour <= start_hour:
         end_hour = start_hour + 4
     prompts_per_day = rng.choice((1, 1, 1, 2))
     gap = rng.choice((0, 30, 45, 60, 90, 120))
+    candidates = sorted(ENTRY_TYPE_WEIGHTS)
+    entry_types = tuple(
+        sorted(entry_type_rng.sample(candidates, entry_type_rng.randint(1, len(candidates))))
+    )
     return Activity(
         id=f"activity-{index:02d}",
         prompts_per_day=prompts_per_day,
         min_gap_minutes=gap,
         window=TimeWindow(time(hour=start_hour), time(hour=end_hour)),
+        entry_types=entry_types,
     )
 
 

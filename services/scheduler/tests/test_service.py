@@ -12,6 +12,7 @@ import pytest
 from psycopg import Connection
 
 from scheduler import db
+from scheduler.model import UnplannedReason
 from scheduler.push import PushMessage, PushResult
 from scheduler.service import SchedulerService, _cutoff_time
 from scheduler.settings import Settings
@@ -52,6 +53,79 @@ def service(settings: Settings, conn: Connection, push: RecordingPush) -> Schedu
         monotonic=lambda: 0.0,
         replica_id="replica-test",
     )
+
+
+def _service_with_capacity(
+    settings: Settings, conn: Connection, push: RecordingPush, capacity: int
+) -> SchedulerService:
+    return SchedulerService(
+        settings.model_copy(update={"slot_capacity": capacity}),
+        connection_factory=lambda: conn,
+        push_client=push,  # type: ignore[arg-type]
+        monotonic=lambda: 0.0,
+        replica_id="replica-test",
+    )
+
+
+def test_planning_a_study_sees_another_studys_planned_prompts_as_load(
+    settings: Settings,
+    conn: Connection,
+    push: RecordingPush,
+    make_study: Callable[..., UUID],
+    make_activity: Callable[..., UUID],
+    make_participant: Callable[..., UUID],
+) -> None:
+    service = _service_with_capacity(settings, conn, push, 5)
+    first_study = make_study()
+    make_activity(first_study, window_start=time(8), window_end=time(8, 15), entry_types=["video"])
+    make_participant(first_study, availability_any_time=True)
+    second_study = make_study()
+    make_activity(second_study, window_start=time(8), window_end=time(8, 15), entry_types=["text"])
+    make_participant(second_study, availability_any_time=True)
+    at = datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
+
+    first = service.plan_study(conn, first_study, TODAY, at)
+    second = service.plan_study(conn, second_study, TODAY, at)
+
+    assert first is not None and first.planned_count == 1
+    assert second is not None
+    assert second.planned_count == 0
+    assert [prompt.reason for prompt in second.unplanned] == [UnplannedReason.SLOT_CAP]
+
+
+def test_planning_sees_another_studys_load_in_another_time_zone(
+    settings: Settings,
+    conn: Connection,
+    push: RecordingPush,
+    make_study: Callable[..., UUID],
+    make_activity: Callable[..., UUID],
+    make_participant: Callable[..., UUID],
+) -> None:
+    service = _service_with_capacity(settings, conn, push, 5)
+    utc_study = make_study()
+    make_activity(utc_study, window_start=time(23), window_end=time(23, 15), entry_types=["video"])
+    make_participant(utc_study, availability_any_time=True)
+    auckland_study = make_study(timezone="Pacific/Auckland")
+    make_activity(
+        auckland_study, window_start=time(12), window_end=time(12, 15), entry_types=["text"]
+    )
+    make_participant(auckland_study, availability_any_time=True)
+
+    first = service.plan_study(
+        conn, utc_study, date(2026, 11, 2), datetime(2026, 11, 2, 20, 0, tzinfo=UTC)
+    )
+    second = service.plan_study(
+        conn, auckland_study, date(2026, 11, 3), datetime(2026, 11, 2, 21, 0, tzinfo=UTC)
+    )
+
+    assert first is not None and first.planned_count == 1
+    assert [
+        prompt.scheduled_at.astimezone(ZoneInfo("Pacific/Auckland")).strftime("%H:%M")
+        for prompt in first.planned
+    ] == ["12:00"]
+    assert second is not None
+    assert second.planned_count == 0
+    assert [prompt.reason for prompt in second.unplanned] == [UnplannedReason.SLOT_CAP]
 
 
 def test_run_once_plans_today_on_startup_only_once(

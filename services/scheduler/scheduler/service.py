@@ -22,9 +22,10 @@ import psycopg
 from psycopg import Connection
 
 from . import db
-from .domains import part_of_minute
+from .domains import part_of_minute, slot_datetime, slot_index_of
 from .lease import LeaderLease
 from .model import (
+    ENTRY_TYPE_WEIGHTS,
     WEEKDAYS,
     Activity,
     AvailabilityInterval,
@@ -160,6 +161,7 @@ class SchedulerService:
         study_day = self._load_study_day(conn, study, plan_date, at)
         plan = plan_day(
             study_day,
+            external_slot_load=self._external_slot_load(conn, study, plan_date),
             node_limit=self.settings.plan_node_limit,
             time_limit_seconds=self.settings.plan_time_limit_seconds,
         )
@@ -251,6 +253,7 @@ class SchedulerService:
             str(participant_id),
             sent_prompts=sent,
             other_planned_prompts=other,
+            external_slot_load=self._external_slot_load(conn, study, plan_date),
             node_limit=self.settings.plan_node_limit,
             time_limit_seconds=self.settings.plan_time_limit_seconds,
         )
@@ -320,6 +323,7 @@ class SchedulerService:
                 prompts_per_day=row.prompts_per_day,
                 min_gap_minutes=row.min_gap_minutes,
                 window=TimeWindow(start=row.window_start, end=row.window_end),
+                entry_types=row.entry_types,
             )
             for row in db.load_activities(conn, study.id)
         )
@@ -359,12 +363,35 @@ class SchedulerService:
                 max_prompts_per_day=study.max_prompts_per_day,
                 max_prompts_per_slot=study.max_prompts_per_slot,
                 time_zone=time_zone,
+                slot_capacity=self.settings.slot_capacity,
             ),
             plan_date=plan_date,
             activities=activities,
             participants=participants,
             history=history,
         )
+
+    def _external_slot_load(
+        self, conn: Connection, study: db.StudyRow, plan_date: date
+    ) -> dict[int, int]:
+        """The weighted load the other running studies already use on ``plan_date``.
+
+        The prompts are read by absolute time and converted to this study's time zone, because
+        two studies that plan the same calendar date may be in different time zones.
+        """
+        if self.settings.slot_capacity is None:
+            return {}
+        time_zone = self.settings.zone(study.timezone)
+        start = slot_datetime(plan_date, 0, time_zone)
+        end = slot_datetime(plan_date + timedelta(days=1), 0, time_zone)
+        load: dict[int, int] = defaultdict(int)
+        for row in db.load_other_study_prompts(conn, study.id, start, end):
+            local = row.scheduled_at.astimezone(time_zone)
+            if local.date() != plan_date:
+                continue
+            weight = max(ENTRY_TYPE_WEIGHTS[entry_type] for entry_type in row.entry_types)
+            load[slot_index_of(local)] += weight
+        return dict(load)
 
     def _load_history(
         self,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, tzinfo
 
 from .domains import slot_datetime
@@ -26,6 +26,7 @@ def plan_day(
     study_day: StudyDay,
     *,
     fixed_prompts: Iterable[FixedPrompt] = (),
+    external_slot_load: Mapping[int, int] | None = None,
     seed: int = 0,
     node_limit: int | None = DEFAULT_NODE_LIMIT,
     time_limit_seconds: float | None = None,
@@ -38,12 +39,14 @@ def plan_day(
     is per study. ``time_limit_seconds`` is an optional wall-clock safety net, off by default;
     when it cuts the run, ``DayPlan.cut_reason`` says so. ``seed`` is kept for reproducibility of
     the run record; the deterministic ordering of scheduler.md does not depend on it.
+    ``external_slot_load`` is the weighted load of the other running studies per slot.
     """
     started = time.monotonic()
     fixed = tuple(fixed_prompts)
     result = solve_study(
         study_day,
         fixed_prompts=fixed,
+        external_slot_load=external_slot_load,
         options=options,
         node_limit=node_limit,
         time_limit_seconds=time_limit_seconds,
@@ -96,6 +99,7 @@ def replan_participant(
     *,
     sent_prompts: Iterable[FixedPrompt] = (),
     other_planned_prompts: Iterable[FixedPrompt] = (),
+    external_slot_load: Mapping[int, int] | None = None,
     seed: int = 0,
     node_limit: int | None = DEFAULT_NODE_LIMIT,
     time_limit_seconds: float | None = None,
@@ -106,7 +110,8 @@ def replan_participant(
     ``sent_prompts`` are this participant's prompts already sent today; they stay fixed and
     count towards the daily cap, the slot counters and the gap. ``other_planned_prompts`` are
     the rest of today's plan (other participants); they feed the slot counters and the score but
-    are not returned. The result holds only the replanned participant's prompts.
+    are not returned. ``external_slot_load`` is the weighted load of the other running studies
+    per slot. The result holds only the replanned participant's prompts.
     """
     started = time.monotonic()
     activities_by_id = {activity.id: activity for activity in study_day.activities}
@@ -128,6 +133,7 @@ def replan_participant(
         fixed_prompts=sent,
         participant_id=participant_id,
         other_slot_prompts=other,
+        external_slot_load=external_slot_load,
         options=options,
         node_limit=node_limit,
         time_limit_seconds=time_limit_seconds,

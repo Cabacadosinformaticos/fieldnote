@@ -14,6 +14,16 @@ from enum import StrEnum
 WEEKDAYS = frozenset(range(1, 8))  # ISO 8601: Monday is 1, Sunday is 7
 DAY_PARTS = 4
 
+ENTRY_TYPE_WEIGHTS: dict[str, int] = {
+    "video": 5,
+    "photo": 2,
+    "audio": 2,
+    "text": 1,
+    "scale": 1,
+    "choice": 1,
+}
+"""The load one prompt puts on a 15-minute slot, by entry type."""
+
 
 class ScheduleStyle(StrEnum):
     """How a study values varied against routine times (FR-50)."""
@@ -76,14 +86,30 @@ class Activity:
     prompts_per_day: int
     min_gap_minutes: int
     window: TimeWindow
+    entry_types: tuple[str, ...] = ("text",)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "entry_types", tuple(self.entry_types))
         if not self.id:
             raise ValueError("activity id must not be empty")
         if self.prompts_per_day < 0:
             raise ValueError("prompts_per_day must not be negative")
         if self.min_gap_minutes < 0:
             raise ValueError("min_gap_minutes must not be negative")
+        if not self.entry_types:
+            raise ValueError("an activity needs at least one entry type")
+        unknown = set(self.entry_types) - set(ENTRY_TYPE_WEIGHTS)
+        if unknown:
+            raise ValueError(f"unknown entry type {sorted(unknown)[0]!r}")
+
+    @property
+    def weight(self) -> int:
+        """The load of one prompt, the heaviest of its entry types.
+
+        A participant asked for an activity with several entry types may choose any of them,
+        so the activity weighs as its heaviest type.
+        """
+        return max(ENTRY_TYPE_WEIGHTS[entry_type] for entry_type in self.entry_types)
 
 
 @dataclass(frozen=True)
@@ -134,6 +160,7 @@ class StudyConfig:
     max_prompts_per_day: int = 4
     max_prompts_per_slot: int = 1
     time_zone: tzinfo = UTC
+    slot_capacity: int | None = None
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -142,6 +169,8 @@ class StudyConfig:
             raise ValueError("max_prompts_per_day must be at least 1")
         if self.max_prompts_per_slot < 1:
             raise ValueError("max_prompts_per_slot must be at least 1")
+        if self.slot_capacity is not None and self.slot_capacity < 1:
+            raise ValueError("slot_capacity must be at least 1 when set")
 
 
 @dataclass(frozen=True)
@@ -291,6 +320,7 @@ __all__ = [
     "CutReason",
     "DAY_PARTS",
     "DayPlan",
+    "ENTRY_TYPE_WEIGHTS",
     "FixedPrompt",
     "HistoricalPrompt",
     "History",
