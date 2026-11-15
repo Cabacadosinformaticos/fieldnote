@@ -1723,6 +1723,11 @@
   overflow: hidden;
 }
 
+.st-adherence-participant .mono {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .st-adherence-note {
   overflow: hidden;
   color: var(--fn-color-text-muted);

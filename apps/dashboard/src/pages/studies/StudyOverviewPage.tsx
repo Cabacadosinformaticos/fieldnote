@@ -366,6 +366,12 @@ export default function StudyOverviewPage() {
       return left.ratio - right.ratio
     })
   const shownRows = matrixRows.slice(0, 12)
+  // One column per elapsed day (up to 14), so the grid follows the study length, not a fixed four.
+  const dayColumns = Math.max(days.length, 1)
+  const adherenceColumns = {
+    gridTemplateColumns: `minmax(190px, 1.6fr) repeat(${dayColumns}, minmax(52px, 0.7fr)) minmax(96px, 1fr)`,
+  }
+  const adherenceMinWidth = { minWidth: `${190 + 52 * dayColumns + 96}px` }
   const dayTotals = days.map((item) => {
     let answered = 0
     let sent = 0
@@ -912,8 +918,13 @@ export default function StudyOverviewPage() {
             </span>
           </div>
 
-          <div className="st-adherence-table" role="table" aria-label={t('overview.adherence.title')}>
-            <div className="st-adherence-row st-adherence-head" role="row">
+          <div
+            className="st-adherence-table"
+            role="table"
+            aria-label={t('overview.adherence.title')}
+            style={adherenceMinWidth}
+          >
+            <div className="st-adherence-row st-adherence-head" role="row" style={adherenceColumns}>
               <span role="columnheader">{t('overview.adherence.participant')}</span>
               {days.map((item) => (
                 <span role="columnheader" className="st-adherence-day" key={item.date}>
@@ -936,6 +947,7 @@ export default function StudyOverviewPage() {
               <div
                 className={row.warn ? 'st-adherence-row st-adherence-warn' : 'st-adherence-row'}
                 role="row"
+                style={adherenceColumns}
                 key={row.id}
               >
                 <div className="st-adherence-participant" role="cell">
@@ -970,7 +982,7 @@ export default function StudyOverviewPage() {
               <p className="st-empty">{t('overview.adherence.empty')}</p>
             ) : null}
 
-            <div className="st-adherence-row st-adherence-total" role="row">
+            <div className="st-adherence-row st-adherence-total" role="row" style={adherenceColumns}>
               <span className="st-adherence-total-label" role="cell">
                 {t('overview.adherence.allActive', { count: overview.participants.active })}
               </span>
