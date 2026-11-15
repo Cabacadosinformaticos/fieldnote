@@ -1,7 +1,7 @@
 # Descriptive report: Fieldnote
 
-Version 1, 11 October 2026 (first delivery). The project is at the design stage: nothing is implemented yet.
-The results and reflection sections will be written as the work progresses.
+Version 2, 11 November 2026 (second delivery). The platform is built and runs as a working prototype;
+this version describes it as built. The phone fault test (FS8) is the only scenario still to run.
 
 ## Identification
 
@@ -31,45 +31,17 @@ The results and reflection sections will be written as the work progresses.
 
 ## Summary
 
-Fieldnote is a distributed platform for mobile ethnography and diary studies. In these studies,
-participants use their phones to record experiences where and when they happen, over days or
-weeks, following activities set by a researcher. A study might ask for a photo of a product used
-every day or a short audio note after a commute.
+Fieldnote is a distributed platform for mobile ethnography and diary studies. Participants use their phones to record experiences where and when they happen, over days or weeks, following activities set by a researcher. An entry recorded in the moment cannot be collected again, so losing one means losing the data point. This is why the system is distributed and fault tolerant.
 
-The platform has two sides. Researchers use a web dashboard to create studies, define activities
-and the rules for when to ask for them, invite participants, follow adherence and incoming entries
-in real time, organise entries with tags, and export the data. Researchers recruit with personal invite
-codes, with reusable study codes printed on a poster, or, optionally, from a volunteer pool where
-they only see how many people match their criteria. Participants use a mobile app to join one or
-more studies by QR code or typed code, accept the informed consent, receive activities and record
-entries as text, photo, video, audio, a scale or a multiple choice answer, with date, time and, when
-the study asks for it, location. They need no account, but may create one to recover their studies
-on a new phone, and they can leave a study or erase their data from the app. Administrators manage
-researcher accounts, oversee studies and handle data erasure requests.
+The platform is built and runs. Researchers use a web dashboard to create studies and activities, invite participants with personal codes, poster codes or a volunteer pool, follow entries and adherence in real time, tag entries and export the data. Participants use an Android app to join a study by QR code or typed code, accept the consent, receive prompts and record text, photo, video, audio, scale or choice entries with date, time and, when the study asks for it, location. The app keeps entries in a local queue while offline and resends them without duplicates. Administrators manage researcher accounts, the audit log and data erasure.
 
-An entry recorded in the moment cannot be collected again later, so losing one means losing the
-data point. This is why the system is distributed and fault tolerant. The backend runs as three
-logical nodes on one Docker host. Each node runs an API replica and one member of each data
-cluster: PostgreSQL with automatic failover through Patroni, a RabbitMQ message broker with
-replicated queues, and Garage object storage keeping three copies of every file. The system is
-designed to keep receiving entries when any one node fails, and not to lose an entry once it has
-been confirmed to the participant. The app keeps entries in a local queue while there is no
-network and resends them later without creating duplicates.
+The backend runs as three logical nodes on one virtual machine, reached through two Tailscale gateways with HTTPS. Each node holds an API replica and one member of each data cluster: PostgreSQL with Patroni, RabbitMQ with quorum queues and Garage object storage with three copies of every file. We tested eleven failure scenarios with scripts. Ten pass, nine of them on the server: the database leader is replaced in 23.8 s, a gateway failure loses none of 120 entries sent from ten simulated phones, the loss of a storage node loses none of 45 photo entries, and a standby scheduler takes over in 15.2 s. The restore of the encrypted backup also passes. The phone in airplane mode is still to be run. The whole stack starts with Docker Compose and is monitored with Prometheus and Grafana.
 
-The artificial intelligence component is the scheduler. Deciding when to ask each participant for
-each activity is modelled as a constraint satisfaction problem: participant availability, activity
-time windows, minimum gaps between prompts, daily limits and a cap on simultaneous prompts that
-spreads the upload load. The team will implement backtracking search with the MRV and LCV heuristics,
-forward checking and AC-3, and compare the result with the fixed-time schedules many diary tools
-use.
+The artificial intelligence component is a constraint satisfaction scheduler implemented from scratch, with backtracking, forward checking, MRV, LCV and AC-3, which decides when to prompt each participant. On generated studies of up to 100 participants it breaks no constraint, while fixed-hour prompting overloads slots and breaks minimum gaps. On 300 small studies it matched an exhaustive search every time. AC-3 reports the clashes of minimum gaps and leaves to the search the choice of which prompt to drop. The scheduler also weighs load by entry type and shares capacity across studies.
 
-Security measures cover authentication and roles, pseudonymised participants, signed and
-short-lived media URLs, removal of location metadata from photos, an audit log and data erasure.
+Security measures include Argon2id passwords, account lockout, time-limited signed media URLs, removal of location metadata from media, an audit log, encrypted backups and erasure of participant data.
 
-The work is planned in a GitHub Project with a backlog, owners and dates for each task, and
-milestones for each delivery. The fault tolerance will be demonstrated by injecting failures with
-scripts (stopping containers, whole nodes, the database primary, a storage node, and cutting a
-node off the network) and measuring detection time, recovery time and lost entries.
+The main limits are that the three nodes share one machine, the app was built for Android only, and rate limiting is not implemented.
 
 ## Context
 
@@ -122,20 +94,22 @@ repository:
   planned backwards from its date.
 - The board shows what is to do, in progress and done. The team updates it as the work moves and
   reviews it before each delivery to adjust the plan.
-- Code changes go through pull requests reviewed by the other team member.
+- Both members commit to the repository, so each one's contribution is visible in the history.
 
 ### Tools
 
 | Tool | Use |
 |---|---|
-| Git and GitHub | Version control and issues; pull requests once there is code |
+| Git and GitHub | Version control and issues |
 | GitHub Projects | Backlog, task owners and dates, milestones, board |
 | Docker and Docker Compose | Running the whole stack on the server or on a laptop |
 | Visual Studio Code | Development |
 | Figma | Mockups of the app and the portal (68 screens) |
 | Mermaid, PlantUML and Graphviz | Diagrams: concept map, use cases, architecture, deployment, data model, sequences |
-| Expo Go and Android devices | Testing the mobile app |
+| uv, pytest and Alembic | Python environments, automated tests and database migrations |
+| Expo, EAS and the Android emulator | Building and testing the mobile app; `adb` drives the phone fault test |
 | Prometheus and Grafana | Monitoring during the failure tests |
+| Failure scripts and load generator | `infra/chaos` injects the faults; `tools/loadgen` sends entries from simulated phones and counts losses and duplicates |
 
 ### Technologies
 
@@ -143,16 +117,17 @@ repository:
 |---|---|
 | Mobile app | React Native, Expo, TypeScript, SQLite |
 | Web dashboard | React, Vite, TypeScript |
-| Backend | Python 3.12, FastAPI |
-| Scheduler | Python, constraint satisfaction algorithms implemented by the team |
+| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic; server-sent events for the live dashboard |
+| Scheduler | Python, constraint satisfaction solver written by the team |
 | Database | PostgreSQL 17, Patroni, etcd |
 | Messaging | RabbitMQ with quorum queues |
 | File storage | Garage (S3 compatible) |
 | Media processing | ffmpeg, an open-source tool that converts audio and video; used to make thumbnails and to convert phone videos to one format that plays everywhere |
-| Access and routing | Tailscale, Traefik |
+| Access and routing | Tailscale (two gateway containers with HTTPS), Traefik |
 | Push notifications | Expo Push |
+| Backup | Encrypted archives (AES-256-GCM) of the database and the media bucket |
 
-The design was reviewed by the lecturers: the Artificial Intelligence lecturer approved the
+The design was reviewed by the lecturers during the first delivery: the Artificial Intelligence lecturer approved the
 scheduler on 1 October 2026, the Distributed Systems lecturer approved the architecture and the
 stack on 5 October 2026, the Software Engineering lecturer approved the project on 7 October
 2026, and the Projeto de Desenvolvimento de Software lecturer approved the whole repository, from
@@ -168,77 +143,133 @@ Security lecturers.
 
 ## Results
 
-Nothing is implemented yet. This section describes the design delivered in the first delivery;
-the built platform and the test results will be described here as the work progresses.
-
 ### Description of the solution
 
-The design is documented in `04_Documentacao_Tecnica`: architecture, fault model, data model,
-domain model, scheduler, security, requirements and use cases. The 64 mockups of the app and the
-portal are in `05_Artefactos/mockups`.
+Fieldnote is a working prototype. It runs on the team's own server as one virtual machine with
+three logical nodes, and the same project starts on a laptop with Docker Compose.
+
+| Part | What it does |
+|---|---|
+| `services/api` | FastAPI REST API: studies, activities, participants, entries, signed upload URLs, server-sent events for the live dashboard, export, audit log, erasure; an outbox relay publishes events to RabbitMQ without losing any between the database and the broker |
+| `services/scheduler` | Constraint satisfaction planner and push notifications; two replicas, one holds a lease and the other takes over if it fails |
+| `services/media-worker` | ffmpeg thumbnails, video conversion to one format and removal of location metadata from media |
+| `services/backup` | Daily encrypted archive (AES-256-GCM) of the database and the media bucket, with restore |
+| `apps/dashboard` | React dashboard for researchers and administrators, served by the API replicas |
+| `apps/mobile` | Expo app with a local SQLite queue; it knows both gateways and retries on the second when the first fails |
+| `infra/deploy` | Compose projects for development and for the cluster: Patroni and etcd, RabbitMQ quorum queues, Garage with three zones, three API replicas, two Tailscale gateways, Prometheus and Grafana |
+| `infra/chaos`, `tools/loadgen`, `tools/demo-data` | Failure scripts, a load generator that reports lost or duplicated entries, and a seeded demonstration study |
+
+The design is documented in `04_Documentacao_Tecnica` and the 68 mockups of the app and the portal
+are in `05_Artefactos/mockups`.
 
 ### Main features
 
-The features are specified as 106 functional, 81 non-functional and 21 development requirements
-and 31 use cases, summarised in [the README](../../README.md#planned-features). None is implemented yet.
+- Researchers create studies and activities, invite participants with personal codes, poster
+  codes (with optional approval) or the volunteer pool, follow adherence and entries live, tag
+  and filter entries, and export CSV tables with the media, all of it or by type.
+- Participants join by QR code or typed code, accept the consent, declare availability, receive
+  prompts and record text, photo, video, audio, scale or choice entries with time and location.
+  They can join several studies, create an optional account, leave a study and erase their data.
+- Administrators manage researcher accounts, read the audit log, see the volunteer pool in
+  aggregate and handle erasure requests, confirmed with a one-time code.
+- Entries carry a UUID created on the phone, so a resend after a failure never duplicates one.
+
+Fault tolerance was measured with the failure scripts on the server. Ten of eleven scenarios
+pass:
+
+| Scenario | Measured result |
+|---|---|
+| Kill an API container | Both gateways answer again in under 2 s |
+| Kill the database leader | New leader in 23.8 s; the old one returns as a replica |
+| Kill the synchronous replica | New synchronous replica in 9.9 s, no failed request |
+| Stop a whole node | The other two keep the leader and a synchronous replica; the node rejoins in 9.3 s |
+| Kill a broker node | Out of the active set in 0.7 s; rejoins in 5.6 s |
+| Cut a node off the network | The remaining pair keep working; the node rejoins 4.3 s after reconnection |
+| Kill a storage node during uploads | 45 photo entries sent, 45 confirmed, none lost or duplicated |
+| Stop gateway 1 under ten simulated phones | Clients switch to gateway 2; 120 sent, 120 confirmed |
+| Kill the active scheduler | The standby takes over in 15.2 s, no duplicate plan |
+| Restore the encrypted backup | Passes on the development stack |
+
+The eleventh scenario, a phone in airplane mode, still has to be run with a real phone.
 
 ### Relevant contributions
 
-- One design that joins the five course units in a single system, with a traceability matrix from
-  each requirement to use cases, design and verification.
+- One system that joins the five course units, with a traceability matrix from each requirement
+  to use cases, design and verification.
+- The constraint satisfaction scheduler, written from scratch with backtracking, forward
+  checking, MRV, LCV, AC-3 and branch and bound. The evaluation suite
+  (`services/scheduler/evaluation/results.md`) is reproducible. On generated studies of 10, 50 and
+  100 participants the scheduler breaks no constraint. At 100 participants it plans 332 prompts
+  with no slot over its cap and no minimum gap broken, while fixed-hour prompting plans 258, puts
+  173 prompts above the slot cap and breaks 246 minimum gaps. On 300 small studies it reached the
+  optimum of an exhaustive search every time.
+- AC-3 finds the clashes of minimum gaps before the search, while the choice of which prompt
+  to leave out stays with the search, which maximises the planned prompts.
+- Load weighted by entry type (video 5, photo 2, audio 2, others 1) and a capacity per slot shared
+  across running studies. At 100 participants it halves the weighted peak from 82 to 41 without
+  losing a prompt.
+- Participant privacy by design: identity apart from entries, pseudonymous participants, the pool
+  shown only in counts, and erasure that also reaches the backups. Passwords use Argon2id and
+  accounts lock after repeated failures. Media URLs are signed and short-lived, location metadata
+  is removed from media, and the audit log records the actions of staff accounts.
 - Supporting research that changed the design: entries keep both the recording time and the
-  arrival time, because declared and real adherence to paper diaries differed (Stone et al., 2002, cited in `06_Dados_Investigacao`).
-- A written fault model with 11 failure scenarios and planned demonstrations.
-- A constraint satisfaction scheduler to be implemented by the team and evaluated on generated
-  studies of 10, 50 and 100 participants.
-- Privacy in the design: identity kept apart from entries, pseudonymous participants, the volunteer
-  pool shown only in counts, and erasure that also reaches the backups.
+  arrival time, because declared and real adherence to paper diaries differed (Stone et al.,
+  2002, cited in `06_Dados_Investigacao`).
 
 ## Reflection
 
 ### Lessons learned
 
-These lessons come from the design stage; those from implementation and testing will follow.
-
-- Drawing the screens early exposes gaps in the requirements. Reviewing the mockups on 2 and 3
-  October led to three ways to join a study, the volunteer pool, poster codes, the optional account
-  and in-app erasure. The scope grew, so MoSCoW priorities now decide what enters the prototype.
-- Reading sources critically avoids promising what cannot be proved. Two meta-analyses disagree on
-  the effect of the number of prompts per day on adherence, so the daily limit is the researcher's
-  choice, with no claim of better adherence.
-- Asking for validation early reduces risk. The risk that three logical nodes on one host would not
-  be accepted was closed by the Distributed Systems approval on 5 October 2026. The security design
-  is the point still open.
+- A design claim is not a working system until someone runs it. The architecture said the API
+  replicas serve the dashboard, but nothing did until the first deployment. Then a relative
+  directory setting broke the asset paths. Both are fixed and tested.
+- Deploying exposed things the laptop hid. A Tailscale container gives up an interactive login
+  after 60 s and restarts with a new link, so the first links expired. Logging in once with
+  `tailscaled` on the same state volume and then starting the gateways worked.
+- Test tools break too. The load generator expected a 200 reply where the API answered 204, which
+  made two fault scenarios fail even though the cluster was fine. Reading the failure before
+  blaming the cluster saved time.
+- Tool versions drift between machines. One machine had an older TypeScript in `node_modules` than
+  the lock file, so errors from the newer version appeared only on a clean install, and the code
+  had to be guarded for it. A clean install from the lock file before building is the answer.
+- An exhaustive search on tiny studies is a cheap oracle. Comparing the scheduler with it on
+  hundreds of small studies gives a quality figure that a single example cannot.
+- Measuring beats believing. Numbers from the failure scripts replaced claims, and several
+  targets turned out to be met with room to spare.
 - With two people, the critical chain (infrastructure, backend, security and scheduler) rests on
-  one of them. The plan answers with a closed scope, priorities and the other member owning the
-  portal and the app screens.
+  one of them. A closed scope, priorities and the other member owning the dashboard and the app
+  screens kept it manageable.
 
 ### Limitations
 
-- The three logical nodes share one physical host. The loss of that host, its power or its
-  network link is outside the fault model. The stack can be started on another machine, but that
-  is a manual recovery.
+- The three nodes are logical and share one virtual machine. Losing that machine, its power or
+  its network link is outside the fault model, and starting the stack elsewhere is manual.
 - Network failures are simulated by cutting one node off from the other two. Packet loss,
-  latency and other partition shapes are not tested.
+  latency and other partitions are not tested.
+- The phone fault test (FS8) has not run yet. The camera and microphone were tested only on the
+  emulator, and push notifications need the Firebase key in the Expo project.
+- The app is built and tested for Android only.
 - Access is limited to devices on the project's Tailscale network.
-- Push notifications depend on an external service.
+- Rate limiting of the API is not implemented, and objects left in storage by uploads that never
+  completed are not cleaned up.
 - Entries still in the app queue are lost if the app is uninstalled before they are sent.
-- The app will be tested on Android only.
-- The scheduler is evaluated on plan quality, load spread and solve time with generated studies.
-  Its effect on participants' response rates is not measured, because that needs a real study.
-  The team may run a few small tests with people, never at the scale of a real study, and promises
-  no results from them.
+- Most scheduler searches end at their node budget, so the plan is the best found, not a proven
+  optimum. Its effect on participants' response rates is not measured, because that needs a real
+  study.
 
 ### Future work
 
+- Run FS8 with a phone, and give each logical node its own virtual machine for the final delivery.
+- Add rate limiting and the cleanup of orphan uploads.
+- Stream the export instead of building it whole.
+- A lower bound for branch and bound from the AC-3 clashes.
 - Predict the chance that a participant answers at a given time from their history, and use it in
   the scheduler.
-- Transcription of audio entries.
-- A map of the entries of a study.
-- Activities triggered by arriving at a place.
+- Include the media processing queue in the load model, and adjust planned prompts to live phone
+  context within their slot.
+- Transcription of audio entries, a map of the entries of a study, and activities triggered by
+  arriving at a place.
 - Automatic anonymisation of faces in exported photos.
-- Moving each logical node to its own machine.
 - Opening the platform to participants outside the project's private network.
-- Adjusting planned prompts to live phone context within their slot.
 - Follow-up questions from the researcher on a single entry, and letting participants complete an
   entry later.

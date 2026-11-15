@@ -63,12 +63,4 @@ Security lecturers.
 
 ## Short summary
 
-Fieldnote is a distributed platform for mobile ethnography and diary studies. Researchers create
-studies and activities and follow participants in real time in a web dashboard. Participants
-receive activities in a mobile app and record their experiences where and when they happen, as
-text, photo, video or audio, with date, time and location. An entry recorded in the moment cannot
-be collected again, so the backend runs as three logical nodes with a replicated database, message
-broker and file storage, and keeps accepting entries when one node fails. The app stores entries
-locally while offline and sends them later without duplicates. A constraint satisfaction solver
-decides when to send each activity to each participant, within their availability and without
-overloading the server.
+Fieldnote is a distributed platform for mobile ethnography and diary studies. Researchers create studies and activities and follow participants in real time in a web dashboard. Participants use an Android app to receive activities and record text, photo, video, audio, scale or choice entries with date, time and location, even offline. An entry recorded in the moment cannot be collected again, so the backend runs as three logical nodes with a replicated database, message broker and file storage. In failure tests the database leader was replaced in 23.8 s and no entry was lost when a gateway or a storage node failed. A constraint satisfaction solver decides when to send each activity to each participant, within their availability and without overloading the server. The prototype runs on a server, and the phone fault test is still to be run.
