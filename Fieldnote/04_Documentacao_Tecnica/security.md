@@ -1,11 +1,14 @@
 # Security
 
-Status: proposed, 2 October 2026; stale statements reconciled on 3 October 2026 (first written on 29 September 2026; the volunteer pool, erasure from the app and several studies on one phone were added on 2 October, and later that day the study codes and the exclusion of pending erasures from the backups; the optional participant account, the device check against joining twice and the final rules of the study codes came in a third decision of the same day). Nothing described here is implemented yet. The threat model
+Status: implemented, 11 November 2026, with the gaps listed in [implementation status](#implementation-status).
+The measures were written on 29 September 2026 and extended on 2 and 3 October 2026 (volunteer pool, erasure from the app,
+several studies on one phone, study codes, exclusion of pending erasures from the backups, optional participant account,
+device check against joining twice) and on 8 November 2026 (origin of audit rows). The threat model
 follows STRIDE over the data flows in the [architecture](architecture.md): participant app,
 dashboard, gateways, API, media worker, scheduler, database and object storage. The message broker
 carries only internal job and event messages between services on the `cluster` network and is covered
-through the service privileges, not as a flow of its own. The measures below are the design;
-items marked "under analysis" or "considered" are not part of it yet. The security design still waits for validation by the Information Security lecturers.
+through the service privileges, not as a flow of its own. The measures below are what the code does, except where the
+implementation status says otherwise; items marked "under analysis" or "considered" are not implemented. The security design still waits for validation by the Information Security lecturers.
 
 ## Why security shapes the design
 
@@ -41,7 +44,7 @@ The main asset is the entries: text, photos, audio, video and locations. They sh
 participants and may reveal health or beliefs. They live in PostgreSQL (text and metadata) and Garage
 (files), three copies of each. The participant identities, in `participant_identity`, link aliases to
 real people. Researcher and administrator accounts (`user_account`, `refresh_token`) give access to
-whole studies. The signing keys for tokens and upload URLs, kept as Compose secrets on the host, let
+whole studies. The signing keys for tokens and upload URLs, kept in an env file on the server, let
 whoever holds them impersonate any user. Backups on another machine contain everything, including data
 erased by the manual route less than 7 days ago, and are encrypted. They do not contain the data of participants whose erasure from the app is pending. The audit log (`audit_log`) is the evidence of who did
 what.
@@ -59,8 +62,8 @@ unlikely, and it is the reason for least privilege between services.
 ## Threat model
 
 STRIDE classifies threats in six types: spoofing, tampering, repudiation, information disclosure,
-denial of service and elevation of privilege. The table is a first pass with one row per data flow
-and threat. The final threat model will add the residual risk of each row.
+denial of service and elevation of privilege. The table has one row per data flow
+and threat. The residual risk of each row is in the sections below.
 
 | Flow | Threat | Measure |
 |---|---|---|
@@ -68,29 +71,29 @@ and threat. The final threat model will add the residual risk of each row.
 | Participant app to API | T: changing an entry after it was sent | No API edits an entry; the content hash only detects resends and UUID collisions |
 | Participant app to object storage | I: a file URL is shared or guessed | Signed URLs valid for 10 minutes and for one object |
 | Participant app to object storage | D: filling storage with huge uploads | Maximum size and content type signed into the upload URL and enforced by storage |
-| Dashboard to API | S: stealing researcher credentials | Argon2id, 15-minute access tokens, rotating refresh tokens with reuse detection, per-account lockout, TOTP for administrators |
+| Dashboard to API | S: stealing researcher credentials | Argon2id, 15-minute access tokens, rotating refresh tokens with reuse detection, per-account lockout after 5 failures for 15 minutes, TOTP for administrators (researchers use a password only) |
 | Dashboard to API | E: a researcher reaches a study that is not theirs | Role and study membership checked on every request |
 | Dashboard to API | R: a researcher denies having exported data | Every export is written to the audit log with the content chosen |
 | Dashboard to API | I: an export that identifies people | Exports leave out identity, location and media by default |
 | API to PostgreSQL | I: reading the identity table | Read limited to the study owner and administrators, and audited |
-| Media worker to object storage | E: a malicious file exploits ffmpeg | Own credentials without access to identities; non-root container, not privileged, all capabilities dropped |
+| Media worker to object storage | E: a malicious file exploits ffmpeg | Non-root container. Own credentials without access to identities, and dropped capabilities, are not implemented: the services share one database user and the containers keep the default Docker capabilities |
 | Media worker | I: GPS in photos | Metadata stripped when the activity does not ask for location; original not downloadable until processed |
-| Clients to gateways | D: excess of requests | Rate limits per IP at Traefik, per-account login throttling in the API, three API replicas |
-| Clients to gateways | I: eavesdropping | WireGuard through Tailscale, with HTTPS on top |
+| Clients to gateways | D: excess of requests | Per-account login lockout and per-IP and per-account limits on account sign-in codes in the API, three API replicas. Rate limits at Traefik are not configured |
+| Clients to gateways | I: eavesdropping | WireGuard through Tailscale, with HTTPS (ts.net certificate) on top |
 | Scheduler to push service, local notifications | I: notification text on a lock screen | Texts carry no participant data |
 | Participant app to API | S, I: stealing or losing a recovery code | 80 bits, shown once, stored only as an Argon2id hash with a keyed lookup value; attempts limited per IP and per account. A lost code with no other method cannot be recovered, a declared limit. See participant account |
 | Participant app to API | S: brute force of a 6-digit email code | 10 minutes, 5 attempts, a newer code replaces the older one, 60 s between codes and 5 codes per hour for an address, the same answer for known and unknown addresses. See participant account |
 | Participant app to API | S, E: account takeover | An account needs a method the person holds. The email is the weakest link: whoever controls the mailbox controls the account, which is why the recovery code is the default. A restore replaces the device tokens, so the old phone stops working and the person can see the change. See participant account |
-| Participant app to API | S: a forged Google sign-in | The ID token is accepted only after the signature is checked against the public keys of Google, with issuer, audience, expiry and nonce. See participant account |
+| Participant app to API | S: a forged Google sign-in | Design: the ID token is accepted only after the signature is checked against the public keys of Google, with issuer, audience, expiry and nonce. Not implemented, the method is off. See participant account |
 | API to PostgreSQL | I: linking participations through an account or a device hash | The account link is a table that no researcher query reads, the device hash is salted for each study, and the Android ID is stored nowhere. The platform can still link participations of one account: declared limitation |
-| Participant app to API | I: guessing invite codes through the invitation card | The lookup that precedes the card counts as an attempt under the per-IP limit, and the card shows study information only, never participant data |
+| Participant app to API | I: guessing invite codes through the invitation card | The card shows study information only, never participant data. A per-IP attempt limit on the lookup is not implemented; guessing relies on the size of the code space |
 | Participant app to API | R, E: an erasure or a withdrawal started by someone who holds the unlocked phone | The request, the cancellation and the erasure are in the audit log; the state is visible in the app and the participant can cancel for 7 days. Residual risk below |
-| Participant app to API | D: mass sign-ups through a public study code | Per-IP limit, a limit per code per hour, the optional entry limit, the end date and the switch-off. With approval, a waiting entry holds no data and receives no request. See study codes |
+| Participant app to API | D: mass sign-ups through a public study code | A limit per code per hour, the optional entry limit, the end date and the switch-off. A per-IP limit is not implemented. With approval, a waiting entry holds no data and receives no request. See study codes |
 | Participant app to API | I, E: a study code photographed or shared beyond the poster | The code grants only an invitation card and an entry that is pending or active in one study. Approval, the limits and regeneration keep control. See study codes |
 | Participant app to API | D: spam through a study code | A waiting entry has no entries and no media. It may hold answers to the study's questions (NFR-72), which no researcher sees before approval, and the team sees only its order and time. See study codes |
 | Dashboard to API | I: singling out pool members through small groups | A count below 5 is not shown, an invitation to a group below 5 is refused, no researcher route returns a pool profile |
 | API to PostgreSQL | I: linking a pool member to a study | `pool_invitation` is readable by no researcher interface, and the participant row holds no reference to the pool member. The platform can still read the link: declared limitation |
-| Administration to host | E: host access gives access to everything | Reached only through the private network; secrets are files readable only by the containers that need them |
+| Administration to host | E: host access gives access to everything | Reached only through the private network; secrets are in env files on the server, outside the repository, and the backup key is a read-only mounted file |
 
 Two threats deserve a note. A researcher reading another study is the typical failure of APIs, listed
 first in the OWASP API Security Top 10 (2023) as broken object level authorisation, so the membership
@@ -100,7 +103,7 @@ ffmpeg reaches files and processing status only.
 
 ## Network access and transport
 
-Clients reach the gateways only through Tailscale, a private network built on WireGuard. No port is
+Clients reach the gateways only through Tailscale, a private network built on WireGuard, with one Tailscale container beside each Traefik. No port is
 open to the Internet, so an external attacker cannot see the API at all. On top of WireGuard the
 gateways serve HTTPS, with the certificate Tailscale issues for each gateway address. If the
 private network were compromised, the traffic would still be encrypted.
@@ -109,19 +112,17 @@ Traffic between nodes stays on the `cluster` Docker network, which is not publis
 `edge` network joins the gateways to the API replicas and the Garage S3 endpoints; the database, etcd
 and RabbitMQ are not on it.
 
-Rate limiting runs at Traefik per IP, since the gateway does not see users, and the API throttles logins per
-account. This limits abuse by one address or account, not a distributed attack; in a public deployment that role would belong to the protection at the edge of the
-Cloudflare Tunnel described in the architecture.
+Rate limiting at Traefik is not configured. The API throttles logins per account (database lockout) and account sign-in codes per IP and per account; those counters are in the memory of each API replica, so with three replicas the effective limit is up to three times the configured one. This limits abuse by one address or account, not a distributed attack.
 
 Tailnet access rules that separate test devices from administration machines are considered, not
-designed.
+implemented. Gateway addresses are `fieldnote-gw1.<tailnet>.ts.net` and `fieldnote-gw2.<tailnet>.ts.net`; the names go to public certificate transparency logs, which the owner of the tailnet accepted.
 
 ## Researcher and administrator authentication
 
 Researchers and administrators have accounts with a password; participants never have a password
 (their optional account, described under "Participant account", uses a recovery code, an email code
 or Google). Researcher and administrator passwords are stored as Argon2id hashes. Argon2id is the first choice of the OWASP password storage cheat sheet; it is slow on purpose
-and memory-hungry, which makes GPU attacks expensive. The design uses at least the OWASP minimum: 19 MiB of memory, 2 iterations and
+and memory-hungry, which makes GPU attacks expensive. The code uses the OWASP minimum: 19 MiB of memory, 2 iterations and
 parallelism 1.
 
 A new password has at least 12 characters and cannot be the account email. A researcher who forgot
@@ -150,7 +151,7 @@ the access token only in memory. JavaScript never reads the refresh token, which
 of a cross-site scripting flaw.
 
 Login has further protection on top of the per-IP rate limit. After repeated failures an account gets
-a progressive delay and then a temporary lockout, which defends against brute force and against
+a progressive delay (0.25 s per failure, up to 5) and then, after 5 failures, a lockout of 15 minutes kept in the database, which defends against brute force and against
 credential stuffing spread over many addresses. An unknown email and a wrong password return the same
 error message, and for an unknown email the API still runs a dummy Argon2id verification, so the
 response time does not reveal which emails have an account. Time-based one-time passwords (TOTP) are
@@ -266,7 +267,7 @@ Three methods, all free:
 
 - Recovery code (default). 16 characters in four groups from the 32-symbol alphabet, about 80 bits, shown once.
   It is stored as an Argon2id hash (the parameters of the researcher passwords) and a keyed lookup value
-  (HMAC-SHA256 with a key kept as a Compose secret), because a salted hash cannot be searched. The lookup finds one
+  (HMAC-SHA256 with a key kept in the server's env file), because a salted hash cannot be searched. The lookup finds one
   row and Argon2id verifies it; a code that matches no row still costs a dummy verification. 80 bits is far beyond
   what the per-IP and per-account limits allow an attacker to try, so the hash is a second layer for the case of a
   leaked database.
@@ -275,10 +276,10 @@ Three methods, all free:
   is sent, no paid service is used, and the demonstration reads the code in its web page. A production deployment
   replaces it with a real mail server. The code is valid 10 minutes, allows 5 attempts and is invalidated when a
   newer code is issued. A 6-digit code has about 20 bits, so security rests on the attempt limit and the expiry, not
-  on the hash. The address is stored encrypted (AES-256-GCM, key as a Compose secret) because the platform has to
+  on the hash. The address is stored encrypted (AES-256-GCM, key in the server's env file) because the platform has to
   send mail to it, with a keyed lookup value. A request gets the same answer and delay whether or not the address
   has an account, so the form cannot be used to list who has one.
-- Google (a production option, off in the course project). The app obtains a Google ID token and the API verifies
+- Google (a production option, not implemented: the API reports it as off and has no verification code yet). The design is: the app obtains a Google ID token and the API verifies
   the signature against the public keys that Google publishes (cached per its cache headers, refreshed once when
   the key identifier is unknown), the issuer, the audience (the client identifier of the app), the expiry and the
   nonce. Only the subject identifier is kept, never the name or the email address. Without the verification a
@@ -297,7 +298,7 @@ section for each linked participation. A backup made before the deletion keeps t
 | Recovery code stolen or lost | Shown once, hashed, limited attempts; a restore replaces the old tokens; a second method can be added | A stolen code gives the thief the participations until the person notices. A lost code with no other method cannot be recovered, and the researcher can issue a new invite code |
 | Email code brute force | 5 attempts, 10 minutes, one valid code, resend and hourly limits, per-IP limit | A mailbox owner is the account owner |
 | Account takeover | Method needed, audit row for each sign-in on a new phone, old token revoked | An attacker who controls the email address or the phone |
-| Google token forged or replayed | Signature, issuer, audience, expiry and nonce verified against the public keys of Google | Off in the course project, so untested there |
+| Google token forged or replayed | Design: signature, issuer, audience, expiry and nonce verified against the public keys of Google | Not implemented; the method is off |
 | Linking of participations | Link kept in its own table that researcher queries never read; consent says the platform can link; deletion at once | The platform can link them |
 | Account email leaks with the database | Encrypted, with the key outside the database | A leak of the database and the key together |
 
@@ -404,16 +405,13 @@ Four measures close the remaining gaps.
 Upload URLs also sign the maximum size and the content type, so object storage refuses oversized or
 unexpected files whatever the app does.
 
-The signature travels in the query string, so Traefik logs the `/media` route without the query
-string. By default it would log the full URL.
+The signature travels in the query string. Traefik's access log is on with its default fields and nothing removes the query string of the `/media` route, so a signed URL can appear in the gateway log for its 10 minutes of validity; this is not fixed.
 
 A download does not pass through the API, so the audit log records the issue of every URL: who asked,
 for which object and when, so a download stays attributable to a person.
 
 The media worker checks the real type of each file from its first bytes, not from its extension, and
-rejects anything that is not an image, audio or video. The dashboard shows images and plays audio and video inline. Files are served with the content type that the
-media worker checked and `X-Content-Type-Options: nosniff`, so a disguised HTML or SVG file cannot run inside the
-dashboard (stored cross-site scripting). Downloads and exports use `Content-Disposition: attachment`.
+rejects anything that is not an image, audio or video. The dashboard shows images and plays audio and video inline. Exports use `Content-Disposition: attachment`. The `X-Content-Type-Options: nosniff` header on served files is not set by the code, so the content type check by the media worker is the only barrier against a disguised HTML or SVG file.
 
 Photos from phones carry GPS coordinates in EXIF, and videos carry them in metadata atoms such as
 those of MP4. ffmpeg copies metadata by default. When the activity does not ask for location, the
@@ -430,12 +428,10 @@ section describes the guidance given to participants.
 `audit_log` records logins, exports, issued media URLs, reads of `participant_identity`, changes to
 studies, erasures and system jobs, with the type of actor: user, participant or system. Each row also
 keeps where it came from: the portal, the participant app or a system task. For team accounts it
-keeps the IP address and the browser as well, to investigate a misused account. For participants it
+keeps the IP address (the one Traefik appended to `X-Forwarded-For`) and the browser as well, in `origin_client`, `origin_ip` and `origin_browser`, to investigate a misused account. For participants it
 keeps neither: an address next to the pseudonym could identify the person, and the log is not erased
-with the participant's data (decided on 8 November 2026). The log is
-append only. The services write to it with a database role that has `INSERT` on the table and no
-`UPDATE` or `DELETE`. This protects the log against a compromised service, not against a database
-administrator, who can change anything.
+with the participant's data (decided on 8 November 2026, implemented in migration `0007`). The log is
+append only in the code. The code only inserts into it, but the services share one database user and no migration restricts the table to `INSERT`, so append-only is a property of the code and not of the database. A separate role with `INSERT` only is not implemented. Neither a compromised service nor a database administrator is stopped from changing the log.
 
 A hash chain, where each row stores the hash of the previous one, is considered but would not close
 that gap alone, because whoever can write to the table can recompute the chain. It would help only if
@@ -525,15 +521,11 @@ treats a missing row as already erased. A participant who cancels before any res
 backups from the next daily backup.
 The audit log is not filtered, because it holds only pseudonymous ids.
 
-Backups contain the identity table and photos that may still have GPS, so they are encrypted on the host
-before they leave it, with a public key whose private key is kept off the host, for example with `age`.
-A restore of the latest backup on a clean stack is scenario 9 of the [fault model](fault-model.md),
-because a backup that has never been restored is not proven.
+Backups contain the identity table and photos that may still have GPS, so the backup service encrypts them with AES-256-GCM in chunks, with a 32-byte key read from a file mounted read-only (`/run/secrets/backup.key`) that is not in the repository, the images or the environment. The key is symmetric, so whoever can read it on the host can decrypt the archives; keeping a copy of the key off the host is the owner's duty. The archive is written to a `backups` bucket in Garage, kept 7 days at most, and the service does not copy it to another machine. A restore of the latest backup on a clean stack is scenario 9 of the [fault model](fault-model.md), which passed on the development stack.
 
 ## Encryption at rest
 
-Encryption at rest is under analysis with the Security course. The analysis has to cover where the keys
-live and what happens to recovery if one is lost. Three options are on the table.
+Encryption at rest of the live data is not implemented: the volumes of the virtual machine are not encrypted and `participant_identity` is stored in plain columns. What is encrypted in the application is the email address of a participant account (AES-256-GCM) and the backups. The analysis with the Security course has to cover where the keys live and what happens to recovery if one is lost. Three options are on the table.
 
 | Option | Protects against | Does not protect against | Cost |
 |---|---|---|---|
@@ -547,35 +539,36 @@ table only, which is small and the most sensitive.
 
 ## Secrets and the public repository
 
-The repository is public. Signing keys and the passwords for the database,
-RabbitMQ and Garage are Docker Compose secrets: files on the host mounted only in the containers that
-need them. Non-secret settings go in an `.env` file, also outside the repository. The repository will hold an
-`.env.example` file without values. GitHub secret scanning with push protection is enabled, which is free for
-public repositories and blocks known secret formats before they reach the repository. Running a
-secret-detection tool before each commit is considered as an extra layer.
+The repository is public. On the server, the secrets (token signing keys, the email encryption key, the passwords for the
+database, RabbitMQ, Garage and Grafana) are generated on the virtual machine and live in `.env` and `api.env` files next to the
+Compose file; they are never copied off it. Without those files the services start with development defaults, so a deployment
+without them is insecure, and the server runs with `FIELDNOTE_ENVIRONMENT=production`. Only the backup key is a Docker Compose
+secret, a file mounted read-only into the backup container. The repository holds no values. GitHub secret scanning with push
+protection is enabled, which is free for public repositories and blocks known secret formats before they reach the repository.
+Running a secret-detection tool before each commit is considered as an extra layer.
 
 ## Service privileges and container hardening
 
-Each service has its own credentials for the database, RabbitMQ and object storage, with only the
-permissions it needs.
+The services share one database user, one RabbitMQ user and one Garage key, so the limits in the table are the limits of the
+code, not of the credentials. Separate credentials per service are not implemented.
 
-| Service | Can | Cannot |
+| Service | Can (by design) | Cannot (by code) |
 |---|---|---|
-| API | Read and write studies, entries and prompts; read identities with audit | Change or delete the audit log |
-| Media worker | Read and write files; update media status | Read identities, accounts or text entries |
-| Scheduler | Read studies, activities and availability; write prompts | Access files or identities |
+| API | Read and write studies, entries and prompts; read identities with audit | Edit or delete the audit log (no code path does it) |
+| Media worker | Read and write files; update media status | Read identities, accounts or text entries (it has no code for them) |
+| Scheduler | Read studies, activities and availability; write prompts | Access files or identities (it has no code for them) |
 
-Containers run as non-root users, drop all Linux capabilities (`cap_drop: [ALL]`) and are never
-privileged. File systems are read-only where possible. Images are pinned by digest, so a tag cannot
-change underneath the stack. Dependabot, `pip-audit` and `npm audit` report vulnerable dependencies.
+The images of the API, scheduler, media worker and backup run as a non-root user (`USER fieldnote`). The compose file does not
+drop capabilities, does not make file systems read-only and does not mark containers unprivileged explicitly (they are not
+privileged). Images are pinned to a version tag, not to a digest. Dependabot, `pip-audit` and `npm audit` are not configured.
 
 ## Web application and notifications
 
 All database queries are parameterised; user text is never concatenated into SQL. Participant text is
 shown in the dashboard as text and never as HTML, React escapes it by default, raw HTML insertion is not
-used, and the dashboard sends a restrictive Content-Security-Policy header. Access tokens travel in the
+used, and the dashboard is served without a Content-Security-Policy header, which is not implemented yet. Access tokens travel in the
 `Authorization` header, which a third-party site cannot set, so cross-site requests cannot use them, and
-the refresh cookie is `SameSite=Strict`.
+the refresh cookie is `HttpOnly`, `Secure` in production and `SameSite=Strict`, with path `/api/v1/auth`.
 
 Push and local notifications appear on the lock screen. Their text carries no participant data; it says
 only that a new activity is available. The notification of a pool invitation says only that there is a new
@@ -595,34 +588,25 @@ a university may rely on a task in the public interest instead. The legal basis,
 plan and, when needed, the impact assessment belong to the study. Fieldnote supplies the technical
 measures.
 
-A one-page data protection summary for ethics committees is planned for the final delivery. It states
+A one-page data protection summary for ethics committees is planned for the final delivery and is not written. It states
 where data is stored, who can see it, how long it is kept and how it is erased.
 
-## How the measures will be verified
+## How the measures are verified
 
-Each measure is treated as a requirement. The planned automated tests are:
-
-- A researcher cannot read or export studies they do not belong to.
-- A participant cannot read the entries of another participant.
-- A revoked token stops working on every API replica.
-- A signed URL stops working after it expires.
-- Exported photos, videos and audio carry no coordinates in their metadata when the activity does not
-  ask for location.
-- Rate limits are applied under load.
-- An export with no options contains no identity, location or media.
-
-Further checks cover the optional account (a recovery code and an email code are throttled, a restore replaces the old token, no researcher route returns an account, an email address or a device hash, a forged Google token is refused) and the check against joining twice (one test for each state, no Android ID in the database or logs). They also cover the study codes, the pool and the erasure from the app. For study codes: parallel entries do not pass the limit, a code that is off or replaced is refused like an unknown one, a waiting entry gets no plan and no request, and no export or app response shows a study code. For the erasure, a dump and a bucket copy made while an erasure is scheduled hold none of the participant's rows or objects. The rest: no researcher route returns a pool profile or
-an invitation record; a group of fewer than 5 is neither counted nor invited; a code survives a declined
-card; an erasure hides the data from queries and exports at once, runs when due and is undone by a
-cancellation; the audit rows carry the right actor types.
-
-An OWASP ZAP scan of the API and a check against OWASP ASVS level 1 are considered if time allows.
+The API has an automated test suite (`services/api/tests`) with files for authorisation, authentication and tokens, the
+optional account, study and invite codes, participation, the pool, erasure and erasure requests, export, the origin of audit
+rows and the dashboard. Each measure is treated as a requirement, and the checks planned for them were: a researcher cannot read
+or export studies they do not belong to; a participant cannot read another participant's entries; a revoked token stops working
+on every replica; a signed URL stops working after it expires; exported media carry no coordinates; an export with no options
+contains no identity, location or media; the account, device check, study code, pool and erasure rules listed in their sections.
+Not done: a test that rate limits hold under load, the OWASP ZAP scan of the API and the check against OWASP ASVS level 1, which
+remain considered if time allows. The mapping of each planned check to a named test was not verified for this update.
 
 ## Residual risks
 
 The host is a single point of failure and of security: whoever controls it holds the volumes and the
-secrets. Encrypted backups with the key off the host limit the damage, and so would application-level
-encryption of the identity table if adopted.
+secrets. Encrypted backups limit the damage if the archive leaves the host, and application-level
+encryption of the identity table would limit it further if adopted. The nodes are logical, so one host compromise reaches all three.
 
 An administrator with direct access to the database can read and change data, including the audit
 log; detecting that would need the external hash anchoring described above.
@@ -652,8 +636,27 @@ and text, and Tailscale coordinates the network; Cloudflare would join them in a
 
 A public deployment changes the threat model. The external attacker becomes highly plausible, and rate
 limits, input validation and protection against cross-site scripting and injection become the first
-line. This design does not test that case. Incident response, including the 72-hour notification
+line. The platform is reached only on the tailnet and this case is not tested or hardened. Incident response, including the 72-hour notification
 duty of Article 33, is outside the scope of the project.
+
+## Implementation status
+
+Implemented and in the code: Argon2id for researcher, administrator and recovery-code hashes; access tokens of 15 minutes and rotating
+refresh tokens with reuse detection and family revocation; login lockout and progressive delay, with the same answer for unknown
+emails; TOTP for administrators with a confirmation step; the roles administrator and researcher and the study roles principal
+investigator, co-investigator and member, checked on every request; hashed device tokens, personal invite codes and
+study codes with approval and limits; the optional participant account with a recovery code and an email code (address
+encrypted); the device check against joining twice; the volunteer pool with the minimum group of 5; the audit log with the origin
+of each row (address and browser only for team accounts); erasure requested in the app with the 7-day wait, erasure requests
+passed on by the team, and a job that settles the due erasures; encrypted daily backups that leave out pending erasures;
+HTTPS on both gateways with Tailscale certificates and no port open to the Internet; secrets in env files on the server.
+
+Not implemented: rate limiting at the gateways; a per-IP attempt limit on the invite code and study code lookups, and a shared
+store for the API's counters (they are per replica); Google sign-in; an `INSERT`-only database role for the audit log and separate
+credentials per service; `cap_drop`, read-only file systems and image digests; the Content-Security-Policy and `nosniff`
+headers; removing the query string from the `/media` log; encryption of the volumes and of `participant_identity`; a copy of the
+backups on another machine by the service itself; Dependabot and dependency audits; the data protection summary. TOTP for
+researchers is not part of the design, and the security design still waits for validation by the Information Security lecturers.
 
 ## Related documents
 
