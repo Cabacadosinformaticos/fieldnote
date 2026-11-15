@@ -27,8 +27,9 @@
 <text x="650" y="190.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">tailscale-1 + traefik-1</text>
 <rect x="525.0" y="297.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="650" y="320.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">api-1</text>
-<rect x="525.0" y="377.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
-<text x="650" y="400.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">scheduler-1 (leader)</text>
+<rect x="525.0" y="372.0" width="250" height="56" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="650" y="391.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">scheduler-1 (leader)</text>
+<text x="650" y="408.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">outbox-relay-1</text>
 <rect x="525.0" y="462.0" width="250" height="56" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="650" y="481.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">patroni-1</text>
 <text x="650" y="498.5" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">PostgreSQL primary</text>
@@ -38,6 +39,10 @@
 <text x="650" y="690.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">rabbitmq-1</text>
 <rect x="525.0" y="757.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="650" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">garage-1</text>
+<rect x="466.0" y="837.0" width="180" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="556" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">backup + erasure job</text>
+<rect x="654.0" y="837.0" width="180" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="744" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">mailpit (mail server)</text>
 <rect x="945.0" y="167.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="1070" y="190.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">tailscale-2 + traefik-2</text>
 <rect x="945.0" y="297.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
@@ -54,6 +59,8 @@
 <text x="1070" y="690.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">rabbitmq-2</text>
 <rect x="945.0" y="757.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="1070" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">garage-2</text>
+<rect x="945.0" y="837.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1070" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">outbox-relay-2</text>
 <rect x="1365.0" y="297.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="1490" y="320.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">api-3</text>
 <rect x="1365.0" y="377.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
@@ -67,10 +74,8 @@
 <text x="1490" y="690.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">rabbitmq-3</text>
 <rect x="1365.0" y="757.0" width="250" height="46" rx="6" fill="#E8F0FF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="1490" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">garage-3</text>
-<rect x="1306.0" y="837.0" width="180" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
-<text x="1396" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">prometheus + grafana</text>
-<rect x="1494.0" y="837.0" width="180" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
-<text x="1584" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">mailpit (mail server)</text>
+<rect x="1365.0" y="837.0" width="250" height="46" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
+<text x="1490" y="860.0" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" dominant-baseline="middle" fill="#26324A">prometheus + grafana</text>
 <path d="M 220 230 L 300 230 L 300 196 L 523 196" fill="none" stroke="#3B4A6B" stroke-width="1.6" marker-end="url(#arrow)"/>
 <path d="M 220 215 L 285 215 L 285 158 L 920 158 L 920 182 L 943 182" fill="none" stroke="#3B4A6B" stroke-width="1.6" stroke-dasharray="7,5" marker-end="url(#arrow)"/>
 <line x1="650" y1="262" x2="1490" y2="262" stroke="#3B4A6B" stroke-width="1.6"/>
@@ -111,6 +116,6 @@
 <rect x="300" y="984" width="22" height="14" rx="6" fill="#FFFFFF" stroke="#3B4A6B" stroke-width="1.5"/>
 <text x="330" y="991.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">stateless service</text>
 <text x="760" y="953.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Networks: "edge" joins the two gateways (Tailscale and Traefik), the API replicas and the Garage S3 endpoints (traffic from the clients).</text>
-<text x="760" y="972.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">"cluster" joins every API, scheduler, worker and cluster member of the three nodes, and the mail server for the API (traffic between nodes).</text>
+<text x="760" y="972.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">"cluster" joins every API, relay, scheduler, worker and cluster member of the three nodes, and the mail server (traffic between nodes).</text>
 <text x="760" y="997.0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal" text-anchor="start" dominant-baseline="middle" fill="#26324A">Failure unit: one logical node. Stopping its containers simulates a machine loss; cutting them from "cluster", a partition.</text>
 </svg>
