@@ -2,9 +2,9 @@
 
 The script only talks to the API at ``--base-url`` (plus ``docker compose exec`` to derive a
 TOTP code for the administrator, exactly as ``infra/deploy/smoke.sh`` does). It creates the
-researchers, the study, its activities and questions, the participants, their availability and
-their entries spread over the last days. Running it again finds the study by title and stops
-without creating a second one.
+researchers, the main study, a finished study and a study still in preparation, their
+activities, questions, participants, availability and entries spread over the last days.
+Running it again finds the main study by title and stops without creating a second one.
 
 Run with:
 
@@ -64,6 +64,30 @@ STUDY_TITLE = "Viver o Jardim da Estrela"
 STUDY_DESCRIPTION = (
     "Como é que os moradores usam o Jardim da Estrela ao longo do dia, durante duas semanas."
 )
+# The main study keeps the demo on day 13 of 14. The other two let the presenter show a study
+# that already finished and one that is still being prepared.
+STUDY_B_TITLE = "Rotinas de estudo em época de exames"
+STUDY_B_DESCRIPTION = (
+    "Como é que os estudantes organizam o estudo e o descanso durante a época de exames."
+)
+STUDY_B_DAYS = 21
+STUDY_B_ENDED_DAYS_AGO = 3
+STUDY_B_PARTICIPANTS = 10
+STUDY_B_FREE_ENTRY_LIMIT = STUDY_B_DAYS + 5
+STUDY_C_TITLE = "Caminhos casa-escola"
+STUDY_C_DESCRIPTION = (
+    "Os percursos que as famílias fazem entre casa e a escola, contados em vídeo, áudio e "
+    "fotografia ao longo de duas semanas."
+)
+STUDY_C_STARTS_IN_DAYS = 5
+STUDY_C_DAYS = 14
+STUDY_C_CONSENT = (
+    "Este estudo acompanha os percursos entre casa e a escola durante duas semanas. "
+    "Os participantes gravam vídeos e áudios e tiram fotografias do caminho. "
+    "Todos os dados são guardados de forma segura, só a equipa de investigação lhes acede e "
+    "podem ser apagados a qualquer momento, a pedido do participante. "
+    "A participação é voluntária e pode ser interrompida sem qualquer consequência."
+)
 TIMEZONE = "Europe/Lisbon"
 
 # Windows normally has no IANA database, and the project may install only httpx and Pillow.
@@ -116,6 +140,16 @@ RESEARCHERS_NAMES = {
     CO_INVESTIGATOR: "Duarte Lopes",
     MEMBER: "Rita Ferraz",
 }
+
+# Teams of the two extra studies. The main study keeps the RESEARCHERS tuple above.
+STUDY_B_TEAM = (
+    (CO_INVESTIGATOR, "principal_investigator"),
+    (PRINCIPAL, "co_investigator"),
+)
+STUDY_C_TEAM = (
+    (MEMBER, "principal_investigator"),
+    (PRINCIPAL, "co_investigator"),
+)
 
 QUESTIONS = (
     {
@@ -192,6 +226,123 @@ ACTIVITIES = (
     },
 )
 
+# The finished study collects text and one scale, no media, so a reset stays fast.
+STUDY_B_ACTIVITIES = (
+    {
+        "key": "B1",
+        "title": "O dia de estudo",
+        "instructions": (
+            "Conte como correu o dia de estudo: o que conseguiu fazer, o que ficou por fazer "
+            "e como se organizou."
+        ),
+        "entry_types": ["text"],
+        "options": None,
+        "prompts_per_day": 1,
+        "window_start": "09:00:00",
+        "window_end": "22:00:00",
+        "min_gap_minutes": 30,
+        "capture_location": False,
+        "allow_free_entries": True,
+        "max_free_entries_per_day": 1,
+        "expected_minutes": 2,
+    },
+    {
+        "key": "B2",
+        "title": "Cansaço ao fim do dia",
+        "instructions": "Escolha a cara que mostra como se sente ao fim de um dia de estudo.",
+        "entry_types": ["scale"],
+        "options": {
+            "scale_type": "faces",
+            "points": 5,
+            "start_label": "Nada cansado",
+            "middle_label": "Assim-assim",
+            "end_label": "Muito cansado",
+        },
+        "prompts_per_day": 1,
+        "window_start": "18:00:00",
+        "window_end": "23:59:00",
+        "min_gap_minutes": 30,
+        "capture_location": False,
+        "allow_free_entries": True,
+        "max_free_entries_per_day": 1,
+        "expected_minutes": 1,
+    },
+)
+
+# The study in preparation covers video, audio, photo and a scale, with no participants yet.
+STUDY_C_ACTIVITIES = (
+    {
+        "key": "C1",
+        "title": "O caminho em vídeo",
+        "instructions": (
+            "Grave até um minuto do percurso entre casa e a escola, do princípio ao fim."
+        ),
+        "entry_types": ["video"],
+        "options": None,
+        "prompts_per_day": 1,
+        "window_start": "07:30:00",
+        "window_end": "09:30:00",
+        "min_gap_minutes": 30,
+        "capture_location": True,
+        "allow_free_entries": False,
+        "max_free_entries_per_day": None,
+        "expected_minutes": 2,
+    },
+    {
+        "key": "C2",
+        "title": "O que se ouve no caminho",
+        "instructions": (
+            "Grave até um minuto dos sons do percurso e diga o que mais lhe chamou a atenção."
+        ),
+        "entry_types": ["audio"],
+        "options": None,
+        "prompts_per_day": 1,
+        "window_start": "17:00:00",
+        "window_end": "20:00:00",
+        "min_gap_minutes": 30,
+        "capture_location": False,
+        "allow_free_entries": False,
+        "max_free_entries_per_day": None,
+        "expected_minutes": 1,
+    },
+    {
+        "key": "C3",
+        "title": "Um ponto do percurso",
+        "instructions": "Fotografe um ponto do caminho que gostaria de mostrar à equipa.",
+        "entry_types": ["photo"],
+        "options": None,
+        "prompts_per_day": 1,
+        "window_start": "12:00:00",
+        "window_end": "14:00:00",
+        "min_gap_minutes": 30,
+        "capture_location": True,
+        "allow_free_entries": False,
+        "max_free_entries_per_day": None,
+        "expected_minutes": 1,
+    },
+    {
+        "key": "C4",
+        "title": "Como foi o percurso hoje?",
+        "instructions": "Escolha a cara que mostra como foi o percurso entre casa e a escola hoje.",
+        "entry_types": ["scale"],
+        "options": {
+            "scale_type": "faces",
+            "points": 5,
+            "start_label": "Muito difícil",
+            "middle_label": "Assim-assim",
+            "end_label": "Muito fácil",
+        },
+        "prompts_per_day": 1,
+        "window_start": "19:00:00",
+        "window_end": "23:00:00",
+        "min_gap_minutes": 30,
+        "capture_location": False,
+        "allow_free_entries": False,
+        "max_free_entries_per_day": None,
+        "expected_minutes": 1,
+    },
+)
+
 # Each entry is (start minute, end minute, ISO weekdays). Weekdays use 1 = Monday, 7 = Sunday.
 AVAILABILITY_SPECS = (
     (8 * 60, 21 * 60, [1, 2, 3, 4, 5, 6, 7]),
@@ -249,6 +400,19 @@ TEXTS = (
     "Vim ler as notícias no telemóvel e acabei a olhar para os patos.",
     "Hoje apeteceu-me vir ouvir os pássaros antes de começar o dia.",
     "Vim com uma amiga que não conhecia o jardim e mostrei-lhe o lago.",
+)
+
+STUDY_B_TEXTS = (
+    "Estudei matemática toda a manhã e fiz uma pausa depois do almoço.",
+    "Fui à biblioteca com dois colegas e revimos a matéria juntos.",
+    "Hoje rendeu menos: estava cansado e acabei por estudar só uma hora.",
+    "Fiz resumos de história e sublinhei as partes mais importantes.",
+    "Estudei em casa, com música baixa, e consegui acabar o capítulo.",
+    "Dividi o dia entre revisões e exercícios e ainda sobrou tempo para descansar.",
+    "Fui à escola tirar dúvidas e depois estudei na sala de estudo.",
+    "Passei a tarde a treinar exercícios de química, com pequenas pausas.",
+    "Hoje estudei de manhã e à tarde fui caminhar para desanuviar.",
+    "Organizei o plano da semana e revi as notas das aulas anteriores.",
 )
 
 PHOTO_NOTES = (
@@ -552,9 +716,7 @@ def _compose_file(target: str) -> Path:
     relative = COMPOSE_FILES[target]
     path = _repo_root() / relative
     if not path.is_file():
-        raise SeedError(
-            f"The TOTP code needs docker compose: {relative.as_posix()} was not found."
-        )
+        raise SeedError(f"The TOTP code needs docker compose: {relative.as_posix()} was not found.")
     return path
 
 
@@ -687,25 +849,32 @@ def _account_passwords(api: Api, mailpit_url: str) -> dict[str, str]:
     return passwords
 
 
-def _create_study(api: Api, starts_on: str, ends_on: str, researchers: dict[str, str]) -> str:
-    study = api.admin(
-        "POST",
-        "/studies",
-        expected=(201,),
-        json={
-            "title": STUDY_TITLE,
-            "description": STUDY_DESCRIPTION,
-            "starts_on": starts_on,
-            "ends_on": ends_on,
-            "timezone": TIMEZONE,
-            "max_prompts_per_day": 4,
-            "max_prompts_per_slot": 2,
-            "schedule_style": "varied",
-        },
-    )
+def _create_study(
+    api: Api,
+    title: str,
+    description: str,
+    starts_on: str,
+    ends_on: str,
+    team: tuple[tuple[str, str], ...],
+    *,
+    consent_text: str | None = None,
+) -> str:
+    payload: dict[str, Any] = {
+        "title": title,
+        "description": description,
+        "starts_on": starts_on,
+        "ends_on": ends_on,
+        "timezone": TIMEZONE,
+        "max_prompts_per_day": 4,
+        "max_prompts_per_slot": 2,
+        "schedule_style": "varied",
+    }
+    if consent_text is not None:
+        payload["consent_text"] = consent_text
+    study = api.admin("POST", "/studies", expected=(201,), json=payload)
     study_id = study["id"]
     accounts = {account["email"]: account for account in api.admin("GET", "/admin/accounts")}
-    for email, role in RESEARCHERS:
+    for email, role in team:
         api.admin(
             "POST",
             f"/studies/{study_id}/members",
@@ -732,11 +901,18 @@ def _create_questions(api: Api, study_id: str) -> list[dict[str, Any]]:
     return created
 
 
-def _create_activities(api: Api, study_id: str) -> dict[str, str]:
+def _create_activities(
+    api: Api,
+    study_id: str,
+    activities: tuple[dict[str, Any], ...] = ACTIVITIES,
+    *,
+    free_entry_limit: int = SEED_FREE_ENTRY_LIMIT,
+) -> dict[str, str]:
     ids: dict[str, str] = {}
-    for activity in ACTIVITIES:
+    for activity in activities:
         payload = {key: value for key, value in activity.items() if key != "key"}
-        payload["max_free_entries_per_day"] = SEED_FREE_ENTRY_LIMIT
+        if activity["allow_free_entries"]:
+            payload["max_free_entries_per_day"] = free_entry_limit
         created = api.admin(
             "POST",
             f"/studies/{study_id}/activities",
@@ -747,8 +923,15 @@ def _create_activities(api: Api, study_id: str) -> dict[str, str]:
     return ids
 
 
-def _restore_free_entry_limits(api: Api, study_id: str, activity_ids: dict[str, str]) -> None:
-    for activity in ACTIVITIES:
+def _restore_free_entry_limits(
+    api: Api,
+    study_id: str,
+    activity_ids: dict[str, str],
+    activities: tuple[dict[str, Any], ...] = ACTIVITIES,
+) -> None:
+    for activity in activities:
+        if not activity["allow_free_entries"]:
+            continue
         api.admin(
             "PATCH",
             f"/studies/{study_id}/activities/{activity_ids[activity['key']]}",
@@ -924,21 +1107,42 @@ def _profile_for(index: int) -> float:
     return (0.90, 0.90, 0.90, 0.90, 0.90, 0.62, 0.35)[index % 7]
 
 
-def _declined_participant(
-    api: Api, study_id: str, questions: list[dict[str, Any]], rng: random.Random, ends_on: str
-) -> None:
-    code = api.admin(
+def _create_study_code(
+    api: Api,
+    study_id: str,
+    *,
+    name: str,
+    end_date: str,
+    max_uses: int,
+    max_per_hour: int,
+    requires_approval: bool,
+) -> dict[str, Any]:
+    return api.admin(
         "POST",
         f"/studies/{study_id}/invite-codes",
         expected=(201,),
         json={
-            "name": "Cartaz no quiosque do jardim",
-            "end_date": ends_on,
-            "max_uses": 10,
-            "max_per_hour": 5,
-            "requires_approval": True,
+            "name": name,
+            "end_date": end_date,
+            "max_uses": max_uses,
+            "max_per_hour": max_per_hour,
+            "requires_approval": requires_approval,
             "requires_account": False,
         },
+    )
+
+
+def _declined_participant(
+    api: Api, study_id: str, questions: list[dict[str, Any]], rng: random.Random, ends_on: str
+) -> str:
+    code = _create_study_code(
+        api,
+        study_id,
+        name="Cartaz no quiosque do jardim",
+        end_date=ends_on,
+        max_uses=10,
+        max_per_hour=5,
+        requires_approval=True,
     )
     answers = _answers(rng, questions)
     accepted = _join(api, code["code"], f"demo-declined-{rng.getrandbits(48):012x}", answers, rng)
@@ -957,19 +1161,19 @@ def _declined_participant(
         expected=(201,),
     )
     print("  one participant entered by the poster code and was declined")
+    return code["code"]
 
 
 def _pick_time(
     rng: random.Random,
     local_date: Any,
     availability: tuple[int, int, list[int]],
-    activity_key: str,
+    activity: dict[str, Any],
     now_local: datetime,
 ) -> datetime | None:
     start, end, weekdays = availability
     if local_date.isoweekday() not in weekdays:
         return None
-    activity = next(item for item in ACTIVITIES if item["key"] == activity_key)
     window_start = _minutes(activity["window_start"])
     window_end = _minutes(activity["window_end"])
     low = max(start, window_start)
@@ -1158,9 +1362,14 @@ def _submit_photo(
 
 
 def _submit_text(
-    api: Api, participant: Participant, activity_id: str, recorded_at: datetime, rng: random.Random
+    api: Api,
+    participant: Participant,
+    activity_id: str,
+    recorded_at: datetime,
+    rng: random.Random,
+    texts: tuple[str, ...] = TEXTS,
 ) -> None:
-    body = rng.choice(TEXTS)
+    body = rng.choice(texts)
     api.device(
         "POST",
         "/entries",
@@ -1177,16 +1386,25 @@ def _submit_text(
 
 
 def _submit_scale(
-    api: Api, participant: Participant, activity_id: str, recorded_at: datetime, rng: random.Random
+    api: Api,
+    participant: Participant,
+    activity_id: str,
+    recorded_at: datetime,
+    rng: random.Random,
+    options: dict[str, Any] | None = None,
 ) -> None:
     value = rng.choices(range(1, 6), weights=SCALE_WEIGHTS, k=1)[0]
-    shown = {
-        "scale_type": "faces",
-        "points": 5,
-        "start_label": "Muito mal",
-        "middle_label": "Assim-assim",
-        "end_label": "Muito bem",
-    }
+    shown = (
+        dict(options)
+        if options
+        else {
+            "scale_type": "faces",
+            "points": 5,
+            "start_label": "Muito mal",
+            "middle_label": "Assim-assim",
+            "end_label": "Muito bem",
+        }
+    )
     api.device(
         "POST",
         "/entries",
@@ -1203,6 +1421,29 @@ def _submit_scale(
     )
 
 
+def _submit_for_activity(
+    api: Api,
+    participant: Participant,
+    activity: dict[str, Any],
+    activity_id: str,
+    recorded_at: datetime,
+    rng: random.Random,
+    index: int,
+    texts: tuple[str, ...] = TEXTS,
+) -> None:
+    entry_types = activity["entry_types"]
+    if "photo" in entry_types:
+        _submit_photo(api, participant, activity_id, recorded_at, rng, index)
+    elif "text" in entry_types:
+        _submit_text(api, participant, activity_id, recorded_at, rng, texts)
+    elif "scale" in entry_types:
+        _submit_scale(api, participant, activity_id, recorded_at, rng, activity.get("options"))
+    else:
+        raise SeedError(
+            f"The activity {activity['key']!r} has no entry kind the seed knows how to post."
+        )
+
+
 def _seed_entries(
     api: Api,
     participants: list[Participant],
@@ -1210,6 +1451,8 @@ def _seed_entries(
     first_day: date,
     last_day: date,
     seed: int,
+    activities: tuple[dict[str, Any], ...] = ACTIVITIES,
+    texts: tuple[str, ...] = TEXTS,
 ) -> None:
     now_local = _now_lisbon()
     days = (last_day - first_day).days + 1
@@ -1218,21 +1461,24 @@ def _seed_entries(
         count = 0
         for offset in range(days):
             local_date = first_day + timedelta(days=offset)
-            for activity in ACTIVITIES:
+            for activity in activities:
                 if rng.random() > participant.profile:
                     continue
                 recorded_at = _pick_time(
-                    rng, local_date, participant.availability, activity["key"], now_local
+                    rng, local_date, participant.availability, activity, now_local
                 )
                 if recorded_at is None:
                     continue
-                activity_id = activity_ids[activity["key"]]
-                if activity["key"] == "A1":
-                    _submit_photo(api, participant, activity_id, recorded_at, rng, index)
-                elif activity["key"] == "A2":
-                    _submit_text(api, participant, activity_id, recorded_at, rng)
-                else:
-                    _submit_scale(api, participant, activity_id, recorded_at, rng)
+                _submit_for_activity(
+                    api,
+                    participant,
+                    activity,
+                    activity_ids[activity["key"]],
+                    recorded_at,
+                    rng,
+                    index,
+                    texts,
+                )
                 count += 1
         participant.entries = count
         print(f"  {participant.alias}: {count} entries")
@@ -1424,14 +1670,14 @@ def _database_label(url: str) -> str:
     return f"{parts.netloc.rsplit('@', 1)[-1]}{parts.path}"
 
 
-def _load_history(connection: psycopg.Connection) -> HistoryContext:
+def _load_history(connection: psycopg.Connection, title: str = STUDY_TITLE) -> HistoryContext:
     study = connection.execute(
         "SELECT id, starts_on, ends_on, timezone, max_prompts_per_day, max_prompts_per_slot "
         "FROM study WHERE title = %s ORDER BY starts_on, id LIMIT 1",
-        (STUDY_TITLE,),
+        (title,),
     ).fetchone()
     if study is None:
-        raise SeedError(f"The study {STUDY_TITLE!r} was not found: run the seed step first.")
+        raise SeedError(f"The study {title!r} was not found: run the seed step first.")
     if study["starts_on"] is None or study["ends_on"] is None:
         raise SeedError("The study has no start and end dates yet.")
 
@@ -1702,8 +1948,8 @@ def _plan_day(
     return plans
 
 
-def _write_history(connection: psycopg.Connection, seed: int) -> None:
-    context = _load_history(connection)
+def _write_history(connection: psycopg.Connection, seed: int, title: str = STUDY_TITLE) -> None:
+    context = _load_history(connection, title)
     slot_usage: dict[tuple[date, int], int] = Counter(context.existing_slots)
     plans: list[PlannedPrompt] = []
     day = context.first_day
@@ -1854,13 +2100,26 @@ def _write_history(connection: psycopg.Connection, seed: int) -> None:
     print(f"  past entries still free: {still_free}")
 
 
-def _run_history(seed: int, target: str) -> int:
+def _study_exists(connection: psycopg.Connection, title: str) -> bool:
+    row = connection.execute("SELECT 1 FROM study WHERE title = %s LIMIT 1", (title,)).fetchone()
+    return row is not None
+
+
+def _run_history(
+    seed: int, target: str, titles: tuple[str, ...] = (STUDY_TITLE, STUDY_B_TITLE)
+) -> int:
     url = _database_url(target)
     label = _database_label(url)
     print(f"Writing past prompts directly to the {DATABASE_WORDS[target]} database at {label}")
     try:
         with psycopg.connect(url, connect_timeout=5, row_factory=dict_row) as connection:
-            _write_history(connection, seed)
+            for title in titles:
+                if title != STUDY_TITLE and not _study_exists(connection, title):
+                    print(f"  {title}: not found, skipped")
+                    continue
+                if title != STUDY_TITLE:
+                    print(f"History of {title}")
+                _write_history(connection, seed, title)
     except psycopg.Error as exc:
         raise SeedError(f"Cannot write to the database at {label}: {exc}") from exc
     return 0
@@ -1961,14 +2220,12 @@ def _clean_audit_log(confirmed: bool, target: str) -> None:
                 "VALUES ('system'::audit_actor_type, 'audit_log_cleared', %s, 'automatic_task')",
                 (Jsonb({"removed": removed, "method": method.lower()}),),
             )
-            print(
-                f"  role {role}: {method} removed {removed} rows and wrote audit_log_cleared"
-            )
+            print(f"  role {role}: {method} removed {removed} rows and wrote audit_log_cleared")
     except psycopg.Error as exc:
         raise SeedError(f"Cannot clear the audit log at {label}: {exc}") from exc
 
 
-def _plan_today(target: str) -> None:
+def _plan_today(target: str, title: str = STUDY_TITLE) -> None:
     """Plan today through the scheduler's own service, in its container.
 
     The service has no HTTP trigger, and the leader only plans on startup, at the planning
@@ -1996,12 +2253,102 @@ def _plan_today(target: str) -> None:
         "print('no plan' if plan is None else (\n"
         "    f'planned={plan.planned_count} unplanned={plan.unplanned_count}'\n"
         "))\n",
-        STUDY_TITLE,
+        title,
         today,
         target=target,
         service=SCHEDULER_SERVICES[target],
     )
     print(f"  scheduler: {output}")
+
+
+def _create_finished_study(api: Api, seed: int) -> str:
+    """The study that ran for three weeks and is closed when the seed finishes."""
+    today = _now_lisbon().date()
+    ends_on = today - timedelta(days=STUDY_B_ENDED_DAYS_AGO)
+    starts_on = ends_on - timedelta(days=STUDY_B_DAYS - 1)
+    print(f"Creating the finished study ({starts_on.isoformat()} to {ends_on.isoformat()})")
+    study_id = _create_study(
+        api,
+        STUDY_B_TITLE,
+        STUDY_B_DESCRIPTION,
+        starts_on.isoformat(),
+        ends_on.isoformat(),
+        STUDY_B_TEAM,
+    )
+    activity_ids = _create_activities(
+        api,
+        study_id,
+        STUDY_B_ACTIVITIES,
+        free_entry_limit=STUDY_B_FREE_ENTRY_LIMIT,
+    )
+    api.admin("POST", f"/studies/{study_id}/start", json={})
+    print(f"  study {study_id} is running")
+
+    print(f"Creating {STUDY_B_PARTICIPANTS} participants with personal codes")
+    created: list[tuple[dict[str, Any], str, int]] = []
+    for index in range(STUDY_B_PARTICIPANTS):
+        record = _personal_code(api, study_id, index)
+        created.append((record, record["invite_code"]["code"], index))
+
+    print(f"Joining {STUDY_B_PARTICIPANTS} participants as phones")
+    joined = _join_participants(api, created, [], random.Random(seed + 20))
+    print(f"Submitting entries from {starts_on.isoformat()} to {ends_on.isoformat()}")
+    _seed_entries(
+        api,
+        joined,
+        activity_ids,
+        starts_on,
+        ends_on,
+        seed + 20,
+        STUDY_B_ACTIVITIES,
+        STUDY_B_TEXTS,
+    )
+    _restore_free_entry_limits(api, study_id, activity_ids, STUDY_B_ACTIVITIES)
+    api.admin("POST", f"/studies/{study_id}/close", json={})
+    print(f"  study {study_id} is closed")
+    return study_id
+
+
+def _create_preparation_study(api: Api) -> str:
+    """The draft that starts in a few days, with activities and a poster code but no people."""
+    today = _now_lisbon().date()
+    starts_on = today + timedelta(days=STUDY_C_STARTS_IN_DAYS)
+    ends_on = starts_on + timedelta(days=STUDY_C_DAYS - 1)
+    print(f"Creating the study in preparation ({starts_on.isoformat()} to {ends_on.isoformat()})")
+    study_id = _create_study(
+        api,
+        STUDY_C_TITLE,
+        STUDY_C_DESCRIPTION,
+        starts_on.isoformat(),
+        ends_on.isoformat(),
+        STUDY_C_TEAM,
+        consent_text=STUDY_C_CONSENT,
+    )
+    _create_activities(api, study_id, STUDY_C_ACTIVITIES)
+    code = _create_study_code(
+        api,
+        study_id,
+        name="Cartaz da escola",
+        end_date=ends_on.isoformat(),
+        max_uses=200,
+        max_per_hour=20,
+        requires_approval=True,
+    )
+    print(f"  study {study_id} is a draft, with poster code {code['code']}")
+    return study_id
+
+
+def _study_statuses(api: Api) -> dict[str, str]:
+    return {study["title"]: study["status"] for study in api.admin("GET", "/admin/studies")}
+
+
+def _print_studies(statuses: dict[str, str], poster_code: str | None) -> None:
+    print()
+    print("Demonstration studies")
+    for title in (STUDY_TITLE, STUDY_B_TITLE, STUDY_C_TITLE):
+        print(f"  {title} ({statuses.get(title, 'missing')})")
+        if title == STUDY_TITLE and poster_code:
+            print(f"    Poster code: {poster_code}")
 
 
 def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) -> int:
@@ -2024,7 +2371,14 @@ def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) 
 
         starts_on, ends_on = _study_dates(arguments.end_in_days)
         print(f"Creating the study ({starts_on.isoformat()} to {ends_on.isoformat()})")
-        study_id = _create_study(api, starts_on.isoformat(), ends_on.isoformat(), passwords)
+        study_id = _create_study(
+            api,
+            STUDY_TITLE,
+            STUDY_DESCRIPTION,
+            starts_on.isoformat(),
+            ends_on.isoformat(),
+            RESEARCHERS,
+        )
         questions = _create_questions(api, study_id)
         activity_ids = _create_activities(api, study_id)
         api.admin("POST", f"/studies/{study_id}/start", json={})
@@ -2043,7 +2397,7 @@ def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) 
             api, created[:joined_count], questions, random.Random(arguments.seed)
         )
         rng = random.Random(arguments.seed + 1)
-        _declined_participant(api, study_id, questions, rng, ends_on.isoformat())
+        poster_code = _declined_participant(api, study_id, questions, rng, ends_on.isoformat())
 
         last_entry_day = _now_lisbon().date()
         print(f"Submitting entries from {starts_on.isoformat()} to {last_entry_day.isoformat()}")
@@ -2056,8 +2410,12 @@ def _run_seed(arguments: argparse.Namespace, password: str, dashboard_url: str) 
         print("Finishing the demonstration states")
         _finish_participants(api, study_id, joined)
 
+        _create_finished_study(api, arguments.seed)
+        _create_preparation_study(api)
+
         entries = _list_entries(api, study_id)
         _print_summary(api, study_id, entries, passwords, dashboard_url)
+        _print_studies(_study_statuses(api), poster_code)
         _write_dev_logins(passwords, api.admin_email, logins_path)
         return 0
     finally:

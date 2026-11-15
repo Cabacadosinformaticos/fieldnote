@@ -9,6 +9,14 @@ to create a prompt in the past; it makes the adherence charts show data instead 
 matrix. The `reset` step does all of it in one command after deleting the studies of earlier
 runs, and asks the scheduler to plan today.
 
+Each run creates three studies instead of one: the main running study above, a finished
+21-day study (“Rotinas de estudo em época de exames”, principal Duarte Lopes) closed three
+days before today with 10 participants and text and scale entries, and a draft study in
+preparation (“Caminhos casa-escola”, principal Rita Ferraz) that starts in five days with
+activities for video, audio, photo and a scale, a consent text and a poster code but no
+participants. The `history` step fills the past prompts of the main and finished studies, and
+the scheduler only plans today for the running one.
+
 All the data is invented. There is no real person behind the names, e-mail addresses, answers
 or photographs. The photos are drawn locally (sky, trees, a bench, a pond, flowers) with no
 people and no text.
