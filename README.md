@@ -36,9 +36,10 @@ Distribuída para Mobile Ethnography e Diary Studies").
 Working prototype for the second delivery. The API, the scheduler, the media worker, the
 researcher dashboard and the participant app run against the development stack and against the
 three-node cluster, which is deployed on a server and reached through two Tailscale gateways with
-HTTPS. Ten of the eleven failure scenarios of the fault model pass (nine on the server, plus the
-restore of the encrypted backup on the development stack); the eleventh, a phone in airplane mode,
-still has to be run with a phone. The scheduler is evaluated with a reproducible suite
+HTTPS. All eleven failure scenarios of the fault model pass: nine on the server, each run four times
+(36 of 36), the restore of the encrypted backup on the development stack, and the phone in
+airplane mode on the Android emulator (a run on a physical phone is planned for the final
+delivery). The scheduler is evaluated with a reproducible suite
 (`services/scheduler/evaluation/results.md`). Push notifications through Expo still need the
 Firebase key in the Expo project, and the camera and microphone are tested only on the emulator.
 The app is built for Android only. Rate limiting and the cleanup of abandoned uploads are not
@@ -144,14 +145,16 @@ approved by the Artificial Intelligence lecturer on 1 October 2026.
 Security measures are in [security](Fieldnote/04_Documentacao_Tecnica/security.md), and the
 failures, with how each is detected and recovered, in the [fault model](Fieldnote/04_Documentacao_Tecnica/fault-model.md).
 
-Measured on the server with the scripts in `infra/chaos/`:
+Measured on the server with the scripts in `infra/chaos/`, as the mean of four runs. The raw logs of the
+first run are in `infra/chaos/results/20261109-2016/`; `python infra/chaos/summarize.py <logs folder> --md`
+turns a folder of logs into the mean, min and max table.
 
 | Failure | Result |
 |---|---|
-| Database leader killed | New leader in 23.8 s |
-| Gateway 1 stopped under traffic from 10 simulated phones | Clients switch to gateway 2; 0 of 120 entries lost |
-| Storage node killed during photo uploads | 0 of 45 entries lost |
-| Active scheduler killed | Standby takes over in 15.2 s, no duplicate plan |
+| Database leader killed | New leader in 27.2 s (23.8 to 31.4 s) |
+| Gateway 1 stopped under traffic from 10 simulated phones | Clients switch to gateway 2; 0 of 480 entries lost |
+| Storage node killed during photo uploads | 0 of 119 entries lost |
+| Active scheduler killed | Standby takes over in 13.5 s, no duplicate plan |
 
 On generated studies of 10, 50 and 100 participants the scheduler breaks no constraint, while
 fixed-hour prompting at 100 participants puts 173 prompts above the slot cap and breaks 246

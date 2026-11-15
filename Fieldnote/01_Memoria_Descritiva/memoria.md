@@ -1,7 +1,7 @@
 # Descriptive report: Fieldnote
 
 Version 2, 11 November 2026 (second delivery). The platform is built and runs as a working prototype;
-this version describes it as built. The phone fault test (FS8) is the only scenario still to run.
+this version describes it as built. The phone fault test (FS8) was run on the Android emulator; a run on a physical phone is planned for the final delivery.
 
 ## Identification
 
@@ -35,7 +35,7 @@ Fieldnote is a distributed platform for mobile ethnography and diary studies. Pa
 
 The platform is built and runs. Researchers use a web dashboard to create studies and activities, invite participants with personal codes, poster codes or a volunteer pool, follow entries and adherence in real time, tag entries and export the data. Participants use an Android app to join a study by QR code or typed code, accept the consent, receive prompts and record text, photo, video, audio, scale or choice entries with date, time and, when the study asks for it, location. The app keeps entries in a local queue while offline and resends them without duplicates. Administrators manage researcher accounts, the audit log and data erasure.
 
-The backend runs as three logical nodes on one virtual machine, reached through two Tailscale gateways with HTTPS. Each node holds an API replica and one member of each data cluster: PostgreSQL with Patroni, RabbitMQ with quorum queues and Garage object storage with three copies of every file. We tested eleven failure scenarios with scripts. Ten pass, nine of them on the server: the database leader is replaced in 23.8 s, a gateway failure loses none of 120 entries, some with photos, sent from ten simulated phones, the loss of a storage node loses none of 45 photo entries, and a standby scheduler takes over in 15.2 s. The restore of the encrypted backup also passes. The phone in airplane mode is still to be run. The whole stack starts with Docker Compose and is monitored with Prometheus and Grafana.
+The backend runs as three logical nodes on one virtual machine, reached through two Tailscale gateways with HTTPS. Each node holds an API replica and one member of each data cluster: PostgreSQL with Patroni, RabbitMQ with quorum queues and Garage object storage with three copies of every file. We tested eleven failure scenarios with scripts, and all pass. Nine ran on the server, each four times (36 of 36 passed): the database leader is replaced in 27.2 s on average, a gateway failure loses none of 480 entries sent from ten simulated phones, the loss of a storage node loses none of 119 photo entries, and a standby scheduler takes over in 13.5 s. The restore of the encrypted backup passes on the development stack, and the phone in airplane mode passes on the Android emulator. The whole stack starts with Docker Compose and is monitored with Prometheus and Grafana.
 
 The artificial intelligence component is a constraint satisfaction scheduler implemented from scratch, with backtracking, forward checking, MRV, LCV and AC-3, which decides when to prompt each participant. On generated studies of up to 100 participants it breaks no constraint, while fixed-hour prompting overloads slots and breaks minimum gaps. On 300 small studies it matched an exhaustive search every time. AC-3 reports the clashes of minimum gaps and leaves to the search the choice of which prompt to drop. The scheduler also weighs load by entry type and shares capacity across studies.
 
@@ -174,23 +174,25 @@ are in `05_Artefactos/mockups`.
   aggregate and handle erasure requests, confirmed with a one-time code.
 - Entries carry a UUID created on the phone, so a resend after a failure never duplicates one.
 
-Fault tolerance was measured with the failure scripts on the server. Ten of eleven scenarios
-pass:
+Fault tolerance was measured with the failure scripts on the server. All eleven scenarios pass.
+Each of the nine cluster scenarios was run four times on the server and passed every time
+(36 of 36); the first run was on 9 November 2026. The values below are the mean of the four runs:
 
 | Scenario | Measured result |
 |---|---|
-| Kill an API container | Both gateways answer again in under 2 s |
-| Kill the database leader | New leader in 23.8 s; the old one returns as a replica |
-| Kill the synchronous replica | New synchronous replica in 9.9 s, no failed request |
-| Stop the data and API containers of a node | The other two keep the leader and a synchronous replica; the node rejoins in 9.3 s |
-| Kill a broker node | Out of the active set in 0.7 s; rejoins in 5.6 s |
+| Kill an API container | Gateway 1 answers again in 1.7 s and gateway 2 in 1.3 s; all three APIs healthy 9.7 s after the restart |
+| Kill the database leader | New leader in 27.2 s (23.8 to 31.4 s); the old one returns as a replica and the cluster is complete in 31.0 s |
+| Kill the synchronous replica | New synchronous replica in 9.5 s, no failed request |
+| Stop the data and API containers of a node | The other two keep the leader and a synchronous replica; the node rejoins in 9.2 s |
+| Kill a broker node | Out of the active set in 0.6 s; rejoins in 5.1 s |
 | Cut a node off the network | The remaining pair keep working; the node rejoins 4.3 s after reconnection |
-| Kill a storage node during uploads | 45 photo entries sent, 45 confirmed, none lost or duplicated |
-| Stop gateway 1 under ten simulated phones | Clients switch to gateway 2; 120 sent, 120 confirmed |
-| Kill the active scheduler | The standby takes over in 15.2 s, no duplicate plan |
+| Kill a storage node during uploads | 119 photo entries sent over four runs, 119 confirmed, none lost or duplicated; Garage back at 3 of 3 nodes in 3.1 s |
+| Stop gateway 1 under ten simulated phones | Clients retry on gateway 2 in under 1 ms; 480 sent over four runs, 480 confirmed, none lost or duplicated |
+| Kill the active scheduler | The standby takes over in 13.5 s, no duplicate plan |
 | Restore the encrypted backup | Passes on the development stack |
+| Phone in airplane mode | Passes on the Android emulator: 3 entries recorded offline reached the server about 2 s after the network came back, each once |
 
-The eleventh scenario, a phone in airplane mode, still has to be run with a real phone.
+The airplane mode scenario has not been run on a physical phone yet; that run is planned for the final delivery.
 
 ### Relevant contributions
 
@@ -246,7 +248,7 @@ The eleventh scenario, a phone in airplane mode, still has to be run with a real
   its network link is outside the fault model, and starting the stack elsewhere is manual.
 - Network failures are simulated by cutting one node off from the other two. Packet loss,
   latency and other partitions are not tested.
-- The phone fault test (FS8) has not run yet. The camera and microphone were tested only on the
+- The phone fault test (FS8) ran on the Android emulator only. The camera and microphone were tested only on the
   emulator, and push notifications need the Firebase key in the Expo project.
 - The app is built and tested for Android only.
 - Access is limited to devices on the project's Tailscale network.
@@ -259,7 +261,7 @@ The eleventh scenario, a phone in airplane mode, still has to be run with a real
 
 ### Future work
 
-- Run FS8 with a phone, and give each logical node its own virtual machine for the final delivery.
+- Run FS8 on a physical phone, and give each logical node its own virtual machine for the final delivery.
 - Add rate limiting and the cleanup of orphan uploads.
 - Stream the export instead of building it whole.
 - A lower bound for branch and bound from the AC-3 clashes.

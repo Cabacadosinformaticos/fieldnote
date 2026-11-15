@@ -138,7 +138,7 @@ The participant app's interface texts and the consent text are available in Port
 | Client | Every phone is independent | The app sees a network error or a timeout | The entry stays in the local queue and is resent with the same UUID |
 | Entry | 2 gateways, each with Tailscale and Traefik | The client's request fails with a network error, a 502, 503 or 504, or after 10 s | The app repeats the request once on the other gateway |
 | API | 3 stateless replicas | Traefik calls `/api/v1/health/ready` every 2 s with a 1 s timeout. It answers 503 if the replica cannot reach the database primary or a broker | Traefik stops routing to the failed replica. Docker restarts a crashed container |
-| Scheduler | 2 replicas, one leader | The leader renews a lease row in the database every 5 s. A lease not renewed for 15 s has expired | The standby takes the expired lease and continues from the plan stored in the database. Measured takeover: 15.2 s |
+| Scheduler | 2 replicas, one leader | The leader renews a lease row in the database every 5 s. A lease not renewed for 15 s has expired | The standby takes the expired lease and continues from the plan stored in the database. Measured takeover: 13.5 s on average over four runs (12.3 to 15.2 s) |
 | Database | 1 primary, 1 synchronous replica, 1 asynchronous replica | The primary stops renewing its leader key in etcd (TTL 30 s) | Patroni promotes the synchronous replica. The old primary rejoins as a replica |
 | Broker | 3 nodes, quorum queues | The RabbitMQ cluster loses a member | Queues keep working with 2 of 3 members. Unacknowledged messages are delivered again |
 | Object storage | 3 copies, one per zone, writes confirmed after 2 | Garage nodes stop seeing the member | Reads and writes continue with 2 nodes. The returning node catches up |
@@ -204,7 +204,7 @@ emptied when a write fails with a connection error. The API retries the whole tr
 times; the retry is safe because every write is idempotent. A primary cut off from etcd demotes
 itself to read-only when its leader key expires, so it stops accepting writes.
 
-A multi-host connection string with `target_session_attrs` is a libpq feature, which psycopg 3 supports. On the server a failover of the primary took 23.8 s, inside the Patroni target of 45 s.
+A multi-host connection string with `target_session_attrs` is a libpq feature, which psycopg 3 supports. On the server a failover of the primary took 27.2 s on average over four runs (23.8 to 31.4 s), inside the Patroni target of 45 s.
 
 ### Real time
 
@@ -229,7 +229,7 @@ because the app asks the API for pending prompts every time it opens.
 ## What is not done
 
 - One virtual machine per node: the nodes are logical, on one VM, until the final delivery.
-- Scenario 8 of the fault model (phone in airplane mode) has not been run with a phone.
+- Scenario 8 of the fault model (phone in airplane mode) passed on the Android emulator; it has not been run on a physical phone.
 - Rate limiting at the gateways is not configured; only the API throttles logins and account sign-in codes.
 - Cleanup of orphan media objects (`pending` after 7 days) and the purge of published outbox events.
 - Prometheus has no alert rules.
