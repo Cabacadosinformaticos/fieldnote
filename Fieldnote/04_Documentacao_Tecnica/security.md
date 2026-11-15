@@ -80,7 +80,7 @@ and threat. The residual risk of each row is in the sections below.
 | Media worker | I: GPS in photos | Metadata stripped when the activity does not ask for location; original not downloadable until processed |
 | Clients to gateways | D: excess of requests | Per-account login lockout and per-IP and per-account limits on account sign-in codes in the API, three API replicas. Rate limits at Traefik are not configured |
 | Clients to gateways | I: eavesdropping | WireGuard through Tailscale, with HTTPS (ts.net certificate) on top |
-| Scheduler to push service, local notifications | I: notification text on a lock screen | Texts carry no participant data |
+| Scheduler to push service | I: notification text on a lock screen | Texts carry no participant data |
 | Participant app to API | S, I: stealing or losing a recovery code | 80 bits, shown once, stored only as an Argon2id hash with a keyed lookup value; attempts limited per IP and per account. A lost code with no other method cannot be recovered, a declared limit. See participant account |
 | Participant app to API | S: brute force of a 6-digit email code | 10 minutes, 5 attempts, a newer code replaces the older one, 60 s between codes and 5 codes per hour for an address, the same answer for known and unknown addresses. See participant account |
 | Participant app to API | S, E: account takeover | An account needs a method the person holds. The email is the weakest link: whoever controls the mailbox controls the account, which is why the recovery code is the default. A restore replaces the device tokens, so the old phone stops working and the person can see the change. See participant account |
@@ -570,7 +570,7 @@ used, and the dashboard is served without a Content-Security-Policy header, whic
 `Authorization` header, which a third-party site cannot set, so cross-site requests cannot use them, and
 the refresh cookie is `HttpOnly`, `Secure` in production and `SameSite=Strict`, with path `/api/v1/auth`.
 
-Push and local notifications appear on the lock screen. Their text carries no participant data; it says
+Push notifications appear on the lock screen. Their text carries no participant data; it says
 only that a new activity is available. The notification of a pool invitation says only that there is a new
 study in which the person can take part.
 

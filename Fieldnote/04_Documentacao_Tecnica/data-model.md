@@ -292,8 +292,8 @@ Figure 5 was drawn before the implementation and may lack the columns added sinc
   for arriving after the activity window.
 - `prompt.unplanned_reason` records why a prompt was not planned: `outside_availability`,
   `min_gap_infeasible`, `daily_cap`, `slot_cap` or `search_cut` (see the scheduler).
-- `prompt.shown_at` and `prompt.opened_at` are reported by the app, so delivery delays of push and
-  local notifications can be measured.
+- `prompt.shown_at` and `prompt.opened_at` are reported by the app, so delivery delays of push
+  notifications can be measured.
   Entries sent late from the offline queue keep the moment they were recorded.
 - Identity and entries are separate so that an export can be pseudonymised by default, and an
   erasure request can remove the identity and the entries of one participant.

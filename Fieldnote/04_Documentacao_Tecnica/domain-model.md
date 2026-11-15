@@ -126,8 +126,8 @@ From then on one loop runs for each day of the study. At night the scheduler pla
 a constraint satisfaction problem, with a limit of 10 s per study, and stores each prompt as planned
 or unplanned with its reason. The researcher sees the unplanned prompts and why they were left out.
 The scheduler sends a push notification at the planned time. The notification is best effort, so a
-decision follows: if the push does not arrive, the local notification scheduled from the synced plan
-fires instead, and each prompt is shown once.
+decision follows: if the push does not arrive, the app fetches the pending prompts from the API when
+it opens, and each prompt is shown once.
 
 The participant opens the prompt and records the entry. The phone creates the UUID and the content
 hash. A second decision handles connectivity: without a connection the entry waits in the offline

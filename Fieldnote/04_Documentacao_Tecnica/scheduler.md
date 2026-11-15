@@ -257,9 +257,9 @@ numbers as "plus LCV". The results report that as measured.
   proven way to improve compliance, because the evidence on prompt frequency is mixed.
 - Prompts are planned from declared availability, not from live phone context, which the
   literature shows can improve response and accuracy. Using context is future work.
-- Delivery depends on push notifications, which are best effort. When the app syncs, it schedules
-  local notifications for the next 24 hours of its plan, cancelled by prompt id when the push
-  arrives or the prompt is answered (see the architecture).
+- Delivery depends on push notifications, which are best effort. When a push does not arrive, the
+  app fetches the pending prompts from the API when it opens. Scheduled local notifications as a
+  fallback are not implemented (see the architecture).
 - The scheduler plans; it does not learn from past answers. Predicting the chance of an answer
   from each participant's history is listed as future work.
 - Planning is per study and per day, which keeps each problem small enough for backtracking. The
