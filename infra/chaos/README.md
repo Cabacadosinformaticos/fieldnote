@@ -217,3 +217,27 @@ assertions.
 - **Load and data are not changed.** No entries are written and no data is
   modified; the only state changes are container and network state, restored
   before the script exits.
+
+## Results
+
+Each script writes its log to standard output, with one timestamped line per step. Keep one folder
+per run, with one `<script name>.log` per scenario, under `results/`:
+
+```sh
+mkdir -p infra/chaos/results/<run>
+bash infra/chaos/fs3-kill-primary.sh > infra/chaos/results/<run>/fs3-kill-primary.log 2>&1
+```
+
+`results/20261109-2016/` holds the logs of the run on the server on 9 November 2026.
+`summarize.py` reads every run folder and prints, for each measured time, the value of each run,
+the mean, the minimum and the maximum, the entry counts of scenarios 5 and 10 and the PASS count
+per scenario:
+
+```sh
+python infra/chaos/summarize.py infra/chaos/results            # plain table
+python infra/chaos/summarize.py infra/chaos/results --md       # Markdown table
+python infra/chaos/summarize.py infra/chaos/results --csv out.csv
+```
+
+The resolution of each time is the polling interval of its script: 0.5 s for the gateways and the
+scheduler, 1 s for RabbitMQ and Garage, 2 s for Patroni.

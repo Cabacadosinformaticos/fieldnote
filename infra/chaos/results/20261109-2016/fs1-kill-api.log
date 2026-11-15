@@ -1,0 +1,23 @@
+[2026-11-09 20:16:46] FS1 kill an API container: target api2
+[2026-11-09 20:16:47] state before:
+[2026-11-09 20:16:49]   patroni: 3/3 members, leader pg1, sync standby pg3
+[2026-11-09 20:16:49]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:16:49]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:16:49] injecting: docker kill api2
+[2026-11-09 20:16:52] restoring api2 (docker start; a manual kill is not auto-restarted)
+[2026-11-09 20:16:58] measured:
+[2026-11-09 20:16:58]   gateway 1 healthy again: 1143 ms (target under 5000 ms)
+[2026-11-09 20:16:58]   gateway 2 healthy again: 1695 ms (target under 5000 ms)
+[2026-11-09 20:16:58]   api2 healthy after the explicit start: 6243 ms
+[2026-11-09 20:16:58]   all 3 API replicas healthy: 9305 ms
+[2026-11-09 20:16:58]   entries lost: not measured (health and pg_isready only in this block)
+[2026-11-09 20:16:58]   ok    gateway 1 recovered within 5s
+[2026-11-09 20:16:58]   ok    gateway 2 recovered within 5s
+[2026-11-09 20:16:58]   ok    all 3 API replicas are healthy again
+[2026-11-09 20:16:59]   ok    gateway 1 answers HTTP 200
+[2026-11-09 20:17:00]   ok    gateway 2 answers HTTP 200
+[2026-11-09 20:17:00] state after:
+[2026-11-09 20:17:02]   patroni: 3/3 members, leader pg1, sync standby pg3
+[2026-11-09 20:17:02]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:17:02]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:17:02] PASS FS1 kill an API container

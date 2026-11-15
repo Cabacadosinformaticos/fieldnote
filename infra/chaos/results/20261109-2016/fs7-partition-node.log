@@ -1,0 +1,32 @@
+[2026-11-09 20:21:47] FS7 partition one logical node: target node2 (etcd2 pg2 rabbitmq2 garage2 api2 outbox-relay2 media-worker2)
+[2026-11-09 20:21:49] state before:
+[2026-11-09 20:21:51]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:21:51]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:21:51]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:21:51] injecting: disconnect etcd2 pg2 rabbitmq2 garage2 api2 outbox-relay2 media-worker2 from fieldnote-cluster_cluster
+[2026-11-09 20:23:06] measured while node2 is isolated:
+[2026-11-09 20:23:06]   patroni members seen by the pair: 2/3
+[2026-11-09 20:23:06]   rabbitmq running nodes seen by the pair: 2/3
+[2026-11-09 20:23:06]   garage healthy nodes seen by the pair: 3/3
+[2026-11-09 20:23:06]   api2 database probe: unreachable (isolated)
+[2026-11-09 20:23:06]   gateways: both answer HTTP 200
+[2026-11-09 20:23:06]   ok    the pair kept the leader and the sync standby
+[2026-11-09 20:23:06]   ok    the pair kept 2 of 3 broker nodes
+[2026-11-09 20:23:06]   ok    the pair kept 2 of 3 storage nodes
+[2026-11-09 20:23:06]   ok    the isolated API cannot reach PostgreSQL
+[2026-11-09 20:23:06]   ok    both gateways kept answering through the edge network
+[2026-11-09 20:23:06]   note: /api/v1/health does not touch PostgreSQL yet, so the isolated replica still answered it
+[2026-11-09 20:23:06] reconnecting node2 to fieldnote-cluster_cluster
+[2026-11-09 20:23:13] measured after reconnection:
+[2026-11-09 20:23:13]   all 3 members again: 4293 ms after reconnection
+[2026-11-09 20:23:13]   gateway 1: HTTP 200, gateway 2: HTTP 200
+[2026-11-09 20:23:13]   api2 database probe: ok
+[2026-11-09 20:23:13]   ok    the node rejoined every cluster
+[2026-11-09 20:23:14]   ok    gateway 1 answers HTTP 200
+[2026-11-09 20:23:15]   ok    gateway 2 answers HTTP 200
+[2026-11-09 20:23:15]   ok    api2 can reach the database again
+[2026-11-09 20:23:15] state after:
+[2026-11-09 20:23:17]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:23:17]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:23:17]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:23:17] PASS FS7 partition one logical node

@@ -1,0 +1,29 @@
+[2026-11-09 20:21:10] FS6 kill a broker node: target rabbitmq2
+[2026-11-09 20:21:11] state before:
+[2026-11-09 20:21:13]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:21:13]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:21:13]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:21:13] injecting: SIGKILL rabbitmq2 and keep it down while the quorum is 2 of 3
+[2026-11-09 20:21:15] measured while rabbitmq2 is down:
+[2026-11-09 20:21:15]   broker left the running set after: 680 ms
+[2026-11-09 20:21:15]   rabbitmq running nodes: 2/3
+[2026-11-09 20:21:15]   network partitions: 0
+[2026-11-09 20:21:15]   gateway 1: HTTP 200, gateway 2: HTTP 200
+[2026-11-09 20:21:15]   events lost: not measured (no load generator and no event flow in this block)
+[2026-11-09 20:21:15]   ok    the other two brokers kept the cluster with no partition
+[2026-11-09 20:21:15]   ok    both gateways still answer HTTP 200
+[2026-11-09 20:21:15]   ok    gateway 2 still answers HTTP 200
+[2026-11-09 20:21:15] restoring rabbitmq2
+[2026-11-09 20:21:22] measured after recovery:
+[2026-11-09 20:21:22]   3 running broker nodes with no partition: 5635 ms
+[2026-11-09 20:21:22]   gateway 1: HTTP 200, gateway 2: HTTP 200
+[2026-11-09 20:21:22]   api1 database probe: ok
+[2026-11-09 20:21:22]   ok    the broker rejoined the cluster
+[2026-11-09 20:21:23]   ok    gateway 1 answers HTTP 200
+[2026-11-09 20:21:24]   ok    gateway 2 answers HTTP 200
+[2026-11-09 20:21:24]   ok    api1 can reach the database through its host list
+[2026-11-09 20:21:24] state after:
+[2026-11-09 20:21:26]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:21:26]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:21:26]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:21:26] PASS FS6 kill a broker node

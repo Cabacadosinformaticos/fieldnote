@@ -1,0 +1,48 @@
+[2026-11-09 20:19:02] FS2 stop one logical node: target node2
+[2026-11-09 20:19:03] state before:
+[2026-11-09 20:19:05]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:19:05]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:19:05]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:19:05] injecting: compose stop etcd2 pg2 rabbitmq2 garage2 api2 traefik2 outbox-relay2 media-worker2
+ Container media-worker2 Stopping 
+ Container traefik2 Stopping 
+ Container outbox-relay2 Stopping 
+ Container api2 Stopping 
+ Container api2 Stopped 
+ Container traefik2 Stopped 
+ Container outbox-relay2 Stopped 
+ Container media-worker2 Stopped 
+ Container rabbitmq2 Stopping 
+ Container garage2 Stopping 
+ Container pg2 Stopping 
+ Container garage2 Stopped 
+ Container rabbitmq2 Stopped 
+ Container pg2 Stopped 
+ Container etcd2 Stopping 
+ Container etcd2 Stopped 
+[2026-11-09 20:20:34] measured while node2 is down:
+[2026-11-09 20:20:34]   containers stopped: 8115 ms
+[2026-11-09 20:20:34]   patroni members: 2/3 (leader and sync standby present: yes)
+[2026-11-09 20:20:34]   rabbitmq running nodes: 2/3
+[2026-11-09 20:20:34]   garage healthy nodes: 2/3
+[2026-11-09 20:20:34]   surviving gateways (http://127.0.0.1:8090): healthy
+[2026-11-09 20:20:34]   ok    all node2 containers stopped
+[2026-11-09 20:20:34]   ok    Patroni kept a leader and a sync standby with 2 of 3 members
+[2026-11-09 20:20:34]   ok    RabbitMQ kept 2 of 3 running nodes with no partition
+[2026-11-09 20:20:34]   ok    Garage kept 2 of 3 healthy nodes
+[2026-11-09 20:20:34]   ok    the surviving gateway(s) answered HTTP 200
+[2026-11-09 20:20:34] restoring node2: etcd2 pg2 rabbitmq2 garage2 api2 traefik2 outbox-relay2 media-worker2
+[2026-11-09 20:20:46] measured after the node returned:
+[2026-11-09 20:20:46]   full cluster again: 9320 ms after the restart
+[2026-11-09 20:20:46]   gateway 1: HTTP 200, gateway 2: HTTP 200
+[2026-11-09 20:20:46]   api1 database probe: ok
+[2026-11-09 20:20:46]   entries lost: not measured (health and pg_isready only in this block)
+[2026-11-09 20:20:46]   ok    the returning node rejoined every cluster
+[2026-11-09 20:20:47]   ok    gateway 1 answers HTTP 200
+[2026-11-09 20:20:48]   ok    gateway 2 answers HTTP 200
+[2026-11-09 20:20:48]   ok    api1 can reach the database
+[2026-11-09 20:20:48] state after:
+[2026-11-09 20:20:50]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:20:50]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:20:50]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:20:50] PASS FS2 stop one logical node

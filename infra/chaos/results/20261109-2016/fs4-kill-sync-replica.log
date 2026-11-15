@@ -1,0 +1,28 @@
+[2026-11-09 20:18:20] FS4 kill the synchronous replica: current sync standby pg2
+[2026-11-09 20:18:21] state before:
+[2026-11-09 20:18:23]   patroni: 3/3 members, leader pg3, sync standby pg2
+[2026-11-09 20:18:23]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:18:23]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:18:23] injecting: SIGKILL pg2 and keep it down until Patroni reassigns the role
+[2026-11-09 20:18:32] measured:
+[2026-11-09 20:18:32]   new sync standby: pg1 after 9902 ms (target: a few seconds)
+[2026-11-09 20:18:32]   gateway 1 failed samples during the switch: 0
+[2026-11-09 20:18:32]   gateway 2 failed samples during the switch: 0
+[2026-11-09 20:18:32]   old sync standby pg2: down
+[2026-11-09 20:18:32]   ok    Patroni assigned a new sync standby
+[2026-11-09 20:18:33]   ok    the leader is still present
+[2026-11-09 20:18:33]   note: the write pause itself is not measured because no load generator runs in this block
+[2026-11-09 20:18:33] restoring pg2
+[2026-11-09 20:18:36] measured after recovery:
+[2026-11-09 20:18:36]   3 Patroni members with one leader and one sync standby: 10921 ms
+[2026-11-09 20:18:36]   gateway 1: HTTP 200, gateway 2: HTTP 200
+[2026-11-09 20:18:36]   api1 database probe: ok
+[2026-11-09 20:18:36]   ok    the returning replica rejoined and 3 members are streaming
+[2026-11-09 20:18:37]   ok    gateway 1 answers HTTP 200
+[2026-11-09 20:18:39]   ok    gateway 2 answers HTTP 200
+[2026-11-09 20:18:39]   ok    api1 can reach the database through its host list
+[2026-11-09 20:18:39] state after:
+[2026-11-09 20:18:41]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:18:41]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:18:41]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:18:41] PASS FS4 kill the synchronous replica

@@ -1,0 +1,26 @@
+[2026-11-09 20:30:25] FS11 kill the active scheduler replica
+[2026-11-09 20:30:25] state before:
+[2026-11-09 20:30:28]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:30:28]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:30:28]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:30:28]   scheduler lease: scheduler2:1:8fcebe25 (held), active scheduler2, standby scheduler1
+[2026-11-09 20:30:28] injecting: docker kill scheduler2 (the lease holder)
+[2026-11-09 20:30:43] measured while scheduler2 was stopped:
+[2026-11-09 20:30:43]   standby scheduler1 took the live lease after 15187 ms
+[2026-11-09 20:30:43]   lease row now: scheduler1:1:21f7c3dc (held: true)
+[2026-11-09 20:30:43] restarting scheduler2
+[2026-11-09 20:30:43] measured after scheduler2 returned:
+[2026-11-09 20:30:43]   scheduler2 running again after 143 ms
+[2026-11-09 20:30:44]   lease row: scheduler1:1:21f7c3dc|true
+[2026-11-09 20:30:44]   scheduler1 running: yes
+[2026-11-09 20:30:44]   scheduler2 running: yes
+[2026-11-09 20:30:44]   ok    the standby took over
+[2026-11-09 20:30:44]   ok    takeover took 15187 ms (target <= 20000 ms)
+[2026-11-09 20:30:44]   ok    the lease is held by scheduler1
+[2026-11-09 20:30:44]   ok    scheduler2 is running again
+[2026-11-09 20:30:44]   ok    both schedulers are running
+[2026-11-09 20:30:44] state after:
+[2026-11-09 20:30:46]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:30:46]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:30:46]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:30:46] PASS FS11 kill the active scheduler replica

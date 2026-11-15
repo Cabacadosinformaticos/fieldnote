@@ -1,0 +1,43 @@
+[2026-11-09 20:34:30] FS10 stop gateway 1 during client traffic
+[2026-11-09 20:34:30] state before:
+[2026-11-09 20:34:32]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:34:32]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:34:32]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:34:33] starting the load generator through gateway 1 (10 phones, 1 min, rate 12)
+[2026-11-09 20:34:40] injecting: docker compose stop traefik1
+[2026-11-09 20:35:36] measured while gateway 1 was stopped:
+[2026-11-09 20:35:36]   gateway 1 stopped answering after 807 ms
+[2026-11-09 20:35:36]   load generator exit code: 0
+[2026-11-09 20:35:36]   gateway switches: 1, first switch: 0.7 ms
+  study: aa64f45f-1214-48a4-808a-b41713ffe230
+  participants: 10
+  attempts: 120
+  sent: 120
+  confirmed: 120
+  retried: 1
+  duplicates: 0
+  losses: 0
+  unexpected: 0
+  media files: 29/29 readable
+  gateway switches: 1
+  first switch: 0.7 ms
+[2026-11-09 20:35:36] restarting gateway 1
+[2026-11-09 20:35:38] measured after gateway 1 returned:
+[2026-11-09 20:35:38]   gateway 1 healthy again after 1945 ms
+[2026-11-09 20:35:38]   entries sent: 120, confirmed: 120
+[2026-11-09 20:35:38]   losses: 0, duplicates: 0, unexpected: 0
+[2026-11-09 20:35:38]   media: 29/29 readable
+[2026-11-09 20:35:38]   gateway 1 HTTP status: 200
+[2026-11-09 20:35:38]   ok    gateway 1 stopped answering
+[2026-11-09 20:35:38]   ok    the load generator completed a run
+[2026-11-09 20:35:38]   ok    no entry was lost
+[2026-11-09 20:35:38]   ok    no entry was duplicated
+[2026-11-09 20:35:38]   ok    no unexpected entry appeared
+[2026-11-09 20:35:38]   ok    the client used the fallback gateway
+[2026-11-09 20:35:38]   ok    the first switch took 0 ms (target <= 5000 ms)
+[2026-11-09 20:35:38]   ok    gateway 1 answers HTTP 200 again
+[2026-11-09 20:35:38] state after:
+[2026-11-09 20:35:40]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:35:40]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:35:40]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:35:40] PASS FS10 stop gateway 1 during client traffic

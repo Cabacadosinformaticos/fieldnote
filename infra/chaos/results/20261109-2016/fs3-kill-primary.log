@@ -1,0 +1,29 @@
+[2026-11-09 20:17:23] FS3 kill the database primary: current leader pg1
+[2026-11-09 20:17:23] state before:
+[2026-11-09 20:17:25]   patroni: 3/3 members, leader pg1, sync standby pg3
+[2026-11-09 20:17:25]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:17:25]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:17:25] injecting: SIGKILL pg1 and keep it down until promotion
+[2026-11-09 20:17:49] measured:
+[2026-11-09 20:17:49]   new leader: pg3 after 23847 ms (target up to 45000 ms)
+[2026-11-09 20:17:49]   gateway 1 failed samples during the pause: 14
+[2026-11-09 20:17:49]   gateway 2 failed samples during the pause: 14
+[2026-11-09 20:17:49]   old leader pg1: down
+[2026-11-09 20:17:49]   ok    new leader within 45s
+[2026-11-09 20:17:49]   ok    the new leader accepts connections
+[2026-11-09 20:17:49]   note: the API /health route is a stub, so the gateways answered even while the database had no primary
+[2026-11-09 20:17:49] restoring pg1
+[2026-11-09 20:17:55] measured after recovery:
+[2026-11-09 20:17:55]   3 Patroni members with one leader and one sync standby: 27003 ms
+[2026-11-09 20:17:55]   gateway 1: HTTP 200, gateway 2: HTTP 200
+[2026-11-09 20:17:55]   api1 database probe: ok
+[2026-11-09 20:17:55]   entries lost: not measured (health and pg_isready only in this block)
+[2026-11-09 20:17:55]   ok    the old primary rejoined and 3 members are streaming
+[2026-11-09 20:17:56]   ok    gateway 1 answers HTTP 200
+[2026-11-09 20:17:57]   ok    gateway 2 answers HTTP 200
+[2026-11-09 20:17:57]   ok    api1 can reach the database through its host list
+[2026-11-09 20:17:57] state after:
+[2026-11-09 20:18:00]   patroni: 3/3 members, leader pg3, sync standby pg2
+[2026-11-09 20:18:00]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:18:00]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:18:00] PASS FS3 kill the database primary

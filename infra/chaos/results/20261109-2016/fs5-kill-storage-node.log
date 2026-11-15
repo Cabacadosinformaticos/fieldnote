@@ -1,0 +1,43 @@
+[2026-11-09 20:31:33] FS5 kill a storage node during media uploads: target garage2
+[2026-11-09 20:31:33] state before:
+[2026-11-09 20:31:35]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:31:35]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:31:35]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:31:36] starting the load generator (10 phones, 1 min, rate 12, media)
+[2026-11-09 20:31:41] injecting: docker kill garage2
+[2026-11-09 20:34:03] measured while garage2 is down:
+[2026-11-09 20:34:03]   storage node left the healthy set: 80968 ms (healthy nodes now: 2/3)
+[2026-11-09 20:34:03]   load generator exit code: 0
+  study: ea67bff5-2e0f-4158-9800-84ff7e0c7a59
+  participants: 10
+  attempts: 45
+  sent: 45
+  confirmed: 45
+  retried: 25
+  duplicates: 0
+  losses: 0
+  unexpected: 0
+  media files: 45/45 readable
+  gateway switches: 1
+  first switch: 30027.1 ms
+[2026-11-09 20:34:03] restarting garage2
+[2026-11-09 20:34:07] measured after the node returned:
+[2026-11-09 20:34:07]   Garage healthy nodes: 3/3 after 4710 ms
+[2026-11-09 20:34:07]   entries sent: 45, confirmed: 45
+[2026-11-09 20:34:07]   losses: 0, duplicates: 0, unexpected: 0
+[2026-11-09 20:34:07]   readable files: 45/45
+[2026-11-09 20:34:07]   gateway switches: 1 (both gateways stayed up in this scenario)
+[2026-11-09 20:34:07]   ok    garage2 is stopped
+[2026-11-09 20:34:07]   ok    garage2 left the healthy set
+[2026-11-09 20:34:07]   ok    the load generator completed a run
+[2026-11-09 20:34:07]   ok    no entry was lost
+[2026-11-09 20:34:07]   ok    no entry was duplicated
+[2026-11-09 20:34:07]   ok    no unexpected entry appeared
+[2026-11-09 20:34:07]   ok    every uploaded file is readable
+[2026-11-09 20:34:07]   ok    garage2 rejoined Garage
+[2026-11-09 20:34:08]   ok    Garage has 3 healthy nodes again
+[2026-11-09 20:34:08] state after:
+[2026-11-09 20:34:10]   patroni: 3/3 members, leader pg3, sync standby pg1
+[2026-11-09 20:34:10]   rabbitmq: 3/3 running, garage: 3/3 healthy
+[2026-11-09 20:34:10]   gateway 1 (127.0.0.1:8090): HTTP 200, gateway 2 (127.0.0.1:8092): HTTP 200
+[2026-11-09 20:34:10] PASS FS5 kill a storage node during media uploads
