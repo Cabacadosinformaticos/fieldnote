@@ -2,7 +2,7 @@ from datetime import UTC, datetime, time
 
 import pytest
 
-from scheduler.model import FixedPrompt, Participant
+from scheduler.model import FixedPrompt, Participant, UnplannedReason
 from scheduler.plan import plan_day
 
 from ._helpers import (
@@ -62,3 +62,27 @@ def test_fixed_prompt_with_seconds_matches_brute_force() -> None:
     assert plan.finished
     assert_valid_plan(study, plan)
     assert (plan.planned_count, plan.score) == brute_force_best(study, (sent,))
+
+
+def test_ac3_leaves_the_choice_of_the_unplanned_prompt_to_the_search() -> None:
+    # a and b fit together (gap 0) but each clashes with c (gap 30). AC-3 used to empty a and b
+    # against c and plan only c; the optimum drops c and plans a and b.
+    study = make_study(
+        activities=(
+            make_activity("a", min_gap_minutes=0, start=time(9, 15), end=time(9, 30)),
+            make_activity("b", min_gap_minutes=0, start=time(9, 30), end=time(9, 45)),
+            make_activity("c", min_gap_minutes=30, start=time(9, 15), end=time(9, 30)),
+        ),
+        participants=(Participant("p1", any_time=True),),
+        max_prompts_per_day=2,
+        max_prompts_per_slot=1,
+    )
+
+    plan = plan_day(study, node_limit=None)
+
+    assert plan.finished
+    assert_valid_plan(study, plan)
+    assert (plan.planned_count, plan.score) == brute_force_best(study) == (2, 1.0)
+    assert [(item.activity_id, item.reason) for item in plan.unplanned] == [
+        ("c", UnplannedReason.MIN_GAP_INFEASIBLE)
+    ]

@@ -53,8 +53,10 @@ def test_min_gap_infeasible_when_the_gap_does_not_fit_the_window() -> None:
 
     plan = plan_day(study)
 
-    assert timeline_reasons(plan) == [("p", "a", 0, UnplannedReason.MIN_GAP_INFEASIBLE)]
-    assert [prompt.occurrence for prompt in plan.planned] == [1]
+    # The search, not AC-3, picks which of the two clashing prompts goes to ⊥: it plans the
+    # first one it tries and leaves the second without a slot.
+    assert timeline_reasons(plan) == [("p", "a", 1, UnplannedReason.MIN_GAP_INFEASIBLE)]
+    assert [prompt.occurrence for prompt in plan.planned] == [0]
     assert plan.finished
 
 

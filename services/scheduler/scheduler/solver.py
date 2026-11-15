@@ -509,40 +509,28 @@ def _apply_root_global_constraints(
     variables[:] = [variable for index, variable in enumerate(variables) if domains[index] != 0]
 
 
-def _run_ac3(variables: list[_Variable], reasons: list[SolvedAssignment]) -> None:
-    """AC-3 per participant over the minimum-gap constraints."""
+def _run_ac3(variables: list[_Variable], reasons: list[SolvedAssignment]) -> list[int]:
+    """AC-3 per participant over the minimum-gap constraints, kept sound under ⊥.
+
+    A revision removes a value of one prompt because it clashes with every value of a peer, which
+    assumes the peer will be planned. With ⊥ ("not planned") in every domain that assumption does
+    not hold, so the removals are not sound and a prompt whose domain empties here may still be
+    planned when a peer goes to ⊥ instead. Which of two clashing prompts goes to ⊥ is left to the
+    search, which maximises the number of planned prompts. Only a prompt that does not fit even
+    alone is unplanned before the search, and :func:`_prepare` already marks those, so this pass
+    keeps every domain and every variable. It returns the indexes of the prompts that AC-3 found
+    in a clash, for tracing and for the ablation, and leaves ``reasons`` unchanged.
+    """
+    del reasons  # nothing is marked unplanned here, see the docstring
     by_participant: dict[str, list[int]] = {}
     for index, variable in enumerate(variables):
         by_participant.setdefault(variable.participant_id, []).append(index)
     gaps = [variable.gap for variable in variables]
-    domains = [variable.domain for variable in variables]
+    clashing: list[int] = []
     for group in by_participant.values():
-        base = {index: domains[index] for index in group}
-        active = list(group)
-        while active:
-            emptied = ac3(domains, gaps, active)
-            if not emptied:
-                break
-            emptied_set = set(emptied)
-            for index in emptied:
-                reasons.append(
-                    SolvedAssignment(
-                        variables[index].participant_id,
-                        variables[index].key,
-                        None,
-                        UnplannedReason.MIN_GAP_INFEASIBLE,
-                    )
-                )
-            active = [index for index in active if index not in emptied_set]
-            for index in active:
-                domains[index] = base[index]
-        # A value that AC-3 removes because a peer prompt is planned is still consistent
-        # when that peer is left unplanned (⊥), so its value removals are unsound here; only
-        # the prompts whose whole domain was emptied are kept as infeasible.
-        for index in active:
-            domains[index] = base[index]
-    for index, variable in enumerate(variables):
-        variable.domain = domains[index]
+        domains = [variable.domain for variable in variables]
+        clashing.extend(ac3(domains, gaps, group))
+    return sorted(clashing)
 
 
 def _best_assignments(search: _Search) -> list[SolvedAssignment]:
