@@ -123,6 +123,27 @@ docker compose -f compose.cluster.yaml --profile cluster up -d --build --wait
 The `cluster` profile starts all three nodes. Each node also has its own
 profile (`node1`, `node2`, `node3`), so a single node can be started alone.
 
+### Tailscale gateways
+
+`ts-gw1` and `ts-gw2` put each Traefik on the tailnet as `fieldnote-gw1` and
+`fieldnote-gw2`, with HTTPS certificates from Tailscale (`tailscale/gw1.json`
+and `gw2.json` are the serve configs). They hold no auth key, so each one is
+logged in once by hand. An interactive login inside the running container gives
+up after 60 seconds and restarts with a new link, so log in with `tailscaled`
+alone on the same state volume, then start the gateways:
+
+```sh
+docker compose -f compose.cluster.yaml run --rm --entrypoint sh ts-gw1 -c \
+  'tailscaled --tun=userspace-networking --statedir=/var/lib/tailscale & sleep 2;
+   tailscale up --hostname=fieldnote-gw1 --accept-dns=false'
+```
+
+Open the printed link, approve the device, stop the command with Ctrl+C and do
+the same for `ts-gw2` with `--hostname=fieldnote-gw2`. In the Tailscale admin
+console, turn off key expiry for both devices and enable HTTPS for the tailnet.
+The state stays in the `ts-gw1-state` and `ts-gw2-state` volumes, so later
+restarts need no login.
+
 ### Stop
 
 ```sh
