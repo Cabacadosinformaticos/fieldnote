@@ -1,0 +1,5594 @@
+{
+  "meta": {
+    "quick": false,
+    "seed": 2026,
+    "activity_count": 4,
+    "load_sizes": [
+      10,
+      50,
+      100
+    ],
+    "coverage_days": 7,
+    "scheduler_node_budget": 20000,
+    "quality_studies": 300,
+    "quality_seed": 4242,
+    "robustness_seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "robustness_node_budget": 20000,
+    "scale_sizes": [
+      10,
+      50,
+      100
+    ],
+    "scale_node_budgets": [
+      1000,
+      10000,
+      100000,
+      1000000
+    ],
+    "ablation_sizes": [
+      6,
+      10,
+      100
+    ],
+    "ablation_seeds": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "ablation_node_budget": 20000,
+    "timings_ms": {
+      "baseline_load_fairness": 3516,
+      "coverage": 36171,
+      "quality": 203,
+      "scale": 182093,
+      "robustness": 42889,
+      "ablation": 50860
+    }
+  },
+  "baseline": [
+    {
+      "participants": 10,
+      "scheduler": {
+        "planned": 38,
+        "score": 3.0,
+        "violations": {
+          "outside_availability": 0,
+          "daily_cap": 0,
+          "slot_cap": 0,
+          "min_gap": 0
+        }
+      },
+      "fixed_hours": {
+        "planned": 25,
+        "score": 1.0,
+        "violations": {
+          "outside_availability": 0,
+          "daily_cap": 0,
+          "slot_cap": 10,
+          "min_gap": 22
+        }
+      }
+    },
+    {
+      "participants": 50,
+      "scheduler": {
+        "planned": 157,
+        "score": 15.0,
+        "violations": {
+          "outside_availability": 0,
+          "daily_cap": 0,
+          "slot_cap": 0,
+          "min_gap": 0
+        }
+      },
+      "fixed_hours": {
+        "planned": 130,
+        "score": 2.0,
+        "violations": {
+          "outside_availability": 0,
+          "daily_cap": 0,
+          "slot_cap": 85,
+          "min_gap": 126
+        }
+      }
+    },
+    {
+      "participants": 100,
+      "scheduler": {
+        "planned": 332,
+        "score": 23.0,
+        "violations": {
+          "outside_availability": 0,
+          "daily_cap": 0,
+          "slot_cap": 0,
+          "min_gap": 0
+        }
+      },
+      "fixed_hours": {
+        "planned": 258,
+        "score": 1.0,
+        "violations": {
+          "outside_availability": 0,
+          "daily_cap": 0,
+          "slot_cap": 173,
+          "min_gap": 246
+        }
+      }
+    }
+  ],
+  "load": [
+    {
+      "participants": 10,
+      "scheduler": {
+        "planned": 38,
+        "peak_prompts_per_slot": 2,
+        "weighted_peak_per_slot": 10,
+        "weighted_variance_08_22": 8.08641581632653,
+        "slots_over_cap": 0
+      },
+      "fixed_hours": {
+        "planned": 25,
+        "peak_prompts_per_slot": 5,
+        "weighted_peak_per_slot": 25,
+        "weighted_variance_08_22": 25.637755102040817,
+        "slots_over_cap": 5
+      }
+    },
+    {
+      "participants": 50,
+      "scheduler": {
+        "planned": 157,
+        "peak_prompts_per_slot": 9,
+        "weighted_peak_per_slot": 40,
+        "weighted_variance_08_22": 77.42570153061224,
+        "slots_over_cap": 0
+      },
+      "fixed_hours": {
+        "planned": 130,
+        "peak_prompts_per_slot": 27,
+        "weighted_peak_per_slot": 130,
+        "weighted_variance_08_22": 693.6734693877551,
+        "slots_over_cap": 5
+      }
+    },
+    {
+      "participants": 100,
+      "scheduler": {
+        "planned": 332,
+        "peak_prompts_per_slot": 17,
+        "weighted_peak_per_slot": 80,
+        "weighted_variance_08_22": 340.1466836734694,
+        "slots_over_cap": 0
+      },
+      "fixed_hours": {
+        "planned": 258,
+        "peak_prompts_per_slot": 54,
+        "weighted_peak_per_slot": 270,
+        "weighted_variance_08_22": 2800.527742346939,
+        "slots_over_cap": 5
+      }
+    }
+  ],
+  "fairness": [
+    {
+      "participants": 10,
+      "scheduler": {
+        "planned_min": 0,
+        "planned_mean": 3.8,
+        "planned_max": 5,
+        "planned_std": 1.7776388834631178,
+        "gini": 0.22631578947368403,
+        "ratio_min": 0.0,
+        "ratio_mean": 0.76,
+        "planned_per_participant": [
+          1,
+          5,
+          5,
+          4,
+          0,
+          5,
+          3,
+          5,
+          5,
+          5
+        ]
+      },
+      "fixed_hours": {
+        "planned_min": 0,
+        "planned_mean": 2.5,
+        "planned_max": 5,
+        "planned_std": 2.0615528128088303,
+        "gini": 0.45999999999999996,
+        "ratio_min": 0.0,
+        "ratio_mean": 0.5,
+        "planned_per_participant": [
+          0,
+          5,
+          3,
+          1,
+          0,
+          5,
+          0,
+          4,
+          2,
+          5
+        ]
+      }
+    },
+    {
+      "participants": 50,
+      "scheduler": {
+        "planned_min": 0,
+        "planned_mean": 3.14,
+        "planned_max": 5,
+        "planned_std": 2.1634232133357543,
+        "gini": 0.36114649681528666,
+        "ratio_min": 0.0,
+        "ratio_mean": 0.628,
+        "planned_per_participant": [
+          1,
+          5,
+          5,
+          4,
+          0,
+          5,
+          3,
+          5,
+          5,
+          5,
+          5,
+          5,
+          0,
+          5,
+          0,
+          0,
+          5,
+          3,
+          5,
+          0,
+          0,
+          5,
+          5,
+          5,
+          0,
+          0,
+          5,
+          1,
+          5,
+          0,
+          5,
+          2,
+          3,
+          5,
+          5,
+          0,
+          5,
+          5,
+          5,
+          0,
+          0,
+          4,
+          0,
+          2,
+          5,
+          5,
+          4,
+          4,
+          5,
+          1
+        ]
+      },
+      "fixed_hours": {
+        "planned_min": 0,
+        "planned_mean": 2.6,
+        "planned_max": 5,
+        "planned_std": 2.227105745132009,
+        "gini": 0.46307692307692316,
+        "ratio_min": 0.0,
+        "ratio_mean": 0.52,
+        "planned_per_participant": [
+          0,
+          5,
+          3,
+          1,
+          0,
+          5,
+          0,
+          4,
+          2,
+          5,
+          1,
+          4,
+          0,
+          5,
+          0,
+          0,
+          5,
+          4,
+          5,
+          0,
+          0,
+          5,
+          5,
+          5,
+          0,
+          0,
+          4,
+          2,
+          5,
+          0,
+          5,
+          0,
+          4,
+          5,
+          5,
+          0,
+          5,
+          5,
+          4,
+          0,
+          0,
+          2,
+          0,
+          0,
+          5,
+          4,
+          1,
+          5,
+          5,
+          0
+        ]
+      }
+    },
+    {
+      "participants": 100,
+      "scheduler": {
+        "planned_min": 0,
+        "planned_mean": 3.32,
+        "planned_max": 5,
+        "planned_std": 2.106561178793533,
+        "gini": 0.32590361445783134,
+        "ratio_min": 0.0,
+        "ratio_mean": 0.664,
+        "planned_per_participant": [
+          1,
+          5,
+          5,
+          4,
+          0,
+          5,
+          3,
+          5,
+          5,
+          5,
+          5,
+          5,
+          0,
+          5,
+          0,
+          0,
+          5,
+          3,
+          5,
+          0,
+          0,
+          5,
+          5,
+          5,
+          0,
+          0,
+          5,
+          1,
+          5,
+          0,
+          5,
+          2,
+          3,
+          5,
+          5,
+          0,
+          5,
+          5,
+          5,
+          0,
+          0,
+          4,
+          0,
+          2,
+          5,
+          5,
+          4,
+          4,
+          5,
+          1,
+          5,
+          5,
+          1,
+          0,
+          5,
+          5,
+          5,
+          2,
+          5,
+          4,
+          5,
+          5,
+          5,
+          0,
+          5,
+          5,
+          0,
+          5,
+          5,
+          5,
+          5,
+          5,
+          0,
+          0,
+          4,
+          5,
+          0,
+          5,
+          5,
+          2,
+          2,
+          5,
+          4,
+          5,
+          5,
+          5,
+          0,
+          1,
+          5,
+          5,
+          4,
+          0,
+          4,
+          3,
+          5,
+          5,
+          5,
+          0,
+          0,
+          4
+        ]
+      },
+      "fixed_hours": {
+        "planned_min": 0,
+        "planned_mean": 2.58,
+        "planned_max": 5,
+        "planned_std": 2.182567295640618,
+        "gini": 0.46139534883720934,
+        "ratio_min": 0.0,
+        "ratio_mean": 0.516,
+        "planned_per_participant": [
+          0,
+          5,
+          3,
+          1,
+          0,
+          5,
+          0,
+          4,
+          2,
+          5,
+          1,
+          4,
+          0,
+          5,
+          0,
+          0,
+          5,
+          4,
+          5,
+          0,
+          0,
+          5,
+          5,
+          5,
+          0,
+          0,
+          4,
+          2,
+          5,
+          0,
+          5,
+          0,
+          4,
+          5,
+          5,
+          0,
+          5,
+          5,
+          4,
+          0,
+          0,
+          2,
+          0,
+          0,
+          5,
+          4,
+          1,
+          5,
+          5,
+          0,
+          1,
+          4,
+          0,
+          0,
+          4,
+          1,
+          5,
+          1,
+          5,
+          1,
+          5,
+          5,
+          5,
+          0,
+          2,
+          5,
+          0,
+          4,
+          5,
+          5,
+          4,
+          1,
+          0,
+          0,
+          2,
+          5,
+          0,
+          4,
+          2,
+          1,
+          0,
+          5,
+          0,
+          5,
+          0,
+          5,
+          0,
+          0,
+          5,
+          5,
+          4,
+          0,
+          1,
+          4,
+          5,
+          4,
+          5,
+          0,
+          0,
+          3
+        ]
+      }
+    }
+  ],
+  "coverage": [
+    {
+      "participants": 10,
+      "method": "scheduler",
+      "parts_mean": 2.4,
+      "parts_min": 1,
+      "share_all_allowed": 0.8,
+      "mean_daily_score": 21.857142857142858,
+      "parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        2,
+        1,
+        3,
+        2,
+        3
+      ],
+      "allowed_parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        4,
+        1,
+        3,
+        2,
+        4
+      ],
+      "daily_scores": [
+        0.0,
+        30.0,
+        17.0,
+        21.0,
+        24.0,
+        28.0,
+        33.0
+      ]
+    },
+    {
+      "participants": 10,
+      "method": "fixed_hours",
+      "parts_mean": 1.4,
+      "parts_min": 0,
+      "share_all_allowed": 0.0,
+      "mean_daily_score": 15.285714285714286,
+      "parts_per_participant": [
+        1,
+        2,
+        2,
+        1,
+        1,
+        2,
+        0,
+        2,
+        1,
+        2
+      ],
+      "allowed_parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        4,
+        1,
+        3,
+        2,
+        4
+      ],
+      "daily_scores": [
+        0.0,
+        16.0,
+        11.0,
+        16.0,
+        20.0,
+        20.0,
+        24.0
+      ]
+    },
+    {
+      "participants": 50,
+      "method": "scheduler",
+      "parts_mean": 2.4,
+      "parts_min": 1,
+      "share_all_allowed": 0.7,
+      "mean_daily_score": 94.71428571428571,
+      "parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        2,
+        1,
+        3,
+        2,
+        2,
+        2,
+        3,
+        3,
+        2,
+        3,
+        2,
+        2,
+        2,
+        3,
+        2,
+        2,
+        3,
+        3,
+        2,
+        2,
+        1,
+        3,
+        2,
+        4,
+        3,
+        3,
+        1,
+        2,
+        3,
+        2,
+        4,
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        1,
+        1,
+        2,
+        3,
+        3,
+        2,
+        4,
+        2
+      ],
+      "allowed_parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        4,
+        1,
+        3,
+        2,
+        4,
+        2,
+        3,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2,
+        4,
+        2,
+        2,
+        4,
+        4,
+        4,
+        2,
+        1,
+        3,
+        2,
+        4,
+        3,
+        4,
+        1,
+        3,
+        4,
+        4,
+        4,
+        4,
+        3,
+        3,
+        2,
+        2,
+        2,
+        1,
+        1,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2
+      ],
+      "daily_scores": [
+        0.0,
+        116.0,
+        94.0,
+        105.0,
+        118.0,
+        110.0,
+        120.0
+      ]
+    },
+    {
+      "participants": 50,
+      "method": "fixed_hours",
+      "parts_mean": 1.46,
+      "parts_min": 0,
+      "share_all_allowed": 0.06,
+      "mean_daily_score": 84.71428571428571,
+      "parts_per_participant": [
+        1,
+        2,
+        2,
+        1,
+        1,
+        2,
+        0,
+        2,
+        1,
+        2,
+        1,
+        2,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2,
+        0,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        2,
+        1,
+        2,
+        2,
+        2,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "allowed_parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        4,
+        1,
+        3,
+        2,
+        4,
+        2,
+        3,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2,
+        4,
+        2,
+        2,
+        4,
+        4,
+        4,
+        2,
+        1,
+        3,
+        2,
+        4,
+        3,
+        4,
+        1,
+        3,
+        4,
+        4,
+        4,
+        4,
+        3,
+        3,
+        2,
+        2,
+        2,
+        1,
+        1,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2
+      ],
+      "daily_scores": [
+        0.0,
+        104.0,
+        88.0,
+        94.0,
+        93.0,
+        104.0,
+        110.0
+      ]
+    },
+    {
+      "participants": 100,
+      "method": "scheduler",
+      "parts_mean": 2.32,
+      "parts_min": 0,
+      "share_all_allowed": 0.68,
+      "mean_daily_score": 199.85714285714286,
+      "parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        2,
+        1,
+        3,
+        2,
+        2,
+        2,
+        3,
+        3,
+        2,
+        3,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        2,
+        2,
+        1,
+        3,
+        2,
+        3,
+        3,
+        2,
+        1,
+        2,
+        2,
+        3,
+        4,
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        1,
+        1,
+        2,
+        3,
+        3,
+        2,
+        4,
+        2,
+        2,
+        2,
+        0,
+        1,
+        3,
+        3,
+        2,
+        2,
+        3,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        2,
+        2,
+        4,
+        2,
+        2,
+        3,
+        3,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        2,
+        4,
+        3,
+        3,
+        3,
+        1,
+        1,
+        4,
+        4,
+        3,
+        3,
+        4,
+        2,
+        4,
+        3,
+        2,
+        2,
+        1,
+        3
+      ],
+      "allowed_parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        4,
+        1,
+        3,
+        2,
+        4,
+        2,
+        3,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2,
+        4,
+        2,
+        2,
+        4,
+        4,
+        4,
+        2,
+        1,
+        3,
+        2,
+        4,
+        3,
+        4,
+        1,
+        3,
+        4,
+        4,
+        4,
+        4,
+        3,
+        3,
+        2,
+        2,
+        2,
+        1,
+        1,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2,
+        2,
+        3,
+        1,
+        1,
+        4,
+        3,
+        4,
+        2,
+        3,
+        2,
+        4,
+        4,
+        4,
+        3,
+        3,
+        4,
+        2,
+        4,
+        4,
+        4,
+        3,
+        3,
+        1,
+        1,
+        2,
+        4,
+        2,
+        3,
+        2,
+        1,
+        1,
+        4,
+        4,
+        4,
+        3,
+        4,
+        1,
+        1,
+        4,
+        4,
+        3,
+        3,
+        4,
+        2,
+        4,
+        3,
+        4,
+        2,
+        1,
+        3
+      ],
+      "daily_scores": [
+        0.0,
+        236.0,
+        224.0,
+        223.0,
+        248.0,
+        233.0,
+        235.0
+      ]
+    },
+    {
+      "participants": 100,
+      "method": "fixed_hours",
+      "parts_mean": 1.42,
+      "parts_min": 0,
+      "share_all_allowed": 0.07,
+      "mean_daily_score": 175.71428571428572,
+      "parts_per_participant": [
+        1,
+        2,
+        2,
+        1,
+        1,
+        2,
+        0,
+        2,
+        1,
+        2,
+        1,
+        2,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2,
+        0,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        2,
+        1,
+        2,
+        2,
+        2,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        2,
+        0,
+        0,
+        2,
+        1,
+        2,
+        1,
+        2,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2,
+        2,
+        1,
+        0,
+        1,
+        1,
+        2,
+        1,
+        2,
+        1,
+        1,
+        0,
+        2,
+        1,
+        2,
+        0,
+        2,
+        0,
+        0,
+        2,
+        2,
+        2,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        1
+      ],
+      "allowed_parts_per_participant": [
+        2,
+        4,
+        3,
+        2,
+        2,
+        4,
+        1,
+        3,
+        2,
+        4,
+        2,
+        3,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2,
+        4,
+        2,
+        2,
+        4,
+        4,
+        4,
+        2,
+        1,
+        3,
+        2,
+        4,
+        3,
+        4,
+        1,
+        3,
+        4,
+        4,
+        4,
+        4,
+        3,
+        3,
+        2,
+        2,
+        2,
+        1,
+        1,
+        3,
+        4,
+        3,
+        2,
+        4,
+        2,
+        2,
+        3,
+        1,
+        1,
+        4,
+        3,
+        4,
+        2,
+        3,
+        2,
+        4,
+        4,
+        4,
+        3,
+        3,
+        4,
+        2,
+        4,
+        4,
+        4,
+        3,
+        3,
+        1,
+        1,
+        2,
+        4,
+        2,
+        3,
+        2,
+        1,
+        1,
+        4,
+        4,
+        4,
+        3,
+        4,
+        1,
+        1,
+        4,
+        4,
+        3,
+        3,
+        4,
+        2,
+        4,
+        3,
+        4,
+        2,
+        1,
+        3
+      ],
+      "daily_scores": [
+        0.0,
+        210.0,
+        186.0,
+        200.0,
+        211.0,
+        210.0,
+        213.0
+      ]
+    }
+  ],
+  "quality": {
+    "studies": 300,
+    "at_optimum_both": 300,
+    "at_optimum_count": 300,
+    "mean_count_gap": 0.0,
+    "max_count_gap": 0,
+    "mean_score_gap": 0.0,
+    "max_score_gap": 0.0,
+    "rows": [
+      {
+        "seed": 4242,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4243,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4244,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4245,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4246,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4247,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4248,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4249,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4250,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4251,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4252,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4253,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4254,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4255,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4256,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4257,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4258,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 4.0,
+        "optimum_score": 4.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4259,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4260,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4261,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4262,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4263,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4264,
+        "planned": 5,
+        "optimum_planned": 5,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4265,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4266,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4267,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4268,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4269,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4270,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4271,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4272,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4273,
+        "planned": 5,
+        "optimum_planned": 5,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4274,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4275,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4276,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4277,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4278,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4279,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4280,
+        "planned": 5,
+        "optimum_planned": 5,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4281,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4282,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4283,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4284,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4285,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4286,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4287,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4288,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4289,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4290,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4291,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4292,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4293,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4294,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4295,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4296,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4297,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4298,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4299,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4300,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4301,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4302,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4303,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4304,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4305,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4306,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4307,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4308,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4309,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4310,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4311,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4312,
+        "planned": 6,
+        "optimum_planned": 6,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4313,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4314,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4315,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4316,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4317,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4318,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4319,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4320,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4321,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4322,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4323,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4324,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4325,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4326,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4327,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4328,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4329,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4330,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4331,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4332,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4333,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4334,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4335,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4336,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4337,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4338,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4339,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4340,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4341,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4342,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4343,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4344,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4345,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4346,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4347,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4348,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4349,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4350,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4351,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4352,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4353,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4354,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4355,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4356,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4357,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4358,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 4.0,
+        "optimum_score": 4.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4359,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4360,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4361,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4362,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4363,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4364,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4365,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4366,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4367,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4368,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4369,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4370,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 4.0,
+        "optimum_score": 4.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4371,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4372,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4373,
+        "planned": 6,
+        "optimum_planned": 6,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4374,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4375,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4376,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4377,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4378,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4379,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4380,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4381,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4382,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.5,
+        "optimum_score": 2.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4383,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4384,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4385,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4386,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4387,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4388,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4389,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4390,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4391,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4392,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4393,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4394,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4395,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4396,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4397,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4398,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4399,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 5.0,
+        "optimum_score": 5.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4400,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4401,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4402,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4403,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4404,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4405,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4406,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4407,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4408,
+        "planned": 5,
+        "optimum_planned": 5,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4409,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4410,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4411,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4412,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4413,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4414,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4415,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4416,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4417,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4418,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4419,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4420,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4421,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4422,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4423,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4424,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4425,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4426,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4427,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4428,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4429,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4430,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4431,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4432,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4433,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4434,
+        "planned": 6,
+        "optimum_planned": 6,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4435,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4436,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4437,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4438,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4439,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4440,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4441,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4442,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4443,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4444,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4445,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4446,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4447,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4448,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4449,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4450,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4451,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4452,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4453,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4454,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4455,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4456,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4457,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4458,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4459,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4460,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4461,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4462,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4463,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4464,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4465,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4466,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4467,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4468,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4469,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4470,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4471,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4472,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4473,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4474,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4475,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4476,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4477,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4478,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4479,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4480,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4481,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4482,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4483,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4484,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4485,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4486,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4487,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4488,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4489,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4490,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4491,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4492,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4493,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4494,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4495,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4496,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4497,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4498,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4499,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4500,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4501,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4502,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4503,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4504,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4505,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4506,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4507,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4508,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4509,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4510,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4511,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4512,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 3.0,
+        "optimum_score": 3.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4513,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4514,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4515,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4516,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4517,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4518,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4519,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4520,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4521,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4522,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4523,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4524,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4525,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4526,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4527,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4528,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 2.5,
+        "optimum_score": 2.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4529,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4530,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4531,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4532,
+        "planned": 1,
+        "optimum_planned": 1,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4533,
+        "planned": 0,
+        "optimum_planned": 0,
+        "score": 0.0,
+        "optimum_score": 0.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4534,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 0.5,
+        "optimum_score": 0.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4535,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 2.0,
+        "optimum_score": 2.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4536,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4537,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4538,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4539,
+        "planned": 4,
+        "optimum_planned": 4,
+        "score": 1.5,
+        "optimum_score": 1.5,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4540,
+        "planned": 2,
+        "optimum_planned": 2,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      },
+      {
+        "seed": 4541,
+        "planned": 3,
+        "optimum_planned": 3,
+        "score": 1.0,
+        "optimum_score": 1.0,
+        "count_gap": 0,
+        "score_gap": 0.0
+      }
+    ]
+  },
+  "scale": [
+    {
+      "participants": 10,
+      "node_limit": 1000,
+      "planned": 38,
+      "score": 3.0,
+      "nodes": 1000,
+      "backtracks": 962,
+      "finished": false,
+      "time_ms": 30
+    },
+    {
+      "participants": 10,
+      "node_limit": 10000,
+      "planned": 38,
+      "score": 3.0,
+      "nodes": 10000,
+      "backtracks": 9960,
+      "finished": false,
+      "time_ms": 219
+    },
+    {
+      "participants": 10,
+      "node_limit": 100000,
+      "planned": 38,
+      "score": 3.0,
+      "nodes": 100000,
+      "backtracks": 99961,
+      "finished": false,
+      "time_ms": 2000
+    },
+    {
+      "participants": 10,
+      "node_limit": 1000000,
+      "planned": 38,
+      "score": 3.0,
+      "nodes": 1000000,
+      "backtracks": 999961,
+      "finished": false,
+      "time_ms": 19625
+    },
+    {
+      "participants": 50,
+      "node_limit": 1000,
+      "planned": 157,
+      "score": 9.0,
+      "nodes": 1000,
+      "backtracks": 825,
+      "finished": false,
+      "time_ms": 110
+    },
+    {
+      "participants": 50,
+      "node_limit": 10000,
+      "planned": 157,
+      "score": 15.0,
+      "nodes": 10000,
+      "backtracks": 9840,
+      "finished": false,
+      "time_ms": 546
+    },
+    {
+      "participants": 50,
+      "node_limit": 100000,
+      "planned": 157,
+      "score": 15.0,
+      "nodes": 100000,
+      "backtracks": 99840,
+      "finished": false,
+      "time_ms": 5218
+    },
+    {
+      "participants": 50,
+      "node_limit": 1000000,
+      "planned": 157,
+      "score": 17.0,
+      "nodes": 1000000,
+      "backtracks": 999840,
+      "finished": false,
+      "time_ms": 56281
+    },
+    {
+      "participants": 100,
+      "node_limit": 1000,
+      "planned": 332,
+      "score": 15.0,
+      "nodes": 1000,
+      "backtracks": 629,
+      "finished": false,
+      "time_ms": 390
+    },
+    {
+      "participants": 100,
+      "node_limit": 10000,
+      "planned": 332,
+      "score": 23.0,
+      "nodes": 10000,
+      "backtracks": 9657,
+      "finished": false,
+      "time_ms": 1046
+    },
+    {
+      "participants": 100,
+      "node_limit": 100000,
+      "planned": 332,
+      "score": 23.0,
+      "nodes": 100000,
+      "backtracks": 99657,
+      "finished": false,
+      "time_ms": 9031
+    },
+    {
+      "participants": 100,
+      "node_limit": 1000000,
+      "planned": 332,
+      "score": 23.0,
+      "nodes": 1000000,
+      "backtracks": 999657,
+      "finished": false,
+      "time_ms": 87531
+    }
+  ],
+  "robustness": [
+    {
+      "participants": 10,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "metrics": {
+        "planned_mean": 30.7,
+        "planned_std": 10.296115772464876,
+        "unplanned_mean": 25.3,
+        "unplanned_std": 10.119782606360673,
+        "score_mean": 12.05,
+        "score_std": 9.935919685665741,
+        "nodes_mean": 18106.5,
+        "nodes_std": 5680.5,
+        "time_ms_mean": 539.9,
+        "time_ms_std": 387.9588766866921
+      },
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 46,
+          "unplanned": 24,
+          "score": 2.0,
+          "nodes": 20000,
+          "time_ms": 639
+        },
+        {
+          "seed": 2,
+          "planned": 23,
+          "unplanned": 37,
+          "score": 2.0,
+          "nodes": 20000,
+          "time_ms": 375
+        },
+        {
+          "seed": 3,
+          "planned": 27,
+          "unplanned": 33,
+          "score": 3.0,
+          "nodes": 20000,
+          "time_ms": 452
+        },
+        {
+          "seed": 4,
+          "planned": 9,
+          "unplanned": 41,
+          "score": 2.0,
+          "nodes": 20000,
+          "time_ms": 297
+        },
+        {
+          "seed": 5,
+          "planned": 37,
+          "unplanned": 23,
+          "score": 29.0,
+          "nodes": 20000,
+          "time_ms": 1358
+        },
+        {
+          "seed": 6,
+          "planned": 28,
+          "unplanned": 22,
+          "score": 20.0,
+          "nodes": 20000,
+          "time_ms": 266
+        },
+        {
+          "seed": 7,
+          "planned": 40,
+          "unplanned": 20,
+          "score": 15.0,
+          "nodes": 20000,
+          "time_ms": 311
+        },
+        {
+          "seed": 8,
+          "planned": 42,
+          "unplanned": 8,
+          "score": 6.0,
+          "nodes": 20000,
+          "time_ms": 515
+        },
+        {
+          "seed": 9,
+          "planned": 27,
+          "unplanned": 33,
+          "score": 15.5,
+          "nodes": 20000,
+          "time_ms": 1140
+        },
+        {
+          "seed": 10,
+          "planned": 28,
+          "unplanned": 12,
+          "score": 26.0,
+          "nodes": 1065,
+          "time_ms": 46
+        }
+      ]
+    },
+    {
+      "participants": 50,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "metrics": {
+        "planned_mean": 152.2,
+        "planned_std": 27.352513595646013,
+        "unplanned_mean": 122.8,
+        "unplanned_std": 40.65907032877166,
+        "score_mean": 55.65,
+        "score_std": 52.72193566249251,
+        "nodes_mean": 20000.0,
+        "nodes_std": 0.0,
+        "time_ms_mean": 1582.6,
+        "time_ms_std": 1600.9003216940148
+      },
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 182,
+          "unplanned": 118,
+          "score": 22.0,
+          "nodes": 20000,
+          "time_ms": 1125
+        },
+        {
+          "seed": 2,
+          "planned": 110,
+          "unplanned": 190,
+          "score": 3.0,
+          "nodes": 20000,
+          "time_ms": 1078
+        },
+        {
+          "seed": 3,
+          "planned": 147,
+          "unplanned": 153,
+          "score": 6.0,
+          "nodes": 20000,
+          "time_ms": 922
+        },
+        {
+          "seed": 4,
+          "planned": 117,
+          "unplanned": 133,
+          "score": 1.0,
+          "nodes": 20000,
+          "time_ms": 563
+        },
+        {
+          "seed": 5,
+          "planned": 147,
+          "unplanned": 153,
+          "score": 127.0,
+          "nodes": 20000,
+          "time_ms": 5936
+        },
+        {
+          "seed": 6,
+          "planned": 153,
+          "unplanned": 97,
+          "score": 127.0,
+          "nodes": 20000,
+          "time_ms": 813
+        },
+        {
+          "seed": 7,
+          "planned": 199,
+          "unplanned": 101,
+          "score": 83.5,
+          "nodes": 20000,
+          "time_ms": 969
+        },
+        {
+          "seed": 8,
+          "planned": 185,
+          "unplanned": 65,
+          "score": 4.0,
+          "nodes": 20000,
+          "time_ms": 780
+        },
+        {
+          "seed": 9,
+          "planned": 140,
+          "unplanned": 160,
+          "score": 58.0,
+          "nodes": 20000,
+          "time_ms": 3047
+        },
+        {
+          "seed": 10,
+          "planned": 142,
+          "unplanned": 58,
+          "score": 125.0,
+          "nodes": 20000,
+          "time_ms": 593
+        }
+      ]
+    },
+    {
+      "participants": 100,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "metrics": {
+        "planned_mean": 299.8,
+        "planned_std": 60.13617879446615,
+        "unplanned_mean": 250.2,
+        "unplanned_std": 88.29699881649432,
+        "score_mean": 105.8,
+        "score_std": 105.95145114626793,
+        "nodes_mean": 20000.0,
+        "nodes_std": 0.0,
+        "time_ms_mean": 2149.4,
+        "time_ms_std": 978.484460786169
+      },
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 356,
+          "unplanned": 244,
+          "score": 20.0,
+          "nodes": 20000,
+          "time_ms": 1859
+        },
+        {
+          "seed": 2,
+          "planned": 168,
+          "unplanned": 432,
+          "score": 2.0,
+          "nodes": 20000,
+          "time_ms": 1640
+        },
+        {
+          "seed": 3,
+          "planned": 284,
+          "unplanned": 316,
+          "score": 5.0,
+          "nodes": 20000,
+          "time_ms": 1640
+        },
+        {
+          "seed": 4,
+          "planned": 240,
+          "unplanned": 260,
+          "score": 5.0,
+          "nodes": 20000,
+          "time_ms": 1297
+        },
+        {
+          "seed": 5,
+          "planned": 345,
+          "unplanned": 255,
+          "score": 268.0,
+          "nodes": 20000,
+          "time_ms": 3421
+        },
+        {
+          "seed": 6,
+          "planned": 280,
+          "unplanned": 220,
+          "score": 237.0,
+          "nodes": 20000,
+          "time_ms": 1671
+        },
+        {
+          "seed": 7,
+          "planned": 367,
+          "unplanned": 233,
+          "score": 153.5,
+          "nodes": 20000,
+          "time_ms": 2233
+        },
+        {
+          "seed": 8,
+          "planned": 369,
+          "unplanned": 131,
+          "score": 13.0,
+          "nodes": 20000,
+          "time_ms": 1844
+        },
+        {
+          "seed": 9,
+          "planned": 292,
+          "unplanned": 308,
+          "score": 109.5,
+          "nodes": 20000,
+          "time_ms": 4531
+        },
+        {
+          "seed": 10,
+          "planned": 297,
+          "unplanned": 103,
+          "score": 245.0,
+          "nodes": 20000,
+          "time_ms": 1358
+        }
+      ]
+    }
+  ],
+  "ablation": [
+    {
+      "participants": 6,
+      "variant": "plain backtracking",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 24,
+          "score": 0.0,
+          "nodes": 20000,
+          "backtracks": 171772,
+          "finished": false,
+          "time_ms": 281
+        },
+        {
+          "seed": 2,
+          "planned": 16,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 230871,
+          "finished": false,
+          "time_ms": 235
+        },
+        {
+          "seed": 3,
+          "planned": 26,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 242213,
+          "finished": false,
+          "time_ms": 375
+        },
+        {
+          "seed": 4,
+          "planned": 2,
+          "score": 0.0,
+          "nodes": 93,
+          "backtracks": 330,
+          "finished": true,
+          "time_ms": 0
+        },
+        {
+          "seed": 5,
+          "planned": 23,
+          "score": 17.0,
+          "nodes": 20000,
+          "backtracks": 85234,
+          "finished": false,
+          "time_ms": 218
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 18.2,
+        "score_mean": 3.8,
+        "nodes_mean": 16018.6,
+        "backtracks_mean": 146084.0,
+        "finished": 1,
+        "time_ms_mean": 221.8
+      }
+    },
+    {
+      "participants": 6,
+      "variant": "+ forward checking",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 24,
+          "score": 0.0,
+          "nodes": 20000,
+          "backtracks": 19971,
+          "finished": false,
+          "time_ms": 125
+        },
+        {
+          "seed": 2,
+          "planned": 16,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19972,
+          "finished": false,
+          "time_ms": 125
+        },
+        {
+          "seed": 3,
+          "planned": 26,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19964,
+          "finished": false,
+          "time_ms": 110
+        },
+        {
+          "seed": 4,
+          "planned": 2,
+          "score": 0.0,
+          "nodes": 93,
+          "backtracks": 92,
+          "finished": true,
+          "time_ms": 0
+        },
+        {
+          "seed": 5,
+          "planned": 23,
+          "score": 17.0,
+          "nodes": 20000,
+          "backtracks": 19974,
+          "finished": false,
+          "time_ms": 156
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 18.2,
+        "score_mean": 3.8,
+        "nodes_mean": 16018.6,
+        "backtracks_mean": 15994.6,
+        "finished": 1,
+        "time_ms_mean": 103.2
+      }
+    },
+    {
+      "participants": 6,
+      "variant": "+ MRV",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 25,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19971,
+          "finished": false,
+          "time_ms": 155
+        },
+        {
+          "seed": 2,
+          "planned": 15,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19974,
+          "finished": false,
+          "time_ms": 140
+        },
+        {
+          "seed": 3,
+          "planned": 23,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19964,
+          "finished": false,
+          "time_ms": 156
+        },
+        {
+          "seed": 4,
+          "planned": 2,
+          "score": 0.0,
+          "nodes": 93,
+          "backtracks": 92,
+          "finished": true,
+          "time_ms": 15
+        },
+        {
+          "seed": 5,
+          "planned": 21,
+          "score": 16.0,
+          "nodes": 20000,
+          "backtracks": 19975,
+          "finished": false,
+          "time_ms": 139
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 17.2,
+        "score_mean": 4.0,
+        "nodes_mean": 16018.6,
+        "backtracks_mean": 15995.2,
+        "finished": 1,
+        "time_ms_mean": 121.0
+      }
+    },
+    {
+      "participants": 6,
+      "variant": "+ LCV",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 25,
+          "score": 0.0,
+          "nodes": 20000,
+          "backtracks": 19972,
+          "finished": false,
+          "time_ms": 203
+        },
+        {
+          "seed": 2,
+          "planned": 16,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19972,
+          "finished": false,
+          "time_ms": 156
+        },
+        {
+          "seed": 3,
+          "planned": 23,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19964,
+          "finished": false,
+          "time_ms": 218
+        },
+        {
+          "seed": 4,
+          "planned": 2,
+          "score": 0.0,
+          "nodes": 93,
+          "backtracks": 92,
+          "finished": true,
+          "time_ms": 0
+        },
+        {
+          "seed": 5,
+          "planned": 22,
+          "score": 17.0,
+          "nodes": 20000,
+          "backtracks": 19974,
+          "finished": false,
+          "time_ms": 202
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 17.6,
+        "score_mean": 4.0,
+        "nodes_mean": 16018.6,
+        "backtracks_mean": 15994.8,
+        "finished": 1,
+        "time_ms_mean": 155.8
+      }
+    },
+    {
+      "participants": 6,
+      "variant": "+ AC-3",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 25,
+          "score": 0.0,
+          "nodes": 20000,
+          "backtracks": 19972,
+          "finished": false,
+          "time_ms": 203
+        },
+        {
+          "seed": 2,
+          "planned": 16,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19972,
+          "finished": false,
+          "time_ms": 171
+        },
+        {
+          "seed": 3,
+          "planned": 23,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19964,
+          "finished": false,
+          "time_ms": 218
+        },
+        {
+          "seed": 4,
+          "planned": 2,
+          "score": 0.0,
+          "nodes": 93,
+          "backtracks": 92,
+          "finished": true,
+          "time_ms": 0
+        },
+        {
+          "seed": 5,
+          "planned": 22,
+          "score": 17.0,
+          "nodes": 20000,
+          "backtracks": 19974,
+          "finished": false,
+          "time_ms": 203
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 17.6,
+        "score_mean": 4.0,
+        "nodes_mean": 16018.6,
+        "backtracks_mean": 15994.8,
+        "finished": 1,
+        "time_ms_mean": 159.0
+      }
+    },
+    {
+      "participants": 6,
+      "variant": "+ branch and bound",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 25,
+          "score": 9.0,
+          "nodes": 20000,
+          "backtracks": 19988,
+          "finished": false,
+          "time_ms": 750
+        },
+        {
+          "seed": 2,
+          "planned": 16,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19974,
+          "finished": false,
+          "time_ms": 265
+        },
+        {
+          "seed": 3,
+          "planned": 25,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19965,
+          "finished": false,
+          "time_ms": 686
+        },
+        {
+          "seed": 4,
+          "planned": 2,
+          "score": 0.0,
+          "nodes": 19,
+          "backtracks": 18,
+          "finished": true,
+          "time_ms": 0
+        },
+        {
+          "seed": 5,
+          "planned": 23,
+          "score": 20.0,
+          "nodes": 6193,
+          "backtracks": 6192,
+          "finished": true,
+          "time_ms": 297
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 18.2,
+        "score_mean": 6.6,
+        "nodes_mean": 13242.4,
+        "backtracks_mean": 13227.4,
+        "finished": 2,
+        "time_ms_mean": 399.6
+      }
+    },
+    {
+      "participants": 10,
+      "variant": "plain backtracking",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 42,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 268218,
+          "finished": false,
+          "time_ms": 218
+        },
+        {
+          "seed": 2,
+          "planned": 24,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 108490,
+          "finished": false,
+          "time_ms": 125
+        },
+        {
+          "seed": 3,
+          "planned": 27,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 171073,
+          "finished": false,
+          "time_ms": 515
+        },
+        {
+          "seed": 4,
+          "planned": 9,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 25813,
+          "finished": false,
+          "time_ms": 77
+        },
+        {
+          "seed": 5,
+          "planned": 39,
+          "score": 30.0,
+          "nodes": 20000,
+          "backtracks": 261299,
+          "finished": false,
+          "time_ms": 703
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 28.2,
+        "score_mean": 7.2,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 166978.6,
+        "finished": 0,
+        "time_ms_mean": 327.6
+      }
+    },
+    {
+      "participants": 10,
+      "variant": "+ forward checking",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 42,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19951,
+          "finished": false,
+          "time_ms": 156
+        },
+        {
+          "seed": 2,
+          "planned": 24,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19957,
+          "finished": false,
+          "time_ms": 93
+        },
+        {
+          "seed": 3,
+          "planned": 27,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19946,
+          "finished": false,
+          "time_ms": 139
+        },
+        {
+          "seed": 4,
+          "planned": 9,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19988,
+          "finished": false,
+          "time_ms": 94
+        },
+        {
+          "seed": 5,
+          "planned": 39,
+          "score": 30.0,
+          "nodes": 20000,
+          "backtracks": 19955,
+          "finished": false,
+          "time_ms": 125
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 28.2,
+        "score_mean": 7.2,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19959.4,
+        "finished": 0,
+        "time_ms_mean": 121.4
+      }
+    },
+    {
+      "participants": 10,
+      "variant": "+ MRV",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 46,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19950,
+          "finished": false,
+          "time_ms": 186
+        },
+        {
+          "seed": 2,
+          "planned": 22,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19954,
+          "finished": false,
+          "time_ms": 172
+        },
+        {
+          "seed": 3,
+          "planned": 27,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19946,
+          "finished": false,
+          "time_ms": 156
+        },
+        {
+          "seed": 4,
+          "planned": 9,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19988,
+          "finished": false,
+          "time_ms": 109
+        },
+        {
+          "seed": 5,
+          "planned": 34,
+          "score": 22.0,
+          "nodes": 20000,
+          "backtracks": 19954,
+          "finished": false,
+          "time_ms": 186
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 27.6,
+        "score_mean": 6.0,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19958.4,
+        "finished": 0,
+        "time_ms_mean": 161.8
+      }
+    },
+    {
+      "participants": 10,
+      "variant": "+ LCV",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 46,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19952,
+          "finished": false,
+          "time_ms": 235
+        },
+        {
+          "seed": 2,
+          "planned": 23,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19954,
+          "finished": false,
+          "time_ms": 186
+        },
+        {
+          "seed": 3,
+          "planned": 27,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19946,
+          "finished": false,
+          "time_ms": 218
+        },
+        {
+          "seed": 4,
+          "planned": 9,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19988,
+          "finished": false,
+          "time_ms": 125
+        },
+        {
+          "seed": 5,
+          "planned": 37,
+          "score": 26.0,
+          "nodes": 20000,
+          "backtracks": 19955,
+          "finished": false,
+          "time_ms": 234
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 28.4,
+        "score_mean": 6.8,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19959.0,
+        "finished": 0,
+        "time_ms_mean": 199.6
+      }
+    },
+    {
+      "participants": 10,
+      "variant": "+ AC-3",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 46,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19952,
+          "finished": false,
+          "time_ms": 250
+        },
+        {
+          "seed": 2,
+          "planned": 23,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19954,
+          "finished": false,
+          "time_ms": 202
+        },
+        {
+          "seed": 3,
+          "planned": 27,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19946,
+          "finished": false,
+          "time_ms": 235
+        },
+        {
+          "seed": 4,
+          "planned": 9,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19988,
+          "finished": false,
+          "time_ms": 139
+        },
+        {
+          "seed": 5,
+          "planned": 37,
+          "score": 26.0,
+          "nodes": 20000,
+          "backtracks": 19955,
+          "finished": false,
+          "time_ms": 219
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 28.4,
+        "score_mean": 6.8,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19959.0,
+        "finished": 0,
+        "time_ms_mean": 209.0
+      }
+    },
+    {
+      "participants": 10,
+      "variant": "+ branch and bound",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 46,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19959,
+          "finished": false,
+          "time_ms": 593
+        },
+        {
+          "seed": 2,
+          "planned": 23,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19955,
+          "finished": false,
+          "time_ms": 328
+        },
+        {
+          "seed": 3,
+          "planned": 27,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19948,
+          "finished": false,
+          "time_ms": 452
+        },
+        {
+          "seed": 4,
+          "planned": 9,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19990,
+          "finished": false,
+          "time_ms": 297
+        },
+        {
+          "seed": 5,
+          "planned": 37,
+          "score": 29.0,
+          "nodes": 20000,
+          "backtracks": 19981,
+          "finished": false,
+          "time_ms": 1296
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 28.4,
+        "score_mean": 7.6,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19966.6,
+        "finished": 0,
+        "time_ms_mean": 593.2
+      }
+    },
+    {
+      "participants": 100,
+      "variant": "plain backtracking",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 347,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 75157,
+          "finished": false,
+          "time_ms": 890
+        },
+        {
+          "seed": 2,
+          "planned": 168,
+          "score": 0.0,
+          "nodes": 20000,
+          "backtracks": 597827,
+          "finished": false,
+          "time_ms": 609
+        },
+        {
+          "seed": 3,
+          "planned": 283,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 156158,
+          "finished": false,
+          "time_ms": 2656
+        },
+        {
+          "seed": 4,
+          "planned": 225,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 537825,
+          "finished": false,
+          "time_ms": 656
+        },
+        {
+          "seed": 5,
+          "planned": 363,
+          "score": 237.0,
+          "nodes": 20000,
+          "backtracks": 268741,
+          "finished": false,
+          "time_ms": 4968
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 277.2,
+        "score_mean": 48.8,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 327141.6,
+        "finished": 0,
+        "time_ms_mean": 1955.8
+      }
+    },
+    {
+      "participants": 100,
+      "variant": "+ forward checking",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 347,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19622,
+          "finished": false,
+          "time_ms": 469
+        },
+        {
+          "seed": 2,
+          "planned": 168,
+          "score": 0.0,
+          "nodes": 20000,
+          "backtracks": 19560,
+          "finished": false,
+          "time_ms": 327
+        },
+        {
+          "seed": 3,
+          "planned": 283,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19583,
+          "finished": false,
+          "time_ms": 577
+        },
+        {
+          "seed": 4,
+          "planned": 225,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19688,
+          "finished": false,
+          "time_ms": 281
+        },
+        {
+          "seed": 5,
+          "planned": 363,
+          "score": 237.0,
+          "nodes": 20000,
+          "backtracks": 19578,
+          "finished": false,
+          "time_ms": 594
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 277.2,
+        "score_mean": 48.8,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19606.2,
+        "finished": 0,
+        "time_ms_mean": 449.6
+      }
+    },
+    {
+      "participants": 100,
+      "variant": "+ MRV",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 350,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19622,
+          "finished": false,
+          "time_ms": 858
+        },
+        {
+          "seed": 2,
+          "planned": 168,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19581,
+          "finished": false,
+          "time_ms": 485
+        },
+        {
+          "seed": 3,
+          "planned": 282,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19583,
+          "finished": false,
+          "time_ms": 843
+        },
+        {
+          "seed": 4,
+          "planned": 240,
+          "score": 1.0,
+          "nodes": 20000,
+          "backtracks": 19677,
+          "finished": false,
+          "time_ms": 640
+        },
+        {
+          "seed": 5,
+          "planned": 318,
+          "score": 228.0,
+          "nodes": 20000,
+          "backtracks": 19578,
+          "finished": false,
+          "time_ms": 1030
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 271.6,
+        "score_mean": 47.2,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19608.2,
+        "finished": 0,
+        "time_ms_mean": 771.2
+      }
+    },
+    {
+      "participants": 100,
+      "variant": "+ LCV",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 356,
+          "score": 5.0,
+          "nodes": 20000,
+          "backtracks": 19622,
+          "finished": false,
+          "time_ms": 1280
+        },
+        {
+          "seed": 2,
+          "planned": 168,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19565,
+          "finished": false,
+          "time_ms": 609
+        },
+        {
+          "seed": 3,
+          "planned": 284,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19583,
+          "finished": false,
+          "time_ms": 1202
+        },
+        {
+          "seed": 4,
+          "planned": 240,
+          "score": 5.0,
+          "nodes": 20000,
+          "backtracks": 19676,
+          "finished": false,
+          "time_ms": 797
+        },
+        {
+          "seed": 5,
+          "planned": 345,
+          "score": 259.0,
+          "nodes": 20000,
+          "backtracks": 19578,
+          "finished": false,
+          "time_ms": 1578
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 278.6,
+        "score_mean": 54.8,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19604.8,
+        "finished": 0,
+        "time_ms_mean": 1093.2
+      }
+    },
+    {
+      "participants": 100,
+      "variant": "+ AC-3",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 356,
+          "score": 5.0,
+          "nodes": 20000,
+          "backtracks": 19622,
+          "finished": false,
+          "time_ms": 1358
+        },
+        {
+          "seed": 2,
+          "planned": 168,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19565,
+          "finished": false,
+          "time_ms": 656
+        },
+        {
+          "seed": 3,
+          "planned": 284,
+          "score": 3.0,
+          "nodes": 20000,
+          "backtracks": 19583,
+          "finished": false,
+          "time_ms": 1235
+        },
+        {
+          "seed": 4,
+          "planned": 240,
+          "score": 5.0,
+          "nodes": 20000,
+          "backtracks": 19676,
+          "finished": false,
+          "time_ms": 796
+        },
+        {
+          "seed": 5,
+          "planned": 345,
+          "score": 259.0,
+          "nodes": 20000,
+          "backtracks": 19578,
+          "finished": false,
+          "time_ms": 1577
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 278.6,
+        "score_mean": 54.8,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19604.8,
+        "finished": 0,
+        "time_ms_mean": 1124.4
+      }
+    },
+    {
+      "participants": 100,
+      "variant": "+ branch and bound",
+      "runs": [
+        {
+          "seed": 1,
+          "planned": 356,
+          "score": 20.0,
+          "nodes": 20000,
+          "backtracks": 19648,
+          "finished": false,
+          "time_ms": 1860
+        },
+        {
+          "seed": 2,
+          "planned": 168,
+          "score": 2.0,
+          "nodes": 20000,
+          "backtracks": 19581,
+          "finished": false,
+          "time_ms": 1639
+        },
+        {
+          "seed": 3,
+          "planned": 284,
+          "score": 5.0,
+          "nodes": 20000,
+          "backtracks": 19586,
+          "finished": false,
+          "time_ms": 1578
+        },
+        {
+          "seed": 4,
+          "planned": 240,
+          "score": 5.0,
+          "nodes": 20000,
+          "backtracks": 19679,
+          "finished": false,
+          "time_ms": 1343
+        },
+        {
+          "seed": 5,
+          "planned": 345,
+          "score": 268.0,
+          "nodes": 20000,
+          "backtracks": 19636,
+          "finished": false,
+          "time_ms": 3390
+        }
+      ],
+      "metrics": {
+        "runs": 5,
+        "planned_mean": 278.6,
+        "score_mean": 60.0,
+        "nodes_mean": 20000.0,
+        "backtracks_mean": 19626.0,
+        "finished": 0,
+        "time_ms_mean": 1962.0
+      }
+    }
+  ]
+}
