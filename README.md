@@ -75,8 +75,11 @@ and the app keeps entries in a local queue while it has no network.
 
 ## Run it locally
 
-Requirements: Docker Desktop with Compose, Python 3.12 with `uv`, Node.js 24 and, for the app, the
-Android emulator or a phone with Expo. From a Windows host use `127.0.0.1`, not `localhost`.
+Requirements: Docker Desktop with Compose, Python 3.12, [`uv`](https://docs.astral.sh/uv/)
+(install it first), Node.js 24 and, for the app, the Android emulator or a phone with Expo. From a
+Windows host use `127.0.0.1`, not `localhost`. The development stack publishes ports 8080 (gateway),
+5432 (PostgreSQL), 3000, 9090 and 8025 on `127.0.0.1`; free them before starting it, or
+`smoke.sh` talks to whatever else holds port 8080.
 
 ```bash
 cp infra/deploy/.env.example infra/deploy/.env
@@ -92,6 +95,23 @@ bash infra/deploy/smoke.sh                        # prints SMOKE OK
 | Participant app | `npx expo start` in `apps/mobile` (the emulator reaches the API at `10.0.2.2:8080`) |
 | Grafana, Prometheus, Mailpit | http://127.0.0.1:3000, http://127.0.0.1:9090, http://127.0.0.1:8025 |
 | Demonstration study | `tools/demo-data/README.md` |
+
+Install the client dependencies with `npm ci` in `apps/dashboard` and `npm ci --legacy-peer-deps`
+in `apps/mobile` (the mobile app uses TypeScript 6, which `openapi-typescript` does not list as a
+peer yet; `apps/mobile/.npmrc` sets the flag for you).
+
+### Run the tests
+
+```bash
+cd services/api && uv run pytest -q            # 361 tests; needs the dev stack (PostgreSQL on 127.0.0.1:5432)
+cd services/scheduler && uv run pytest -q      # 429 tests
+cd services/media-worker && uv run pytest -q   # 37 tests
+cd services/backup && uv run pytest -q         # 12 tests
+cd tools/loadgen && uv run pytest -q           # 11 tests
+cd services/scheduler && uv run python -m scheduler.evaluate   # scheduler evaluation tables, no database
+npm --prefix apps/dashboard run lint && npm --prefix apps/dashboard run build
+cd apps/mobile && npx tsc --noEmit && npx expo lint
+```
 
 The three-node cluster (Patroni and etcd, RabbitMQ quorum queues, Garage with three zones, three
 API replicas and two gateways on ports 8090 and 8092) starts with
