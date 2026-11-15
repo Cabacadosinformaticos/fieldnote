@@ -303,6 +303,8 @@ class LoadGenerator:
             "POST",
             "/auth/password-reset/confirm",
             json={"token": password_token, "new_password": researcher_password},
+            # The API answers 204 since account links replaced temporary passwords.
+            expected=(200, 204),
         )
         researcher_token = _login(self.client, researcher_email, researcher_password)
         log(f"researcher {researcher_email} signed in")
