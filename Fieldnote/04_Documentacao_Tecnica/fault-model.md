@@ -42,7 +42,7 @@ Targets come from the design; measured values come from the run on the server on
 | Situation | Effect | Handling |
 |---|---|---|
 | Entry in flight when an API replica fails | Not confirmed to the participant | Stays in the app queue and is resent with the same UUID |
-| File uploaded, entry never confirmed | Object stays `pending` in storage | Deleted after 7 days |
+| File uploaded, entry never confirmed | Object stays `pending` in storage | Kept; the cleanup job that would delete it after 7 days is not implemented |
 | Event committed but not yet published | Delay, no loss | Stays in the outbox until the broker is back |
 | Relay crashes after publishing, before marking | Event published twice | Consumers ignore event ids they have already processed |
 | Scheduler leader cut off while sending | A notification may be sent twice, once by each scheduler | The leader stops sending as soon as a database call fails; the prompt row has a unique key and a status, so at most the notification in progress is repeated |

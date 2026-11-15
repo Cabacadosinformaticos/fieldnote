@@ -215,15 +215,12 @@ the dashboard reconnects after a random delay of 1 to 5 s and reloads the entrie
 the last one it showed, removing duplicates by entry id. The API sends a comment line every 20 s
 so that idle connections are not closed, with `Cache-Control: no-store` and no compression.
 
-### Notifications with a fallback
+### Notifications
 
 Push notifications depend on an external service that delivers on a best-effort basis, without a
-service level agreement. When the app syncs, it downloads the participant's plan for the next 24
-hours and schedules local notifications, which the phone fires without network; a local
-notification is cancelled when the push for the same prompt arrives or the prompt is answered, so
-each prompt is shown once. This fallback has not yet been tested on an Android phone. When notifications
-fail, participants still get their
-activities: the app asks the API for pending prompts every time it opens.
+service level agreement. Scheduled local notifications as a fallback are not implemented: the app
+does not schedule any. When a push does not arrive, participants still get their activities,
+because the app asks the API for pending prompts every time it opens.
 
 ![Entry submission](diagrams/entry-submission.svg)
 

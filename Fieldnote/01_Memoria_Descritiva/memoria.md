@@ -35,7 +35,7 @@ Fieldnote is a distributed platform for mobile ethnography and diary studies. Pa
 
 The platform is built and runs. Researchers use a web dashboard to create studies and activities, invite participants with personal codes, poster codes or a volunteer pool, follow entries and adherence in real time, tag entries and export the data. Participants use an Android app to join a study by QR code or typed code, accept the consent, receive prompts and record text, photo, video, audio, scale or choice entries with date, time and, when the study asks for it, location. The app keeps entries in a local queue while offline and resends them without duplicates. Administrators manage researcher accounts, the audit log and data erasure.
 
-The backend runs as three logical nodes on one virtual machine, reached through two Tailscale gateways with HTTPS. Each node holds an API replica and one member of each data cluster: PostgreSQL with Patroni, RabbitMQ with quorum queues and Garage object storage with three copies of every file. We tested eleven failure scenarios with scripts. Ten pass, nine of them on the server: the database leader is replaced in 23.8 s, a gateway failure loses none of 120 entries sent from ten simulated phones, the loss of a storage node loses none of 45 photo entries, and a standby scheduler takes over in 15.2 s. The restore of the encrypted backup also passes. The phone in airplane mode is still to be run. The whole stack starts with Docker Compose and is monitored with Prometheus and Grafana.
+The backend runs as three logical nodes on one virtual machine, reached through two Tailscale gateways with HTTPS. Each node holds an API replica and one member of each data cluster: PostgreSQL with Patroni, RabbitMQ with quorum queues and Garage object storage with three copies of every file. We tested eleven failure scenarios with scripts. Ten pass, nine of them on the server: the database leader is replaced in 23.8 s, a gateway failure loses none of 120 entries, some with photos, sent from ten simulated phones, the loss of a storage node loses none of 45 photo entries, and a standby scheduler takes over in 15.2 s. The restore of the encrypted backup also passes. The phone in airplane mode is still to be run. The whole stack starts with Docker Compose and is monitored with Prometheus and Grafana.
 
 The artificial intelligence component is a constraint satisfaction scheduler implemented from scratch, with backtracking, forward checking, MRV, LCV and AC-3, which decides when to prompt each participant. On generated studies of up to 100 participants it breaks no constraint, while fixed-hour prompting overloads slots and breaks minimum gaps. On 300 small studies it matched an exhaustive search every time. AC-3 reports the clashes of minimum gaps and leaves to the search the choice of which prompt to drop. The scheduler also weighs load by entry type and shares capacity across studies.
 
@@ -182,7 +182,7 @@ pass:
 | Kill an API container | Both gateways answer again in under 2 s |
 | Kill the database leader | New leader in 23.8 s; the old one returns as a replica |
 | Kill the synchronous replica | New synchronous replica in 9.9 s, no failed request |
-| Stop a whole node | The other two keep the leader and a synchronous replica; the node rejoins in 9.3 s |
+| Stop the data and API containers of a node | The other two keep the leader and a synchronous replica; the node rejoins in 9.3 s |
 | Kill a broker node | Out of the active set in 0.7 s; rejoins in 5.6 s |
 | Cut a node off the network | The remaining pair keep working; the node rejoins 4.3 s after reconnection |
 | Kill a storage node during uploads | 45 photo entries sent, 45 confirmed, none lost or duplicated |
@@ -209,7 +209,7 @@ The eleventh scenario, a phone in airplane mode, still has to be run with a real
   across running studies. At 100 participants it halves the weighted peak from 82 to 41 without
   losing a prompt.
 - Participant privacy by design: identity apart from entries, pseudonymous participants, the pool
-  shown only in counts, and erasure that also reaches the backups. Passwords use Argon2id and
+  shown only in counts, and erasure that also covers the backups: a backup leaves out participants whose erasure is pending and is kept at most 7 days, the time erasure takes to complete. Passwords use Argon2id and
   accounts lock after repeated failures. Media URLs are signed and short-lived, location metadata
   is removed from media, and the audit log records the actions of staff accounts.
 - Supporting research that changed the design: entries keep both the recording time and the
@@ -250,7 +250,7 @@ The eleventh scenario, a phone in airplane mode, still has to be run with a real
   emulator, and push notifications need the Firebase key in the Expo project.
 - The app is built and tested for Android only.
 - Access is limited to devices on the project's Tailscale network.
-- Rate limiting of the API is not implemented, and objects left in storage by uploads that never
+- Rate limiting at the gateways is not configured (the API only throttles sign-in), and objects left in storage by uploads that never
   completed are not cleaned up.
 - Entries still in the app queue are lost if the app is uninstalled before they are sent.
 - Most scheduler searches end at their node budget, so the plan is the best found, not a proven
