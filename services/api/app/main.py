@@ -54,9 +54,21 @@ def _dashboard_response(path: str) -> Response | None:
     if not root.is_dir():
         return None
     if (relative := path.lstrip("/")) and (asset := _dashboard_file(root, relative)):
-        return FileResponse(asset)
+        # Vite puts a content hash in every name under assets/, so those never change.
+        immutable = relative.startswith("assets/")
+        return FileResponse(
+            asset,
+            headers={
+                "Cache-Control": "public, max-age=31536000, immutable" if immutable else "no-cache"
+            },
+        )
+    if path.startswith("/assets/"):
+        # A missing asset is a 404, never the index: a cached index under an asset URL would
+        # break the page until the browser cache is cleared.
+        return None
     index = root / "index.html"
-    return FileResponse(index) if index.is_file() else None
+    # The index names the current assets, so the browser asks for it again on every visit.
+    return FileResponse(index, headers={"Cache-Control": "no-store"}) if index.is_file() else None
 
 
 @app.exception_handler(HTTPException)

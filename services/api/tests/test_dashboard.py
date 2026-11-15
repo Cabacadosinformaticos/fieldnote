@@ -82,3 +82,13 @@ def test_asset_is_served_with_a_relative_directory(
     response = client.get("/assets/app.js")
     assert response.status_code == 200
     assert "fieldnote" in response.text
+
+
+def test_missing_asset_is_a_404_not_the_index(dashboard: Path) -> None:
+    response = client.get("/assets/gone.js")
+    assert response.status_code == 404
+
+
+def test_cache_headers(dashboard: Path) -> None:
+    assert client.get("/").headers["cache-control"] == "no-store"
+    assert "immutable" in client.get("/assets/app.js").headers["cache-control"]
